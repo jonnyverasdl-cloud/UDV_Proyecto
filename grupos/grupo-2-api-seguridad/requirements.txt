@@ -1,0 +1,1 @@
+# Dependencias del grupo-2-api-seguridad. Una por línea, con versión fija (ej.: libreria==1.2.3).

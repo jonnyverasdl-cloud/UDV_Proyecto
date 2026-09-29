@@ -1,0 +1,8 @@
+# Mantenido por el PM (README §4). No agregar librerías aquí:
+# cada grupo las declara en su propio requirements.txt.
+-r grupos/grupo-1-base-de-datos/requirements.txt
+-r grupos/grupo-2-api-seguridad/requirements.txt
+-r grupos/grupo-3-workflow-tareas/requirements.txt
+-r grupos/grupo-4-inbox-entregas/requirements.txt
+-r grupos/grupo-5-programas-pdf/requirements.txt
+-r grupos/grupo-6-administracion/requirements.txt

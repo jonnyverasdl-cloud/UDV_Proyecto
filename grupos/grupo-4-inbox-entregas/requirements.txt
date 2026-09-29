@@ -1,0 +1,1 @@
+# Dependencias del grupo-4-inbox-entregas. Una por línea, con versión fija (ej.: libreria==1.2.3).

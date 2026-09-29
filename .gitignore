@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+*.env
+!.env.example
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Uploads y datos locales
+uploads/
+*.db
+*.sqlite3
+
+# Pruebas y logs
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+# Archivos de bloqueo de Word/Office
+~$*
