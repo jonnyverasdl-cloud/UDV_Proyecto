@@ -1,1 +1,25 @@
-# Dependencias del grupo-2-api-seguridad. Una por línea, con versión fija (ej.: libreria==1.2.3).
+# Dependencias del backend - Grupo 2 API y Seguridad
+# Instalar con: pip install -r requirements.txt
+
+# API
+fastapi==0.142.1
+uvicorn[standard]==0.54.0
+python-multipart==0.0.31 # Necesario si algun endpoint recibe archivos o forms (/files)
+
+# Seguridad
+bcrypt==5.0.0 # hash de contraseñas
+
+# JWT: El archivo traia DOS librerias para lo mismo (python-jose y PyJWT).
+# Dejo PyJWT porque el comentario original lo relaciona directo con quien programa el login (Persona 1).
+PyJWT==2.15.1  # Tokens de sesion (Persona de autenticacion)
+# python-jose[cryptography]==3.5.0
+
+# Base de datos
+SQLAlchemy==2.1.1 # Conexion a base de datos (Persona 5)
+
+# Configuracion
+python-dotenv==1.2.3 # Leer el archivo .env
+
+# Pruebas
+pytest==9.1.1
+httpx==0.28.1 # Lo usa TestClient de FastAPI
