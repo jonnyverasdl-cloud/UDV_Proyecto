@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Programa de Curso - Grupo 5</title>
+    <link rel="stylesheet" href="estilos/style.css" />
+    <script src="script.js" defer></script>
+  </head>
+
+  <body>
+    <div class="contenedor">
+      <!-- MENU LATERAL -->
+      <aside class="menu">
+        <h1>Proyecto</h1>
+        <p>Programación Web</p>
+
+        <a href="#">Resumen</a>
+        <a href="#">Inbox</a>
+        <a href="#">Crear tarea</a>
+        <a href="#" class="activo">Programa de curso</a>
+        <a href="#">API REST</a>
+      </aside>
+
+      <!-- CONTENIDO PRINCIPAL -->
+      <main class="contenido">
+        <div class="encabezado">
+          <div>
+            <div class="titulo-estado">
+              <h2>Programa de curso por secciones</h2>
+              <span class="estado-borrador">BORRADOR</span>
+            </div>
+            <p>Borrador académico · Grupo 5</p>
+          </div>
+          <select class="rol" aria-label="Rol de usuario">
+            <option>Docente</option>
+            <option selected>Coordinador académico</option>
+            <option>Autoridad (decanatura)</option>
+          </select>
+        </div>
+
+        <div class="area-trabajo">
+          <nav class="nav-secciones" aria-label="Secciones del programa">
+            <a class="activa" href="#informacion" aria-current="page"
+              >Información general</a
+            >
+            <a href="#prerrequisitos">Prerrequisitos</a>
+            <a href="#descripcion">Descripción</a>
+            <a href="#competencias">Competencias</a>
+            <a href="#perfil-egreso">Perfil de egreso</a>
+            <a href="#contenidos">Plan de contenidos</a>
+            <a href="#bibliografia">Bibliografía</a>
+            <a href="#evaluacion">Evaluación</a>
+            <a href="#autorizacion">Autorización</a>
+          </nav>
+
+          <div>
+            <section class="panel seccion activa" id="informacion">
+              <h3>Información general</h3>
+
+              <div class="formulario">
+                <div class="campo">
+                  <label>Unidad académica</label>
+                  <input
+                    type="text"
+                    value="Facultad de Ingeniería, Industria y Tecnología"
+                  />
+                </div>
+
+                <div class="campo">
+                  <label>Código</label>
+                  <input type="text" value="IS24-PW" />
+                </div>
+
+                <div class="campo">
+                  <label>Asignatura</label>
+                  <input type="text" value="Programación Web" />
+                </div>
+
+                <div class="campo">
+                  <label>Programa académico</label>
+                  <input
+                    type="text"
+                    value="Licenciatura en Ingeniería de Sistemas"
+                  />
+                </div>
+
+                <div class="campo">
+                  <label>Departamento</label>
+                  <input type="text" value="Ingeniería" />
+                </div>
+
+                <div class="campo">
+                  <label>Facultad</label>
+                  <input
+                    type="text"
+                    value="Ingeniería, Industria y Tecnología"
+                  />
+                </div>
+
+                <div class="campo">
+                  <label>Ciclo académico</label>
+                  <input type="text" value="4to. Semestre" />
+                </div>
+
+                <div class="campo">
+                  <label>Año</label>
+                  <input type="number" value="2026" />
+                </div>
+
+                <div class="campo">
+                  <label>Nivel académico</label>
+
+                  <select>
+                    <option>Técnico</option>
+                    <option selected>Licenciatura</option>
+                    <option>Maestría</option>
+                    <option>Doctorado</option>
+                  </select>
+                </div>
+
+                <div class="campo">
+                  <label>Área de formación</label>
+
+                  <select>
+                    <option>Sociales y Humanidades</option>
+                    <option>Ciencias Básicas</option>
+                    <option selected>Diseño de Ingeniería</option>
+                    <option>Ingeniería Aplicada</option>
+                    <option>Económico Administrativas</option>
+                  </select>
+                </div>
+
+                <div class="campo">
+                  <label>Pensum curricular</label>
+                  <input type="text" value="2024" />
+                </div>
+
+                <div class="campo">
+                  <label>Modalidad</label>
+                  <input
+                    type="text"
+                    value="e-Learning (síncrono) - presencial"
+                  />
+                </div>
+
+                <div class="campo">
+                  <label>Créditos académicos</label>
+                  <input type="number" value="4" />
+                </div>
+
+                <div class="campo">
+                  <label>Horas de clase semanal</label>
+                  <input type="number" value="4" />
+                </div>
+
+                <div class="campo">
+                  <label>Sede</label>
+                  <input type="text" value="Huehuetenango" />
+                </div>
+
+                <div class="campo">
+                  <label>Profesor responsable de la asignatura</label>
+                  <input type="text" value="Ing. Juan Carlos Maeda Juárez" />
+                </div>
+              </div>
+
+              <!-- BOTONES -->
+              <div class="botones">
+                <button class="guardar">Guardar borrador</button>
+
+                <button>Cancelar</button>
+              </div>
+            </section>
+
+            <section class="seccion" id="prerrequisitos">
+              <h3>Prerrequisitos</h3>
+              <div class="tabla-contenedor">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Orden</th>
+                      <th>Código</th>
+                      <th>Asignatura</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <input type="number" value="1" aria-label="Orden" />
+                      </td>
+                      <td><input value="IS24-FP2" aria-label="Código" /></td>
+                      <td>
+                        <input
+                          value="Fundamentos de Programación 2"
+                          aria-label="Asignatura"
+                        />
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+            <section class="seccion" id="descripcion">
+              <h3>Descripción</h3>
+              <textarea aria-label="Descripción de la asignatura">
+Curso práctico orientado al diseño y construcción de aplicaciones web modernas utilizando HTML, CSS, JavaScript, servicios REST, persistencia de datos y flujos de trabajo docentes.</textarea
+              >
+            </section>
+            <section class="seccion" id="competencias">
+              <h3>Competencias</h3>
+              <div class="campo">
+                <label for="competencia-general">Competencia general</label>
+                <textarea id="competencia-general">
+Desarrolla aplicaciones web integradas con servicios REST y bases de datos.</textarea
+                >
+              </div>
+              <div class="tabla-contenedor">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Competencias específicas</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <input
+                          value="Diseña APIs REST documentadas con OpenAPI."
+                          aria-label="Competencia específica 1"
+                        />
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <input
+                          value="Implementa interfaces web conectadas a servicios reales."
+                          aria-label="Competencia específica 2"
+                        />
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <input
+                          value="Aplica buenas prácticas de validación y manejo de errores."
+                          aria-label="Competencia específica 3"
+                        />
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+            <section class="seccion" id="perfil-egreso">
+              <h3>Perfil de egreso</h3>
+              <div class="tabla-contenedor">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Código</th>
+                      <th>Contribución</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <input value="PE-3" aria-label="Código del perfil 1" />
+                      </td>
+                      <td>
+                        <input
+                          value="Diseña soluciones de software para problemas reales."
+                          aria-label="Contribución 1"
+                        />
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <input value="PE-5" aria-label="Código del perfil 2" />
+                      </td>
+                      <td>
+                        <input
+                          value="Integra tecnologías para el desarrollo de sistemas."
+                          aria-label="Contribución 2"
+                        />
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+            <section class="seccion" id="contenidos">
+              <h3>Plan de contenidos</h3>
+              <div class="tabla-contenedor">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Módulo</th>
+                      <th>Unidad</th>
+                      <th>Contenido</th>
+                      <th>Competencia</th>
+                      <th>Evidencia</th>
+                      <th>Actividad</th>
+                      <th>Punteo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><input value="1" aria-label="Módulo 1" /></td>
+                      <td>
+                        <input value="Fundamentos HTTP" aria-label="Unidad 1" />
+                      </td>
+                      <td>
+                        <input
+                          value="Métodos HTTP, códigos de estado y JSON"
+                          aria-label="Contenido 1"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          value="Comprende el protocolo HTTP"
+                          aria-label="Competencia 1"
+                        />
+                      </td>
+                      <td>
+                        <input value="Cuestionario" aria-label="Evidencia 1" />
+                      </td>
+                      <td>
+                        <input
+                          value="Laboratorio con cliente REST"
+                          aria-label="Actividad 1"
+                        />
+                      </td>
+                      <td>
+                        <input type="number" value="10" aria-label="Punteo 1" />
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><input value="2" aria-label="Módulo 2" /></td>
+                      <td><input value="API REST" aria-label="Unidad 2" /></td>
+                      <td>
+                        <input
+                          value="Rutas, validación y errores"
+                          aria-label="Contenido 2"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          value="Diseña APIs REST"
+                          aria-label="Competencia 2"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          value="Endpoints funcionales"
+                          aria-label="Evidencia 2"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          value="Proyecto en equipo"
+                          aria-label="Actividad 2"
+                        />
+                      </td>
+                      <td>
+                        <input type="number" value="30" aria-label="Punteo 2" />
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><input value="3" aria-label="Módulo 3" /></td>
+                      <td><input value="Frontend" aria-label="Unidad 3" /></td>
+                      <td>
+                        <input
+                          value="HTML, CSS y JavaScript"
+                          aria-label="Contenido 3"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          value="Integra interfaces web"
+                          aria-label="Competencia 3"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          value="Interfaz funcional"
+                          aria-label="Evidencia 3"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          value="Desarrollo de aplicación"
+                          aria-label="Actividad 3"
+                        />
+                      </td>
+                      <td>
+                        <input type="number" value="30" aria-label="Punteo 3" />
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+            <section class="seccion" id="bibliografia">
+              <h3>Bibliografía</h3>
+              <div class="tabla-contenedor">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Tipo</th>
+                      <th>Referencia</th>
+                      <th>Enlace</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <select aria-label="Tipo de bibliografía 1">
+                          <option selected>Obligatoria</option>
+                          <option>Complementaria</option>
+                          <option>Enlace</option>
+                        </select>
+                      </td>
+                      <td>
+                        <input
+                          value="Fielding, R. Architectural Styles and the Design of Network-based Software Architectures."
+                          aria-label="Referencia 1"
+                        />
+                      </td>
+                      <td><input aria-label="Enlace 1" /></td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <select aria-label="Tipo de bibliografía 2">
+                          <option>Obligatoria</option>
+                          <option selected>Complementaria</option>
+                          <option>Enlace</option>
+                        </select>
+                      </td>
+                      <td>
+                        <input
+                          value="RESTful Web APIs."
+                          aria-label="Referencia 2"
+                        />
+                      </td>
+                      <td><input aria-label="Enlace 2" /></td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <select aria-label="Tipo de bibliografía 3">
+                          <option>Obligatoria</option>
+                          <option>Complementaria</option>
+                          <option selected>Enlace</option>
+                        </select>
+                      </td>
+                      <td>
+                        <input
+                          value="Documentación web MDN"
+                          aria-label="Referencia 3"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          value="https://developer.mozilla.org"
+                          aria-label="Enlace 3"
+                        />
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+            <section class="seccion" id="evaluacion">
+              <h3>Evaluación</h3>
+              <div class="tabla-contenedor">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Instrumento</th>
+                      <th>Ponderación %</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <input
+                          value="Laboratorios"
+                          aria-label="Instrumento 1"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          value="30"
+                          aria-label="Ponderación 1"
+                        />
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <input
+                          value="Proyecto integrador"
+                          aria-label="Instrumento 2"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          value="40"
+                          aria-label="Ponderación 2"
+                        />
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <input
+                          value="Examen final"
+                          aria-label="Instrumento 3"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          value="30"
+                          aria-label="Ponderación 3"
+                        />
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+            <section class="seccion" id="autorizacion">
+              <h3>Autorización</h3>
+              <div class="formulario">
+                <div class="campo">
+                  <label for="elaborado">Elaborado por</label
+                  ><input
+                    id="elaborado"
+                    value="Ing. Juan Carlos Maeda Juárez"
+                  />
+                </div>
+                <div class="campo">
+                  <label for="revisor">Revisor</label
+                  ><input id="revisor" value="Coordinación académica" />
+                </div>
+                <div class="campo">
+                  <label for="autoridad">Autoridad</label
+                  ><input id="autoridad" value="Decanatura de Ingeniería" />
+                </div>
+                <div class="campo">
+                  <label for="fecha">Fecha de elaboración</label
+                  ><input id="fecha" type="date" value="2026-08-01" />
+                </div>
+                <div class="campo completo">
+                  <label for="observaciones">Observaciones</label
+                  ><textarea id="observaciones"></textarea>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>
