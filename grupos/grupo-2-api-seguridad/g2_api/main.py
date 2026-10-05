@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from g2_api import config
 from g2_api.database import init_db
 from g2_api.routers import auth
+from g2_api.routers import users
 
 
 @asynccontextmanager
@@ -36,3 +37,5 @@ app.add_middleware(
 
 # Routers (cada persona agrega el suyo)
 app.include_router(auth.router)  # Persona 1
+app.include_router(users.router) #Persona 2
+
