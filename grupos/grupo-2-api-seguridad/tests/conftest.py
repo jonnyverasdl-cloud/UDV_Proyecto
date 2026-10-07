@@ -13,7 +13,6 @@ from fastapi.testclient import TestClient  # noqa: E402
 from g2_api.database import Base, SessionLocal, engine # noqa: E402
 from g2_api.main import app # noqa: E402
 
-
 @pytest.fixture()
 def db():
     # Sesion con tablas limpias en cada prueba.
@@ -23,7 +22,6 @@ def db():
     Base.metadata.create_all(bind=engine)
     with SessionLocal() as sesion:
         yield sesion
-
 
 @pytest.fixture()
 def client(db):
