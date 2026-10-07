@@ -3,10 +3,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from typing import Optional
 import bcrypt
-from routers.auth import usuarios
-from middleware.auth_middleware import requerir_rol
+from g2_api.routers.auth import usuarios
+from g2_api.middleware.auth_middleware import requerir_rol
 
-router = APIRouter(prefix="/users", tags=["Users and Roles"])
+router = APIRouter(prefix="/api/v1/users", tags=["Users and Roles"])
 
 class UsuarioCreate(BaseModel):
     id: int
@@ -29,6 +29,7 @@ def listar_usuarios():
     for u in usuarios: 
         copia = u.copy() #Copia elementos u
         copia.pop("password", None) #elimina la password
+        copia.pop("hash_contrasena", None) #tampoco se devuelve el hash
         lista_limpia.append(copia) #en la variable lista limpia, guarda el usuario sin la contraseña
     return lista_limpia
 
@@ -48,17 +49,17 @@ def crear_usuario(datos: UsuarioCreate): #recibe parámetro tipo class
         "id": datos.id,
         "usuario": datos.usuario, 
         "correo": datos.correo,
-        "password": password_hash,
-        "rol": datos.rol,
+        "hash_contrasena": password_hash,  # mismo campo que lee el login
+        "roles": [datos.rol],  # lista, igual que el JSON de prueba
         "activo": datos.activo
     }
     
     usuarios.append(nuevo_usuario)
     
     respuesta = nuevo_usuario.copy()
-    respuesta.pop("password", None) #Regresa los datos del usuario que se está creando sin la contraseña
+    respuesta.pop("hash_contrasena", None) #Regresa los datos del usuario que se está creando sin la contraseña
     return respuesta
-#segun el ID esos datos se seleccionarán
+
 @router.patch("/{usuario_id}", dependencies=[Depends(requerir_rol(["administrador"]))]) 
 def actualizar_o_desactivar_usuario(usuario_id: int, datos: UsuarioUpdate):
     usuario_encontrado = None
@@ -77,10 +78,12 @@ def actualizar_o_desactivar_usuario(usuario_id: int, datos: UsuarioUpdate):
     
     #si se actualizó la contraseña, se cambia el input por un hash
     if "password" in cambios:
-        cambios["password"] = bcrypt.hashpw(cambios["password"].encode(), bcrypt.gensalt()).decode('utf-8')
+        cambios["hash_contrasena"] = bcrypt.hashpw(cambios.pop("password").encode(), bcrypt.gensalt()).decode('utf-8')
+    if "rol" in cambios:
+        cambios["roles"] = [cambios.pop("rol")]
         
     usuario_encontrado.update(cambios) #actualiza los datos
     #retorna los datos a excepción de la password
     respuesta = usuario_encontrado.copy()
-    respuesta.pop("password", None)
+    respuesta.pop("hash_contrasena", None)
     return respuesta

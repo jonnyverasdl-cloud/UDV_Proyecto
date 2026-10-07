@@ -19,7 +19,8 @@ def requerir_rol(roles_permitidos: list[str]): #recibe un parámetro tipo lista 
                 detail="El usuario se encuentra inactivo"
             )
         
-        if usuario_actual.get("rol") not in roles_permitidos: #Compara si el usuario actual tiene permiso para ingresar
+        roles_usuario = usuario_actual.get("roles", [])  # en el JSON es una lista
+        if not any(r in roles_permitidos for r in roles_usuario): #Compara si el usuario actual tiene permiso para ingresar
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="No tienes permisos necesarios para realizar esta acción"
