@@ -5,12 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Grupo 4 · Demo con estilos UDV</title>
 
-<!--
-  En el repositorio real, esta hoja <style> se reemplaza por:
-  <link rel="stylesheet" href="../../udv-styles/udv.css">
-  Aquí la copiamos completa solo porque este prototipo vive fuera del repo.
-  Las clases HTML de abajo (btn-udv, udv-card-light, udv-badge, etc.)
-  son EXACTAMENTE las del archivo real, así que no hay que tocarlas luego.
+
 -->
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap');
@@ -125,7 +120,7 @@ body{font-family:var(--udv-font);background:var(--udv-bg-light);color:var(--udv-
 </div>
 
 <script>
-// 1. DATOS SIMULADOS (igual que antes, solo cambió la presentación)
+// 1. DATOS SIMULADOS 
 let tareas = [
   { id: 1, titulo: "Actualizar programa de curso", estado: "assigned",
     instrucciones: "Completar el formulario del programa por secciones." },
@@ -144,15 +139,13 @@ let tareas = [
     instrucciones: "La coordinación canceló esta tarea antes de que se completara. Queda de solo lectura." }
 ];
 
-// draft (Borrador) no se agrega aquí a propósito: una tarea en ese estado
-// nunca llega al inbox del docente, la controla G3 antes de publicarla.
+// draft (Borrador) 
 const NOMBRE_ESTADO = {
   assigned: "Asignada", in_progress: "En progreso", submitted: "Entregada",
   under_review: "En revisión", returned: "Devuelta", approved: "Aprobada",
   closed: "Cerrada", cancelled: "Cancelada"
 };
-// La clase CSS usa guiones (badge-in-progress), el estado usa guion bajo (in_progress) —
-// udv.css define las clases así, por eso convertimos aquí.
+
 function claseBadge(estado){ return "badge-" + estado.replace(/_/g, "-"); }
 
 // 2. INBOX

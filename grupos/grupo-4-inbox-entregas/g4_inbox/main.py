@@ -9,17 +9,8 @@ Cómo correr esto:
 Luego abran http://127.0.0.1:8000/docs — FastAPI genera ahí mismo una
 pantalla donde pueden probar cada endpoint sin necesitar Postman.
 
-IMPORTANTE — cosas temporales que hay que reemplazar más adelante:
-1. No hay base de datos real todavía (G1). Los datos viven en la lista
-   ASSIGNMENTS, en memoria. Al reiniciar el servidor, se pierden los cambios.
-2. No hay autenticación real todavía (G2). Usamos encabezados HTTP simples
-   (X-User, X-Role) para simular quién está llamando. Cuando G2 publique
-   GET /me, estos endpoints dejan de leer encabezados y usan ese servicio.
-3. El servicio de transiciones de G3 (g3_workflow) todavía no existe.
-   La función ejecutar_transicion_g3(), más abajo, es un STUB que imita
-   su comportamiento usando la misma tabla de transiciones del contrato.
-   Es la ÚNICA función que hay que reemplazar cuando G3 esté listo — todo
-   lo demás (los endpoints) ya queda igual.
+
+   
 """
 
 from fastapi import FastAPI, HTTPException, Header
@@ -82,10 +73,7 @@ def buscar_asignacion(assignment_id: int) -> Optional[dict]:
 
 
 # ============================================================================
-# STUB DEL SERVICIO DE TRANSICIONES DE G3 (g3_workflow)
-# Cuando el equipo de G3 publique su servicio real, esta sección completa
-# sera reemplazada por una llamada a su API/función — el resto del archivo
-# no cambia, porque ya llama a ejecutar_transicion_g3() como si fuera externo.
+
 # ============================================================================
 
 # (estado_actual, accion) -> {nuevo_estado, actor que puede ejecutarla}
@@ -125,7 +113,7 @@ def acciones_permitidas(asignacion: dict) -> List[str]:
 
 
 # ============================================================================
-# MODELOS DE ENTRADA (lo que el frontend manda en el body)
+# MODELOS DE ENTRADA 
 # ============================================================================
 class BorradorIn(BaseModel):
     comment: Optional[str] = None
@@ -210,7 +198,7 @@ def crear_comentario(assignment_id: int, comentario: ComentarioIn,
 
 
 # ============================================================================
-# 7. VINCULAR ARCHIVO — listo, pero OJO cómo debe llegar la información
+# 7. VINCULAR ARCHIVO 
 # ============================================================================
 @app.post("/api/v1/assignments/{assignment_id}/files")
 def vincular_archivo(assignment_id: int, archivo: ArchivoIn):
@@ -230,9 +218,7 @@ def vincular_archivo(assignment_id: int, archivo: ArchivoIn):
 
 
 # ============================================================================
-# 8-13. TRANSICIONES — funcionando ya, usando el stub de G3 de arriba.
-# El día que G3 publique su servicio real, solo se cambia
-# ejecutar_transicion_g3() — estos seis endpoints no se tocan.
+# 8-13. TRANSICIONES —
 # ============================================================================
 def _transicionar(assignment_id: int, accion: str, rol_usuario: str,
                    comentario: Optional[str] = None) -> dict:
