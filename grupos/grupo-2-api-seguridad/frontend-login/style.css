@@ -37,6 +37,16 @@ body, html {
   gap: 10px;
 }
 
+.logo {
+  width: 250px;
+  height: 100px;
+  background-image: url("logo.webp");
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+
 .logo-icon {
   font-size: 20px;
   color: #3b82f6;
@@ -165,7 +175,7 @@ body, html {
 .right-panel {
   flex: 1;
   /* Link imagen */
-  background: url('mi_fondo.jpg') center/cover no-repeat;
+  background: url('imagen.webp') center/cover no-repeat;
   position: relative;
   display: flex;
   align-items: flex-end;
