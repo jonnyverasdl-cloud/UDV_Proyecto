@@ -10,12 +10,10 @@ from g2_api.database import init_db
 from g2_api.routers import auth
 from g2_api.routers import users
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()  # crea las tablas si no existen
     yield
-
 
 app = FastAPI(
     title="Grupo 2 - API y Seguridad",
