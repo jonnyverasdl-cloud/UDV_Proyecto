@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grupo 4 · Demo con estilos UDV</title>
+
+<!--
+  En el repositorio real, esta hoja <style> se reemplaza por:
+  <link rel="stylesheet" href="../../udv-styles/udv.css">
+  Aquí la copiamos completa solo porque este prototipo vive fuera del repo.
+  Las clases HTML de abajo (btn-udv, udv-card-light, udv-badge, etc.)
+  son EXACTAMENTE las del archivo real, así que no hay que tocarlas luego.
+-->
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap');
+:root{
+  --udv-navy:#001D4A; --udv-navy-dark:#020F24;
+  --udv-cyan:#00AEEF; --udv-cyan-hover:#0099D6;
+  --udv-gold:#A67C1E; --udv-gold-light:#C99A30;
+  --udv-bg-light:#F4F6F8; --udv-bg-white:#FFFFFF;
+  --udv-text-dark:#1E1E1E; --udv-text-light:#FFFFFF; --udv-text-muted:#6B7280;
+  --udv-success:#16A34A; --udv-warning:#D97706; --udv-danger:#DC2626;
+  --udv-font:'Montserrat',sans-serif;
+  --udv-radius-sm:4px; --udv-radius:8px; --udv-radius-pill:999px;
+  --udv-shadow-sm:0 1px 3px rgba(0,0,0,.12); --udv-shadow:0 4px 16px rgba(0,29,74,.18);
+  --udv-transition:all .2s ease;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--udv-font);background:var(--udv-bg-light);color:var(--udv-text-dark);line-height:1.6;}
+.udv-container{max-width:640px;margin:0 auto;padding:0 1.25rem;}
+.udv-section{padding:2rem 0;}
+.udv-section-title{font-size:1.4rem;font-weight:800;color:var(--udv-navy);margin-bottom:.3rem;}
+.udv-section-dark{background:var(--udv-navy);color:var(--udv-text-light);}
+.udv-section-dark .udv-section-title{color:var(--udv-text-light);}
+
+.btn-udv{display:inline-flex;align-items:center;gap:.5rem;padding:.6rem 1.5rem;border-radius:var(--udv-radius-pill);
+  font-family:var(--udv-font);font-size:.875rem;font-weight:700;cursor:pointer;border:none;transition:var(--udv-transition);}
+.btn-udv-primary{background:var(--udv-cyan);color:var(--udv-navy);}
+.btn-udv-primary:hover{background:var(--udv-cyan-hover);}
+.btn-udv-outline{background:transparent;color:var(--udv-navy);border:1.5px solid var(--udv-navy);}
+.btn-udv-gold{background:var(--udv-gold);color:var(--udv-text-light);border-radius:var(--udv-radius-sm);padding:.6rem .9rem;}
+.btn-udv-dark{background:var(--udv-navy-dark);color:var(--udv-text-light);}
+.btn-udv:disabled{opacity:.4;cursor:not-allowed;}
+
+.udv-card-light{background:var(--udv-bg-white);border:1px solid #E5E7EB;border-radius:var(--udv-radius);
+  padding:1.1rem 1.3rem;box-shadow:var(--udv-shadow-sm);transition:var(--udv-transition);cursor:pointer;margin-bottom:.75rem;}
+.udv-card-light:hover{box-shadow:var(--udv-shadow);}
+.udv-card__title{font-size:1rem;font-weight:700;color:var(--udv-navy);margin-bottom:.3rem;}
+
+.udv-badge{display:inline-flex;align-items:center;padding:.25rem .75rem;border-radius:var(--udv-radius-pill);
+  font-size:.7rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;}
+.badge-assigned{background:rgba(0,174,239,.15);color:var(--udv-cyan);}
+.badge-in-progress{background:rgba(245,158,11,.15);color:#F59E0B;}
+.badge-submitted{background:rgba(99,102,241,.15);color:#818CF8;}
+.badge-under-review{background:rgba(166,124,30,.2);color:var(--udv-gold-light);}
+.badge-returned{background:rgba(220,38,38,.15);color:#F87171;}
+.badge-approved{background:rgba(22,163,74,.15);color:#4ADE80;}
+
+.udv-form-group{display:flex;flex-direction:column;gap:.4rem;margin-bottom:1.1rem;}
+.udv-label{font-size:.78rem;font-weight:600;color:var(--udv-text-muted);text-transform:uppercase;letter-spacing:.06em;}
+.udv-input,.udv-textarea{font-family:var(--udv-font);font-size:.9rem;padding:.6rem .9rem;border:1.5px solid #D1D5DB;
+  border-radius:var(--udv-radius);background:var(--udv-bg-white);color:var(--udv-text-dark);width:100%;}
+.udv-textarea{min-height:70px;}
+.udv-input:focus,.udv-textarea:focus{outline:none;border-color:var(--udv-cyan);box-shadow:0 0 0 3px rgba(0,174,239,.15);}
+
+.udv-alert{display:flex;gap:.6rem;padding:.8rem 1rem;border-radius:var(--udv-radius);font-size:.85rem;
+  border-left:4px solid transparent;margin-top:.8rem;}
+.udv-alert-info{background:rgba(0,174,239,.1);border-color:var(--udv-cyan);color:#0369A1;}
+.udv-alert-success{background:rgba(22,163,74,.1);border-color:var(--udv-success);color:#166534;}
+.udv-alert-danger{background:rgba(220,38,38,.1);border-color:var(--udv-danger);color:#991B1B;}
+
+#detalle{display:none;}
+.udv-gap{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.8rem;}
+</style>
+</head>
+<body>
+
+<header class="udv-section udv-section-dark" style="padding:1.2rem 0;">
+  <div class="udv-container">
+    <p style="color:var(--udv-gold);font-weight:700;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;">
+      Sistema de Workflow Docente
+    </p>
+    <h1 class="udv-section-title">Inbox — Grupo 4</h1>
+  </div>
+</header>
+
+<div class="udv-container udv-section">
+
+  <!-- Pantalla 1: lista de tareas -->
+  <div id="inbox"></div>
+
+  <!-- Pantalla 2: detalle -->
+  <div id="detalle">
+    <button class="btn-udv btn-udv-outline" id="volver" style="margin-bottom:1rem;">&larr; Volver al inbox</button>
+    <h2 class="udv-card__title" id="detTitulo" style="font-size:1.2rem;"></h2>
+    <p id="detInstrucciones" style="color:var(--udv-text-muted);margin:.4rem 0;"></p>
+    <span class="udv-badge" id="detEstadoBadge"></span>
+    <div id="detComentario"></div>
+
+    <div id="detBotones" class="udv-gap"></div>
+
+    <div class="udv-form-group" id="obsGroup" style="display:none;margin-top:1rem;">
+      <label class="udv-label" for="obs">Observación (obligatoria para devolver)</label>
+      <textarea class="udv-textarea" id="obs" placeholder="Escribe la observación antes de devolver…"></textarea>
+    </div>
+    <div class="udv-alert udv-alert-danger" id="avisoError" style="display:none;"></div>
+
+    <!-- Formulario de entrega -->
+    <div id="formEntrega" style="display:none;margin-top:1.2rem;border-top:1px solid #E5E7EB;padding-top:1.2rem;">
+      <div class="udv-form-group">
+        <label class="udv-label" for="entregaComentario">Comentario de la entrega</label>
+        <textarea class="udv-textarea" id="entregaComentario" placeholder="Describe brevemente lo que estás entregando…"></textarea>
+      </div>
+      <div class="udv-form-group">
+        <label class="udv-label" for="entregaArchivo">Adjuntar evidencia</label>
+        <input class="udv-input" type="file" id="entregaArchivo">
+      </div>
+      <p id="archivoInfo" style="font-size:.8rem;color:var(--udv-text-muted);margin-bottom:.6rem;"></p>
+      <div id="entregaBotones" class="udv-gap"></div>
+      <div class="udv-alert udv-alert-danger" id="avisoEntregaError" style="display:none;"></div>
+      <div class="udv-alert udv-alert-success" id="avisoEntregaOk" style="display:none;"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// 1. DATOS SIMULADOS (igual que antes, solo cambió la presentación)
+let tareas = [
+  { id: 1, titulo: "Actualizar programa de curso", estado: "assigned",
+    instrucciones: "Completar el formulario del programa por secciones." },
+  { id: 2, titulo: "Subir CV actualizado", estado: "in_progress",
+    instrucciones: "Adjuntar el CV en PDF con vigencia no mayor a 6 meses.",
+    borrador: "", archivo: null },
+  { id: 3, titulo: "Entregar factura de honorarios", estado: "returned",
+    instrucciones: "Corregir el monto y volver a adjuntar la factura.",
+    comentario: "El monto no coincide con lo reportado. Verificar y reenviar.",
+    borrador: "Factura corregida con el monto correcto.", archivo: "factura_sept.pdf" },
+  { id: 4, titulo: "Evidencia de actividad extracurricular", estado: "submitted",
+    instrucciones: "Ya se entregó, está esperando que el revisor la tome." },
+  { id: 5, titulo: "Confirmar participación en claustro", estado: "closed",
+    instrucciones: "Ya fue aprobada y el ciclo se dio por cerrado. Queda de solo lectura." },
+  { id: 6, titulo: "Actualizar ficha docente (ciclo anterior)", estado: "cancelled",
+    instrucciones: "La coordinación canceló esta tarea antes de que se completara. Queda de solo lectura." }
+];
+
+// draft (Borrador) no se agrega aquí a propósito: una tarea en ese estado
+// nunca llega al inbox del docente, la controla G3 antes de publicarla.
+const NOMBRE_ESTADO = {
+  assigned: "Asignada", in_progress: "En progreso", submitted: "Entregada",
+  under_review: "En revisión", returned: "Devuelta", approved: "Aprobada",
+  closed: "Cerrada", cancelled: "Cancelada"
+};
+// La clase CSS usa guiones (badge-in-progress), el estado usa guion bajo (in_progress) —
+// udv.css define las clases así, por eso convertimos aquí.
+function claseBadge(estado){ return "badge-" + estado.replace(/_/g, "-"); }
+
+// 2. INBOX
+function dibujarInbox(){
+  const contenedor = document.getElementById('inbox');
+  contenedor.innerHTML = "";
+  tareas.forEach(t => {
+    const div = document.createElement('div');
+    div.className = 'udv-card-light';
+    div.innerHTML = `<div class="udv-card__title">${t.titulo}</div>
+      <span class="udv-badge ${claseBadge(t.estado)}">${NOMBRE_ESTADO[t.estado]}</span>`;
+    div.onclick = () => abrirDetalle(t.id);
+    contenedor.appendChild(div);
+  });
+}
+
+// 3. DETALLE
+function abrirDetalle(id){
+  const tarea = tareas.find(t => t.id === id);
+  document.getElementById('inbox').style.display = 'none';
+  document.getElementById('detalle').style.display = 'block';
+  document.getElementById('detTitulo').textContent = tarea.titulo;
+  document.getElementById('detInstrucciones').textContent = tarea.instrucciones;
+  const badge = document.getElementById('detEstadoBadge');
+  badge.textContent = NOMBRE_ESTADO[tarea.estado];
+  badge.className = 'udv-badge ' + claseBadge(tarea.estado);
+
+  document.getElementById('avisoError').style.display = 'none';
+  document.getElementById('obsGroup').style.display = 'none';
+  document.getElementById('obs').value = '';
+  document.getElementById('formEntrega').style.display = 'none';
+  document.getElementById('avisoEntregaError').style.display = 'none';
+  document.getElementById('avisoEntregaOk').style.display = 'none';
+
+  document.getElementById('detComentario').innerHTML = tarea.comentario
+    ? `<div class="udv-alert udv-alert-danger"><b>Observación del revisor:</b>&nbsp;${tarea.comentario}</div>` : '';
+
+  const botones = document.getElementById('detBotones');
+  botones.innerHTML = '';
+
+  if (tarea.estado === 'assigned'){
+    agregarBoton(botones, 'Iniciar tarea', 'btn-udv-primary', () => transicion(tarea, 'in_progress'));
+  } else if (tarea.estado === 'in_progress' || tarea.estado === 'returned'){
+    mostrarFormularioEntrega(tarea);
+  } else if (tarea.estado === 'submitted'){
+    agregarBoton(botones, 'Tomar para revisar', 'btn-udv-primary', () => transicion(tarea, 'under_review'));
+  } else if (tarea.estado === 'under_review'){
+    agregarBoton(botones, 'Aprobar', 'btn-udv-primary', () => transicion(tarea, 'approved'));
+    agregarBoton(botones, 'Devolver', 'btn-udv-gold', () => devolver(tarea));
+    document.getElementById('obsGroup').style.display = 'block';
+  } else {
+    botones.innerHTML = '<p style="color:var(--udv-text-muted);">Sin acciones disponibles en este estado.</p>';
+  }
+}
+
+function agregarBoton(contenedor, texto, clase, accion){
+  const btn = document.createElement('button');
+  btn.className = 'btn-udv ' + clase;
+  btn.textContent = texto;
+  btn.onclick = accion;
+  contenedor.appendChild(btn);
+}
+
+// 3b. FORMULARIO DE ENTREGA
+function mostrarFormularioEntrega(tarea){
+  document.getElementById('formEntrega').style.display = 'block';
+  document.getElementById('entregaComentario').value = tarea.borrador || '';
+  document.getElementById('archivoInfo').textContent = tarea.archivo
+    ? '📎 Ya adjuntado: ' + tarea.archivo : 'Todavía no hay archivo adjunto.';
+
+  const entregaBotones = document.getElementById('entregaBotones');
+  entregaBotones.innerHTML = '';
+  agregarBoton(entregaBotones, 'Guardar borrador', 'btn-udv-outline', () => guardarBorrador(tarea));
+  const texto = tarea.estado === 'returned' ? 'Reenviar' : 'Entregar';
+  agregarBoton(entregaBotones, texto, 'btn-udv-primary', () => confirmarEntrega(tarea));
+}
+
+function guardarBorrador(tarea){
+  tarea.borrador = document.getElementById('entregaComentario').value;
+  document.getElementById('avisoEntregaError').style.display = 'none';
+  const ok = document.getElementById('avisoEntregaOk');
+  ok.textContent = 'Borrador guardado. Puedes seguir editando antes de entregar.';
+  ok.style.display = 'flex';
+}
+
+function confirmarEntrega(tarea){
+  const comentario = document.getElementById('entregaComentario').value.trim();
+  const archivoInput = document.getElementById('entregaArchivo');
+  const err = document.getElementById('avisoEntregaError');
+  document.getElementById('avisoEntregaOk').style.display = 'none';
+
+  if (!tarea.archivo && !archivoInput.files.length){
+    err.textContent = 'Debes adjuntar la evidencia antes de entregar.';
+    err.style.display = 'flex';
+    return;
+  }
+  if (archivoInput.files.length) tarea.archivo = archivoInput.files[0].name;
+  tarea.borrador = comentario;
+  transicion(tarea, 'submitted');
+}
+
+// 4. TRANSICIÓN NORMAL
+function transicion(tarea, nuevoEstado){
+  tarea.estado = nuevoEstado;
+  if (nuevoEstado !== 'returned') tarea.comentario = null;
+  abrirDetalle(tarea.id);
+}
+
+// 5. DEVOLVER
+function devolver(tarea){
+  const obs = document.getElementById('obs').value.trim();
+  const aviso = document.getElementById('avisoError');
+  if (!obs){
+    aviso.textContent = "La observación es obligatoria para devolver.";
+    aviso.style.display = 'flex';
+    return;
+  }
+  tarea.comentario = obs;
+  transicion(tarea, 'returned');
+}
+
+// 6. VOLVER AL INBOX
+document.getElementById('volver').onclick = () => {
+  document.getElementById('detalle').style.display = 'none';
+  document.getElementById('inbox').style.display = 'block';
+  dibujarInbox();
+};
+
+// 7. ARRANQUE
+dibujarInbox();
+</script>
+
+</body>
+</html>
