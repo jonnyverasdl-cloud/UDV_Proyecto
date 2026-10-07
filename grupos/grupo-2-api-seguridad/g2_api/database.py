@@ -19,7 +19,6 @@ def get_db():
     finally:
         db.close()
 
-
 def init_db():
     # Crea las tablas si no existen.
     from g2_api import models  # noqa: F401  (registra las tablas en Base)
