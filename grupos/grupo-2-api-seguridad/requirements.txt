@@ -5,6 +5,7 @@
 fastapi==0.142.1
 uvicorn[standard]==0.54.0
 python-multipart==0.0.31 # Recibir archivos en /files
+email-validator==2.3.0 # validar correos (EmailStr de pydantic) -> 422 por campo
 
 # Seguridad
 bcrypt==5.0.0 # hash de contrasenasl login (Persona 1).
