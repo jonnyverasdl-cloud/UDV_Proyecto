@@ -12,7 +12,7 @@ bcrypt==5.0.0 # hash de contrasenasl login (Persona 1).
 PyJWT==2.15.1  # Tokens de sesion (Persona de autenticacion)
 
 # Base de datos
-SQLAlchemy==2.1.1 # Conexion a base de datos (Persona 5)
+SQLAlchemy==2.1.1 # Conexión a base de datos (Persona 5)
 
 # Configuracion
 python-dotenv==1.2.3 # Leer el archivo .env
