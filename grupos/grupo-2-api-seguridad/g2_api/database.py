@@ -10,7 +10,6 @@ engine = create_engine(config.DATABASE_URL, connect_args=_connect_args, pool_pre
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 Base = declarative_base()
 
-
 def get_db():
     # Dependencia de FastAPI: una sesion por peticion.
     db = SessionLocal()
