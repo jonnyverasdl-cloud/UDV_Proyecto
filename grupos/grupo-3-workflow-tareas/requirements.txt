@@ -1,1 +1,7 @@
 # Dependencias del grupo-3-workflow-tareas. Una por línea, con versión fija (ej.: libreria==1.2.3).
+# Versiones oficiales: README §5.
+fastapi==0.142.1
+uvicorn[standard]==0.54.0
+pydantic==2.14.0
+httpx==0.28.1  # TestClient en las pruebas
+pytest==9.1.1

@@ -1,2 +1,2 @@
-fastapi==0.115.0
-uvicorn==0.30.6
+# Las dependencias de G4 se declaran en el requirements del grupo (README §4).
+-r ../requirements.txt

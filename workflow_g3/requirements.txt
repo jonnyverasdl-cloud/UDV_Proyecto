@@ -1,4 +1,2 @@
-fastapi>=0.110
-uvicorn>=0.29
-pydantic>=2.0
-httpx>=0.27        # solo para pruebas HTTP (TestClient)
+# Las dependencias de G3 se declaran en el requirements del grupo (README §4).
+-r ../grupos/grupo-3-workflow-tareas/requirements.txt

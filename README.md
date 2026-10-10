@@ -105,22 +105,42 @@ ruta de archivo ni copia código de otro grupo.
   Toda la aplicación se instala con `pip install -r requirements.txt` desde
   la raíz.
 - Si dos grupos piden versiones distintas de la misma librería, decide el PM.
+  Las versiones ya decididas están en §5 ("Versiones oficiales").
+- Un `requirements.txt` dentro de un subpaquete (por ejemplo
+  `g4_inbox/requirements.txt`) solo puede apuntar al del grupo
+  (`-r ../requirements.txt`), nunca declarar versiones propias.
 
 ## 5. Decisiones técnicas
 
 | Tema | Estado | Quién decide | Plazo |
 |---|---|---|---|
 | Lenguaje del backend | ✅ **Python** | PM | Definido |
-| Framework web (FastAPI / Flask / Django) | ⏳ Pendiente | PM, con propuesta del G2 | Semana 1, antes de escribir código |
+| Framework web (FastAPI / Flask / Django) | ✅ **FastAPI** | PM, con propuesta del G2 | Definido 2026-10-10 |
 | ORM y herramienta de migraciones | ⏳ Pendiente | G1 + G2 proponen, PM aprueba | Semana 1 |
-| Motor de base de datos | ⏳ Pendiente | G1 + G2 proponen, PM aprueba | Semana 1 |
-| Identificadores (enteros o UUID) | ⏳ Pendiente | G1 + G2 | Semana 1 |
+| Motor de base de datos | ✅ **SQLite** | G1 + G2 proponen, PM aprueba | Definido 2026-10-10 |
+| Identificadores (enteros o UUID) | ✅ **Enteros** (autoincrementales) | G1 + G2 | Definido 2026-10-10 |
+| Versiones de librerías compartidas | ✅ Ver tabla abajo | PM | Definido 2026-10-10 |
 | Zona horaria institucional | ⏳ Pendiente | PM | Semana 1 |
 | Tecnología del frontend (pantallas de G3, G4, G5 y G6) | ⏳ Pendiente | PM | Semana 1 |
 | Transporte de eventos para notificaciones | ⏳ Pendiente | G3 + G6 proponen (con G1 si requiere tabla), PM aprueba | Semana 1 |
 
 Cuando una decisión se toma, se marca ✅ aquí y se anota en el historial.
 Hasta entonces, nadie escribe código que dependa de ella.
+
+### Versiones oficiales de librerías compartidas
+
+Todo grupo que use una de estas librerías la declara en su
+`requirements.txt` con **exactamente** esta versión. Otra versión rompe la
+instalación desde la raíz y el PR se rechaza. Para cambiar una versión, se
+pide al PM.
+
+| Librería | Versión |
+|---|---|
+| `fastapi` | `0.142.1` |
+| `uvicorn[standard]` | `0.54.0` |
+| `pydantic` | `2.14.0` |
+| `httpx` (TestClient) | `0.28.1` |
+| `pytest` | `9.1.1` |
 
 ## 6. El flujo de trabajo diario
 
@@ -170,3 +190,4 @@ tras revisión · **merge** = la integración aprobada.
 |---|---|---|
 | 2026-09-26 | Versión inicial | Arranque del proyecto |
 | 2026-09-28 | Jerarquía de fuentes de verdad (§0); `CONTRATO_COMUN.md`; raíz del PM, paquetes Python y `requirements.txt` por grupo (§4); tabla de decisiones técnicas (§5); sub-ramas por funcionalidad; regla dura 6 (pruebas) | README, CONTRATO.md, .docx y OpenAPI se declaraban fuente de verdad sin orden; la estructura por carpetas no permitía importar código entre grupos |
+| 2026-10-10 | §5: FastAPI, SQLite e identificadores enteros pasan a ✅; tabla de versiones oficiales de librerías compartidas. §4: los `requirements.txt` de subpaquetes solo apuntan al del grupo | G2, G3 y G4 ya escribían código sobre estas decisiones; G4 pedía `fastapi==0.115.0` y G2 `0.142.1`, y las dependencias de G3 y G4 no se instalaban desde la raíz |
