@@ -1,0 +1,516 @@
+/*
+ * ============================================================
+ *  UDV — Universidad Da Vinci de Guatemala
+ *  Sistema de estilos institucional
+ *  Basado en la identidad visual oficial de udv.edu.gt
+ *
+ *  Mantenido por el PM (README §4).
+ *  Todos los grupos importan este archivo; no lo reimplementan.
+ *
+ *  Uso:  <link rel="stylesheet" href="../../udv-styles/udv.css">
+ *        o desde Python: carpeta estática compartida.
+ *
+ *  Fuente de Google Fonts ya incluida vía @import.
+ * ============================================================
+ */
+
+/* ── 1. Fuente institucional ─────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap');
+
+/* ── 2. Tokens de color ──────────────────────────────────── */
+:root {
+  /* Azul marino institucional — header, footer, hero */
+  --udv-navy:        #001D4A;
+  --udv-navy-dark:   #020F24;
+
+  /* Celeste / cyan — botones primarios, badges, highlights */
+  --udv-cyan:        #00AEEF;
+  --udv-cyan-hover:  #0099D6;
+
+  /* Dorado — bordes de tarjeta, botón de búsqueda, acento */
+  --udv-gold:        #A67C1E;
+  --udv-gold-light:  #C99A30;
+
+  /* Fondos neutros */
+  --udv-bg-light:    #F4F6F8;
+  --udv-bg-white:    #FFFFFF;
+
+  /* Texto */
+  --udv-text-dark:   #1E1E1E;
+  --udv-text-light:  #FFFFFF;
+  --udv-text-muted:  #6B7280;
+
+  /* Estados semánticos */
+  --udv-success:     #16A34A;
+  --udv-warning:     #D97706;
+  --udv-danger:      #DC2626;
+  --udv-info:        var(--udv-cyan);
+
+  /* Tipografía */
+  --udv-font:        'Montserrat', sans-serif;
+
+  /* Bordes y radios */
+  --udv-radius-sm:   4px;
+  --udv-radius:      8px;
+  --udv-radius-lg:   16px;
+  --udv-radius-pill: 999px;
+  --udv-border-gold: 1px solid var(--udv-gold);
+
+  /* Sombras */
+  --udv-shadow-sm:   0 1px 3px rgba(0,0,0,.12);
+  --udv-shadow:      0 4px 16px rgba(0,29,74,.18);
+  --udv-shadow-lg:   0 8px 32px rgba(0,29,74,.25);
+
+  /* Transición estándar */
+  --udv-transition:  all .2s ease;
+}
+
+/* ── 3. Reset base ───────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--udv-font);
+  background-color: var(--udv-bg-light);
+  color: var(--udv-text-dark);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+img { max-width: 100%; display: block; }
+a  { color: var(--udv-cyan); text-decoration: none; transition: var(--udv-transition); }
+a:hover { color: var(--udv-cyan-hover); }
+
+/* ── 4. Header / Navbar ──────────────────────────────────── */
+.udv-header {
+  background-color: var(--udv-navy);
+  padding: 0 2rem;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  box-shadow: var(--udv-shadow);
+}
+
+.udv-header__logo {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  text-decoration: none;
+}
+
+.udv-header__logo img {
+  height: 48px;
+  width: auto;
+}
+
+.udv-header__logo-text {
+  color: var(--udv-text-light);
+  font-size: .9rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.udv-header__logo-text span {
+  display: block;
+  font-size: .65rem;
+  font-weight: 400;
+  letter-spacing: .08em;
+  color: rgba(255,255,255,.7);
+}
+
+.udv-header__nav {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  list-style: none;
+}
+
+.udv-header__nav a {
+  color: var(--udv-text-light);
+  font-size: .85rem;
+  font-weight: 500;
+  padding: .4rem .75rem;
+  border-radius: var(--udv-radius-pill);
+  transition: var(--udv-transition);
+}
+
+.udv-header__nav a:hover {
+  background-color: rgba(255,255,255,.1);
+  color: var(--udv-text-light);
+}
+
+.udv-header__nav a.active {
+  color: var(--udv-cyan);
+}
+
+/* ── 5. Botones ──────────────────────────────────────────── */
+.btn-udv {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .6rem 1.5rem;
+  border-radius: var(--udv-radius-pill);
+  font-family: var(--udv-font);
+  font-size: .875rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  transition: var(--udv-transition);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.btn-udv-primary {
+  background-color: var(--udv-cyan);
+  color: var(--udv-navy);
+}
+.btn-udv-primary:hover {
+  background-color: var(--udv-cyan-hover);
+  color: var(--udv-navy);
+  box-shadow: 0 4px 12px rgba(0,174,239,.4);
+  transform: translateY(-1px);
+}
+
+.btn-udv-outline {
+  background-color: transparent;
+  color: var(--udv-text-light);
+  border: 1.5px solid var(--udv-text-light);
+}
+.btn-udv-outline:hover {
+  background-color: rgba(255,255,255,.1);
+  color: var(--udv-text-light);
+}
+
+.btn-udv-gold {
+  background-color: var(--udv-gold);
+  color: var(--udv-text-light);
+  border-radius: var(--udv-radius-sm);
+  padding: .6rem .9rem;
+}
+.btn-udv-gold:hover {
+  background-color: var(--udv-gold-light);
+  color: var(--udv-text-light);
+}
+
+.btn-udv-dark {
+  background-color: var(--udv-navy-dark);
+  color: var(--udv-text-light);
+  border: 1.5px solid rgba(255,255,255,.2);
+}
+.btn-udv-dark:hover {
+  background-color: #0a1a35;
+  color: var(--udv-text-light);
+}
+
+.btn-udv-sm { padding: .4rem 1rem; font-size: .8rem; }
+.btn-udv-lg { padding: .85rem 2rem; font-size: 1rem; }
+
+/* ── 6. Tarjetas ─────────────────────────────────────────── */
+.udv-card {
+  background-color: var(--udv-navy-dark);
+  border: var(--udv-border-gold);
+  border-radius: var(--udv-radius);
+  padding: 1.5rem;
+  color: var(--udv-text-light);
+  transition: var(--udv-transition);
+}
+.udv-card:hover {
+  box-shadow: var(--udv-shadow-lg);
+  transform: translateY(-2px);
+}
+
+.udv-card__category {
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--udv-gold);
+  margin-bottom: .5rem;
+}
+
+.udv-card__title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--udv-text-light);
+  margin-bottom: 1rem;
+}
+
+.udv-card__body {
+  font-size: .875rem;
+  color: rgba(255,255,255,.75);
+  line-height: 1.6;
+}
+
+.udv-card-light {
+  background-color: var(--udv-bg-white);
+  border: 1px solid #E5E7EB;
+  border-radius: var(--udv-radius);
+  padding: 1.5rem;
+  box-shadow: var(--udv-shadow-sm);
+  transition: var(--udv-transition);
+}
+.udv-card-light:hover {
+  box-shadow: var(--udv-shadow);
+  transform: translateY(-2px);
+}
+
+/* ── 7. Badges / Etiquetas de estado ─────────────────────── */
+.udv-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  padding: .25rem .75rem;
+  border-radius: var(--udv-radius-pill);
+  font-size: .75rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+/* Estados del workflow (Grupo 3) */
+.badge-draft        { background: rgba(107,114,128,.2); color: #9CA3AF; }
+.badge-assigned     { background: rgba(0,174,239,.15);  color: var(--udv-cyan); }
+.badge-in-progress  { background: rgba(245,158,11,.15); color: #F59E0B; }
+.badge-submitted    { background: rgba(99,102,241,.15); color: #818CF8; }
+.badge-under-review { background: rgba(166,124,30,.2);  color: var(--udv-gold-light); }
+.badge-returned     { background: rgba(220,38,38,.15);  color: #F87171; }
+.badge-approved     { background: rgba(22,163,74,.15);  color: #4ADE80; }
+.badge-closed       { background: rgba(55,65,81,.3);    color: #9CA3AF; }
+.badge-cancelled    { background: rgba(17,24,39,.5);    color: #6B7280; }
+.badge-authorized   { background: rgba(22,163,74,.2);   color: #4ADE80; }
+.badge-superseded   { background: rgba(107,114,128,.15);color: #9CA3AF; }
+
+/* ── 8. Formularios ──────────────────────────────────────── */
+.udv-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+  margin-bottom: 1.25rem;
+}
+
+.udv-label {
+  font-size: .8rem;
+  font-weight: 600;
+  color: var(--udv-text-muted);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.udv-input,
+.udv-select,
+.udv-textarea {
+  font-family: var(--udv-font);
+  font-size: .9rem;
+  padding: .65rem 1rem;
+  border: 1.5px solid #D1D5DB;
+  border-radius: var(--udv-radius);
+  background-color: var(--udv-bg-white);
+  color: var(--udv-text-dark);
+  transition: var(--udv-transition);
+  width: 100%;
+}
+
+.udv-input:focus,
+.udv-select:focus,
+.udv-textarea:focus {
+  outline: none;
+  border-color: var(--udv-cyan);
+  box-shadow: 0 0 0 3px rgba(0,174,239,.15);
+}
+
+.udv-input.error,
+.udv-select.error,
+.udv-textarea.error {
+  border-color: var(--udv-danger);
+}
+
+.udv-input-error-msg {
+  font-size: .78rem;
+  color: var(--udv-danger);
+  margin-top: .2rem;
+}
+
+/* ── 9. Tablas ───────────────────────────────────────────── */
+.udv-table-wrapper {
+  overflow-x: auto;
+  border-radius: var(--udv-radius);
+  box-shadow: var(--udv-shadow-sm);
+}
+
+.udv-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .875rem;
+  background-color: var(--udv-bg-white);
+}
+
+.udv-table thead {
+  background-color: var(--udv-navy);
+  color: var(--udv-text-light);
+}
+
+.udv-table thead th {
+  padding: .85rem 1rem;
+  text-align: left;
+  font-weight: 700;
+  font-size: .75rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.udv-table tbody tr {
+  border-bottom: 1px solid #F3F4F6;
+  transition: var(--udv-transition);
+}
+
+.udv-table tbody tr:hover {
+  background-color: #F0F7FF;
+}
+
+.udv-table tbody td {
+  padding: .85rem 1rem;
+  color: var(--udv-text-dark);
+  vertical-align: middle;
+}
+
+/* ── 10. Alertas ─────────────────────────────────────────── */
+.udv-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: .75rem;
+  padding: 1rem 1.25rem;
+  border-radius: var(--udv-radius);
+  font-size: .875rem;
+  border-left: 4px solid transparent;
+  margin-bottom: 1rem;
+}
+
+.udv-alert-info    { background: rgba(0,174,239,.1);  border-color: var(--udv-cyan);    color: #0369A1; }
+.udv-alert-success { background: rgba(22,163,74,.1);  border-color: var(--udv-success); color: #166534; }
+.udv-alert-warning { background: rgba(217,119,6,.1);  border-color: var(--udv-warning); color: #92400E; }
+.udv-alert-danger  { background: rgba(220,38,38,.1);  border-color: var(--udv-danger);  color: #991B1B; }
+
+/* ── 11. Layout y utilidades ─────────────────────────────── */
+.udv-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.udv-section       { padding: 3rem 0; }
+.udv-section-dark  { background-color: var(--udv-navy); color: var(--udv-text-light); }
+
+.udv-section-title {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--udv-navy);
+  margin-bottom: .5rem;
+}
+.udv-section-dark .udv-section-title { color: var(--udv-text-light); }
+
+.udv-section-subtitle {
+  font-size: .95rem;
+  color: var(--udv-text-muted);
+  margin-bottom: 2rem;
+}
+
+.udv-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+.udv-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+.udv-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; }
+
+.udv-flex         { display: flex; }
+.udv-flex-center  { display: flex; align-items: center; justify-content: center; }
+.udv-flex-between { display: flex; align-items: center; justify-content: space-between; }
+.udv-gap-1 { gap: .5rem; }
+.udv-gap-2 { gap: 1rem; }
+.udv-gap-3 { gap: 1.5rem; }
+
+.udv-mt-1 { margin-top: .5rem; }
+.udv-mt-2 { margin-top: 1rem; }
+.udv-mt-3 { margin-top: 1.5rem; }
+.udv-mb-1 { margin-bottom: .5rem; }
+.udv-mb-2 { margin-bottom: 1rem; }
+.udv-mb-3 { margin-bottom: 1.5rem; }
+
+/* ── 12. Footer ──────────────────────────────────────────── */
+.udv-footer {
+  background-color: var(--udv-navy);
+  color: rgba(255,255,255,.75);
+  padding: 3rem 0 1.5rem;
+  margin-top: auto;
+}
+
+.udv-footer__top {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 3rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid rgba(255,255,255,.1);
+  margin-bottom: 1.5rem;
+}
+
+.udv-footer__logo-text {
+  color: var(--udv-text-light);
+  font-size: .95rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.udv-footer__links {
+  display: flex;
+  gap: 3rem;
+  list-style: none;
+}
+
+.udv-footer__links a {
+  color: rgba(255,255,255,.7);
+  font-size: .875rem;
+  transition: var(--udv-transition);
+}
+
+.udv-footer__links a:hover { color: var(--udv-cyan); }
+
+.udv-footer__bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: .8rem;
+  color: rgba(255,255,255,.45);
+}
+
+/* ── 13. Responsive ──────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .udv-grid-4 { grid-template-columns: repeat(2, 1fr); }
+  .udv-grid-3 { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 768px) {
+  .udv-header   { padding: 0 1rem; height: 60px; }
+  .udv-header__nav { display: none; }
+
+  .udv-grid-4,
+  .udv-grid-3,
+  .udv-grid-2 { grid-template-columns: 1fr; }
+
+  .udv-footer__top   { grid-template-columns: 1fr; gap: 1.5rem; }
+  .udv-footer__links { flex-direction: column; gap: .75rem; }
+  .udv-footer__bottom { flex-direction: column; gap: .5rem; text-align: center; }
+
+  .udv-section-title { font-size: 1.35rem; }
+  .udv-section       { padding: 2rem 0; }
+}
+
+@media (max-width: 480px) {
+  .btn-udv { width: 100%; justify-content: center; }
+}
