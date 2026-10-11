@@ -9,7 +9,6 @@ from g2_api.middleware.auth_middleware import requerir_rol
 router = APIRouter(prefix="/api/v1/users", tags=["Users and Roles"])
 
 class UsuarioCreate(BaseModel):
-    id: int
     usuario: str
     correo: str
     password: str
@@ -36,7 +35,7 @@ def listar_usuarios():
 @router.post("/", status_code=status.HTTP_201_CREATED, dependencies=[Depends(requerir_rol(["administrador"]))]) #Crea usuarios 
 def crear_usuario(datos: UsuarioCreate): #recibe parámetro tipo class
     for u in usuarios:
-        if u.get("correo") == datos.correo or u.get("id") == datos.id: #Compara el correo y el id del usuario
+        if u.get("correo") == datos.correo: #Compara el correo únicamente
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="El ID o correo ya se encuentra registrado" #si los datos son iguales no acepta la creación  del usuario
@@ -46,7 +45,7 @@ def crear_usuario(datos: UsuarioCreate): #recibe parámetro tipo class
     
     
     nuevo_usuario = {
-        "id": datos.id,
+        "id": max((u["id"] for u in usuarios), default=0) + 1, #Añadi esta linea para crear el id del usuario automaticamente
         "usuario": datos.usuario, 
         "correo": datos.correo,
         "hash_contrasena": password_hash,  # mismo campo que lee el login
