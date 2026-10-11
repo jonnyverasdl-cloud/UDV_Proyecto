@@ -1,300 +1,198 @@
-# Guía oficial de trabajo — Grupo 2: API y Seguridad
+# Guía del Grupo 2: API y Seguridad
 
-Coordinador: Daniel (dancobs) · Versión 1 · 29-sep-2026
+Coordinador: Daniel (dancobs) · Versión 2 · 10-oct-2026
 
-Esta guía reemplaza al documento de organización anterior. A partir de ahora trabajamos **solo** en el repositorio oficial del Project Manager.
+**Cómo usar esta guía:** busca tu nombre en la sección 2 y mira la semana actual. Ahí está lo que te toca y la fecha de entrega.
 
 ---
 
-## 1. ¿Por qué cambiamos?
+## 1. Dónde estamos
 
-El PM publicó el repositorio oficial: https://github.com/jonnyverasdl-cloud/UDV_Proyecto
-
-Ahí hay 3 documentos que **mandan sobre todo lo demás**, en este orden:
-
-1. `README.md` (raíz) → reglas, proceso y **estructura de carpetas**.
-2. `CONTRATO_COMUN.md` → reglas que cumplen los 6 grupos (rutas `/api/v1`, formato de error, paginación, fechas).
-3. `grupos/grupo-2-api-seguridad/CONTRATO.md` → **nuestros endpoints** y lo que se revisa en cada Pull Request.
-
-Lo que cambia para nosotros:
-
-| Antes | Ahora (según el PM) |
+| Ya está hecho | Quién |
 |-|-|
-| Repo de David (`Davids107/grupo2-api-seguridad`) | Repo oficial, rama `grupo-2` |
-| Carpeta `backend/` | Paquete `g2_api/` dentro de `grupos/grupo-2-api-seguridad/` |
-| Sin pruebas | Carpeta `tests/` obligatoria (ningún PR entra sin pruebas) |
-| Rutas `/login`, `/usuarios` | Rutas del contrato: `/api/v1/auth/login`, `/api/v1/users`… |
-| Catálogos y notificaciones | **No son nuestros.** Nuestro contrato no los incluye |
-| Sin roles ni archivos | `/roles` y `/files` **sí son nuestros** |
+| Migración al repo oficial, rama `grupo-2` | Todos |
+| Login (`POST /api/v1/auth/login`) | Daniel |
+| Listar, crear y actualizar usuarios (`/api/v1/users`) | Randy |
+| Formato de errores (`error_handler.py`) | Edgar |
+| Pantalla de login (`frontend-login/`) | Fulvio |
+| Esqueleto: `main.py`, `config.py`, `database.py`, `models.py`, `requirements.txt` | Roberto |
 
-**Nuestro código no se pierde.** Lo que ya funciona se mueve a su nuevo lugar y se ajusta.
-
----
-
-## 2. Qué nos toca según el CONTRATO.md (todo bajo `/api/v1`)
-
-| Método | Ruta | Qué hace |
-|-|-|-|
-| POST | `/auth/login` | Autentica y entrega token |
-| POST | `/auth/logout` | Invalida el token |
-| GET | `/me` | Usuario, roles y permisos del que inició sesión |
-| GET / POST | `/users` | Lista o crea usuarios |
-| GET / PATCH | `/users/{id}` | Consulta o actualiza un usuario |
-| GET / POST | `/roles` | Consulta o administra roles |
-| POST | `/files` | Sube un archivo validado y devuelve `file_id` |
-| GET | `/files/{id}` | Descarga autorizada |
-| GET | `/openapi` | Documentación de la API |
-
-Además somos dueños de piezas que **los otros 4 grupos van a usar**: formato de error común, paginación, middleware de autenticación y permisos, límite de intentos de login y registro de acciones sensibles.
+**Ojo:** todavía no hay base de datos. Mientras el Grupo 1 no entregue MariaDB, trabajamos con el JSON de prueba (`g2_api/datos_prueba/usuarios_prueba.json`).
 
 ---
 
-## 3. Reglas de idioma
+## 2. Quién hace qué, por semana
 
-| Qué | Idioma | Fuente |
-|-|-|-|
-| Carpeta y paquete (`grupo-2-api-seguridad`, `g2_api`) | Fijo, no se cambia | README del PM |
-| Rutas (`/auth/login`, `/users`, `/roles`, `/files`) | Inglés | CONTRATO.md |
-| Campos de error y paginación (`error`, `code`, `message`, `details`, `page`, `per_page`, `total`, `data`) | Inglés | CONTRATO_COMUN |
-| Estados (`draft`, `approved`…) | Inglés, minúsculas | CONTRATO_COMUN |
-| Variables y campos de la base de datos (`correo`, `id_usuario`, `nombre_completo`) | Español | PM + diagrama del Grupo 1 |
-| Nombres de archivo `.py` | Igual que la ruta que manejan (`auth.py`, `users.py`) | Acuerdo del grupo |
+**Corte de cada semana: martes a las 23:59.** Lo que no esté subido a `grupo-2` ese día se toma como no entregado.
 
-Regla fácil: **lo que ven otros grupos, en inglés; lo interno y los datos, en español.**
+Cada tarea dice: **archivo → qué haces** y, en *cursiva*, con quién se conecta.
 
 ---
 
-## 4. Estructura oficial del Grupo 2
+### Daniel · Persona 1 · Autenticación
 
-```
-UDV_Proyecto/                              ← repo del PM (la raíz NO se toca)
-└── grupos/
-    └── grupo-2-api-seguridad/             ← SOLO trabajamos aquí
-        ├── CONTRATO.md                    ← del PM, no tocar
-        ├── 02_Requerimientos_API_y_Seguridad.docx  ← del PM, no tocar
-        ├── README.md                      ← P5: cómo instalar, correr y probar
-        ├── requirements.txt               ← P5: UNA sola lista de librerías
-        ├── .env.example                   ← P5: variables de ejemplo (sin secretos reales)
-        ├── .gitignore                     ← P5: ignora .env, __pycache__, *.db
-        ├── g2_api/                        ← TODO el código Python
-        │   ├── __init__.py                ← P5 (vacío, convierte la carpeta en paquete)
-        │   ├── main.py                    ← P5: crea la app, CORS, junta los routers
-        │   ├── config.py                  ← P5: lee el .env
-        │   ├── database.py                ← P5: conexión a la base de datos
-        │   ├── models.py                  ← P5: tablas iguales al diagrama del Grupo 1
-        │   ├── seguridad.py               ← P1: hash bcrypt + crear/verificar JWT
-        │   ├── routers/
-        │   │   ├── __init__.py
-        │   │   ├── auth.py                ← P1: /auth/login, /auth/logout, /me
-        │   │   ├── users.py               ← P2: /users, /users/{id}
-        │   │   ├── roles.py               ← P2: /roles
-        │   │   └── files.py               ← P4: /files, /files/{id}
-        │   ├── middleware/
-        │   │   ├── __init__.py
-        │   │   ├── auth_middleware.py     ← P2: lee el token y revisa el rol
-        │   │   └── error_handler.py       ← P3: formato de error común
-        │   └── utils/
-        │       ├── __init__.py
-        │       ├── paginacion.py          ← P3: page, per_page, total, data
-        │       └── registro.py            ← P3: registro de accesos y acciones sensibles
-        ├── frontend-login/                ← P4 (ubicación por confirmar con el PM)
-        │   ├── index.html
-        │   ├── style.css
-        │   └── mi_fondo.jpg
-        └── tests/                         ← pruebas automáticas (pytest)
-            ├── conftest.py                ← P5: configuración común de pruebas
-            ├── test_auth.py               ← P1
-            ├── test_users.py              ← P2
-            ├── test_errores.py            ← P3
-            └── test_files.py              ← P4
-```
+**Semana 1 · martes 13-oct**
+- `g2_api/seguridad.py` (nuevo) → dos funciones: `crear_token()` arma el token JWT y `verificar_token()` lo valida.
+  *Randy lo usa en su middleware.*
+- `routers/auth.py` → el login devuelve el token, no solo "Login exitoso".
+  *Fulvio lo guarda en el frontend.*
 
-### ¿Qué es cada cosa, en simple?
+**Semana 2 · martes 20-oct**
+- `routers/auth.py` → `POST /auth/logout` invalida el token.
+- `routers/auth.py` → `GET /me` devuelve quién soy y mis roles, sin la contraseña.
 
-- **`g2_api/`**: es un "paquete". Así los otros grupos pueden usar nuestro código con `from g2_api...` (lo pide el README del PM).
-- **`__init__.py`**: archivo vacío. Le dice a Python "esta carpeta es un paquete". Sin él, los imports fallan.
-- **`models.py`**: las tablas de la base de datos escritas en Python (SQLAlchemy) con los **mismos nombres del diagrama del Grupo 1**. Cuando el Grupo 1 entregue su base real, solo cambiamos la conexión en el `.env`.
-- **`seguridad.py`**: las funciones de seguridad que usan varias personas (hash y token). Así no se repite código.
-- **`tests/`**: código que prueba nuestro código. El PM no acepta un PR si las pruebas fallan.
+**Semana 3 · martes 27-oct**
+- `routers/auth.py` → límite de intentos: 5 fallos = 15 minutos bloqueado.
+- `routers/auth.py` → contraseña de 8 a 64 caracteres.
+  *Los números salen del `.env`.*
+
+**Semana 4 · martes 03-nov**
+- `tests/test_auth.py` → pruebas: login bien, login mal (401), logout y `/me` sin token (401).
+
+**Semana 5 · martes 10-nov**
+- Revisar los 36 escenarios de QA y abrir el PR `grupo-2 → main`.
 
 ---
 
-## 5. Cambios en los archivos (qué se agrega y qué se quita)
+### Randy · Persona 2 · Usuarios y roles
 
-| Archivo | Estado | Motivo |
-|-|-|-|
-| `routers/catalogos.py` | **Se elimina** | No está en nuestro contrato |
-| `routers/notificaciones.py` | **Se elimina** | No está en nuestro contrato |
-| `openapi.yaml` | **Se elimina** | Estaba vacío. FastAPI genera la documentación solo |
-| `routers/usuarios.py` | **Se renombra** a `users.py` | La ruta es `/users` |
-| `routers/roles.py` | **Nuevo** (P2) | `/roles` está en el contrato |
-| `routers/files.py` | **Nuevo** (P4) | `/files` está en el contrato |
-| `seguridad.py` | **Nuevo** (P1) | Hash + JWT en un solo lugar |
-| `models.py`, `config.py` | **Nuevos** (P5) | Tablas del Grupo 1 y lectura del `.env` |
-| `utils/paginacion.py`, `utils/registro.py` | **Nuevos** (P3) | Paginación y registro, obligatorios |
-| `tests/*` | **Nuevos** (todos) | Obligatorio para cada PR |
+**Semana 1 · martes 13-oct**
+- `routers/users.py` → quitar `id` del body; el sistema pone el siguiente número.
+- `routers/roles.py` (nuevo) → `GET /api/v1/roles` lista los roles; `POST` crea uno (solo administrador).
+  *Roberto lo agrega en `main.py`.*
 
-Siguen siendo **5 personas**. Cambian algunas tareas:
+**Semana 2 · martes 20-oct**
+- `middleware/auth_middleware.py` → leer el usuario del header `Authorization: Bearer <token>`, ya no del correo.
+  *Usa `verificar_token()` de Daniel.*
 
-- **P3** ya no hace catálogos: hace errores, paginación y registro.
-- **P4** ya no hace notificaciones: hace archivos y el frontend.
+**Semana 3 · martes 27-oct**
+- `routers/users.py` → `GET /users/{id}` muestra un usuario; 404 si no existe.
+- `routers/users.py` → la lista de usuarios usa la paginación.
+  *Usa `paginacion.py` de Edgar.*
 
----
-
-## 6. Quién hace qué
-
-### Persona 1 — Autenticación (Daniel)
-Archivos: `g2_api/routers/auth.py`, `g2_api/seguridad.py`, `tests/test_auth.py`
-- `POST /api/v1/auth/login`: responde **401 real** si falla (con `HTTPException`, no con 200) y entrega un JWT si es correcto.
-- JWT con **PyJWT**: guardar el token en la tabla `TOKENS` (activo = true).
-- `POST /api/v1/auth/logout`: marca el token como `activo = false`.
-- `GET /api/v1/me`: devuelve usuario, rol y permisos (nunca la contraseña).
-- Límite de intentos fallidos de login.
-- Validar campos vacíos (contraseña de 8 a 64 caracteres).
-
-### Persona 2 — Usuarios, roles y permisos
-Archivos: `routers/users.py`, `routers/roles.py`, `middleware/auth_middleware.py`, `tests/test_users.py`
-- Mover su `usuarios.py` actual a `users.py`, con la ruta `/users`.
-- Middleware: sacar al usuario del header `Authorization: Bearer <token>`, **ya no del correo** (hoy cualquiera puede hacerse pasar por admin).
-- `GET/POST /roles`.
-- Correo duplicado → **409**. El `id` lo genera la base de datos, no el cliente.
-- 401 sin token, 403 sin permiso, 404 si no existe.
-
-### Persona 3 — Errores, paginación y registro
-Archivos: `middleware/error_handler.py`, `utils/paginacion.py`, `utils/registro.py`, `tests/test_errores.py`
-- Que **todos** los errores salgan así:
-  `{"error": {"code": "VALIDATION_ERROR", "message": "...", "details": {}}}`
-- Un 422 debe traer el detalle de cada campo inválido.
-- Nunca mostrar trazas, SQL, rutas internas ni secretos.
-- Paginación reutilizable: `page`, `per_page`, `total`, `data` (con un máximo de `per_page`).
-- Registro de accesos y acciones sensibles.
-
-### Persona 4 — Archivos y frontend
-Archivos: `routers/files.py`, `frontend-login/`, `tests/test_files.py`
-- `POST /files`: lista de tipos permitidos, límite de tamaño, nombre interno aleatorio y devolver `file_id`.
-- `GET /files/{id}`: descargar solo si tiene permiso.
-- Frontend: cambiar el `fetch` a `/api/v1/auth/login`, guardar el token y mostrar los errores del formato nuevo.
-
-### Persona 5 — Base del proyecto e integración
-Archivos: `main.py`, `config.py`, `database.py`, `models.py`, `requirements.txt`, `.env.example`, `.gitignore`, `README.md`, `tests/conftest.py`
-- **Primero:** crear el esqueleto de carpetas (sección 4) en la rama `grupo-2`.
-- `models.py` con las tablas del diagrama del Grupo 1 (SEGURIDAD, ROLES, TOKENS) en SQLite local.
-- Un solo `requirements.txt` limpio.
-- `main.py`: incluir todos los routers con el prefijo `/api/v1`, CORS leyendo `CORS_ORIGINS` del `.env` y la documentación en `/api/v1/openapi`.
-- README con los pasos para instalar, correr y probar.
+**Semana 4 · martes 03-nov**
+- `tests/test_users.py` → pruebas: 401 sin token, 403 sin permiso, 404 y 409 por correo repetido.
 
 ---
 
-## 7. ¿Dónde va el código que ya hicimos? (migración)
+### Edgar · Persona 3 · Errores, paginación y registro
 
-| Código actual (repo de David) | Dueño | Nuevo lugar | Qué ajustar |
-|-|-|-|-|
-| `backend/routers/auth.py` | P1 | `g2_api/routers/auth.py` | Rutas del contrato, 401 real, JWT |
-| `backend/usuarios_prueba.json` | P1 | Temporal en `g2_api/` | Se borra cuando `models.py` tenga datos semilla |
-| `backend/routers/usuarios.py` | P2 | `g2_api/routers/users.py` | Ruta `/users`, 409, id automático |
-| `backend/middleware/auth_middleware.py` | P2 | `g2_api/middleware/auth_middleware.py` | Leer el token, no el correo |
-| `backend/middleware/error_handler.py` (vacío) | P3 | `g2_api/middleware/error_handler.py` | Escribirlo desde cero |
-| `backend/database.py` | P5 | `g2_api/database.py` + `models.py` | Nombres del Grupo 1, sin contraseñas en el código |
-| `backend/.env.example` | P5 | `.env.example` | Cambiar python-jose por PyJWT |
-| `backend/requirements.txt` + `requirements.txt` (raíz) | P5 | `requirements.txt` | Unir en uno solo, sin duplicados |
-| `backend/main.py` | P5 | `g2_api/main.py` | Incluir todos los routers, prefijo `/api/v1` |
-| `frontend-login/*` | P4 | `frontend-login/` | Nueva ruta del login + token |
-| `catalogos.py`, `notificaciones.py`, `openapi.yaml`, `__pycache__/` | — | No se migran | — |
+**Semana 1 · martes 13-oct**
+- `utils/paginacion.py` (nuevo) → función que recibe una lista y devuelve `page`, `per_page`, `total` y `data`. Máximo 100 por página.
+  *Randy la usa en `GET /users`.*
 
-**Importante para el crédito de cada uno:** cada persona sube **su propio archivo** al repo oficial con **su propia cuenta**. El PM dijo que los commits se registran con el nombre de cada contribuyente.
+**Semana 2 · martes 20-oct**
+- `utils/registro.py` (nuevo) → función `registrar(accion, usuario, ip)` que guarda login, logout y usuario creado o desactivado.
+  *Daniel y Randy la llaman.*
 
-### Cambio en los imports (todos)
+**Semana 3 · martes 27-oct**
+- `middleware/error_handler.py` → revisar que 401, 403, 404, 409 y 422 salgan con el formato común.
 
-```python
-# Antes
-from routers import auth
-from middleware.auth_middleware import requerir_rol
-
-# Ahora
-from g2_api.routers import auth
-from g2_api.middleware.auth_middleware import requerir_rol
-```
-
-### Cómo se corre ahora (parados en `grupos/grupo-2-api-seguridad/`)
-
-```
-pip install -r requirements.txt
-python -m uvicorn g2_api.main:app --reload
-```
-
-Documentación: http://127.0.0.1:8000/api/v1/openapi · Pruebas: `pytest`
+**Semana 4 · martes 03-nov**
+- `tests/test_errores.py` → pruebas del formato de error y de la paginación.
 
 ---
 
-## 8. Cómo trabajamos con Git (paso a paso)
+### Fulvio · Persona 4 · Archivos y frontend
 
-**Una sola vez:**
-```
-git clone https://github.com/jonnyverasdl-cloud/UDV_Proyecto.git
-cd UDV_Proyecto
-git checkout grupo-2
-```
+**Semana 1 · martes 13-oct**
+- `frontend-login/script.js` → input con `id="correo"`, fetch a `/api/v1/auth/login`, usar `respuesta.ok` y mostrar el error si falla.
+  *Se conecta al login de Daniel.*
 
-**Cada vez que trabajas:**
-```
-git pull origin grupo-2          ← 1. traer lo último de todos
-(trabajas SOLO en tus archivos)
-git add .
-git commit -m "auth: logout con token"   ← 2. mensaje: módulo + qué hiciste
-git pull origin grupo-2          ← 3. traer cambios otra vez antes de subir
-git push origin grupo-2          ← 4. subir
-```
+**Semana 2 · martes 20-oct**
+- `frontend-login/script.js` → guardar el token del login y mandarlo en las siguientes peticiones.
+- `routers/files.py` (nuevo) → `POST /api/v1/files`: solo PDF, JPG o PNG, máximo 5 MB, nombre interno aleatorio. Devuelve `file_id`.
+  *Roberto lo agrega en `main.py`.*
 
-**Reglas:**
-1. **Nunca** push a `main`. Solo a `grupo-2`.
-2. Solo tocamos `grupos/grupo-2-api-seguridad/`. Nada de la raíz.
-3. Cada quien toca **solo sus archivos**. Si necesitas cambiar el de otro, primero avisas.
-4. Nada de contraseñas ni claves reales en el código: todo va en `.env`, y el `.env` no se sube.
-5. Antes de subir, corre `pytest` y el servidor en tu compu.
-6. Avisa en el chat cuando subas algo.
+**Semana 3 · martes 27-oct**
+- `routers/files.py` → `GET /api/v1/files/{id}`: descarga solo si tiene token.
+  *Usa el middleware de Randy.*
 
-**El Pull Request:**
-1. Todos suben a `grupo-2`.
-2. Daniel revisa: estructura, pruebas y checklist del CONTRATO.md.
-3. Si falta algo, Daniel le avisa a esa persona para que corrija.
-4. Cuando todo está bien, **solo Daniel** abre el Pull Request `grupo-2 → main`.
+**Semana 4 · martes 03-nov**
+- `tests/test_files.py` → pruebas: tipo no permitido, archivo muy grande y descarga sin token (401).
 
 ---
 
-## 9. Plan por semanas
+### Roberto · Persona 5 · Base del proyecto e integración
 
-| Semana | Meta | Responsables |
-|-|-|-|
-| 1 | Migración a la estructura oficial + login, logout y `/me` con JWT + formato de error + primeras pruebas → **primer PR** | Todos (P5 empieza con el esqueleto) |
-| 2 | `/users` y `/roles` protegidos con token (401 y 403) + paginación | P2, P3 |
-| 3 | Servicio de archivos + conectar la base real del Grupo 1 (si ya la entregó) | P4, P5 |
-| 4 | Límite de intentos, registro de acciones, CORS restringido, OpenAPI revisado | P1, P3, P5 |
-| 5 | Pasar los 36 escenarios de QA + integración con los grupos 3 a 6 | Todos |
-| 6 | Colchón, correcciones y demo | Todos |
+**Semana 1 · martes 13-oct**
+- `main.py` → conectar el `error_handler`: importar `register_error_handlers` y llamarlo con `app`.
+  *Es el archivo de Edgar.*
+- `GUIA_GRUPO2.md` → moverla de `g2_api/` a la carpeta del grupo, junto a `README.md`.
+
+**Semana 2 · martes 20-oct**
+- `main.py` → agregar los routers nuevos: `roles` y `files`.
+  *Son de Randy y Fulvio.*
+
+**Semana 3 · martes 27-oct**
+- `.env.example`, `requirements.txt`, `database.py` → conexión a MariaDB: agregar `PyMySQL` y la `DATABASE_URL`.
+  *Depende de que el Grupo 1 entregue la base.*
+
+**Semana 4 · martes 03-nov**
+- `README.md` → títulos y tablas bien hechas.
+- `tests/conftest.py` → revisar que `pytest` corra para todos.
 
 ---
 
-## 10. Checklist de cada Pull Request (del CONTRATO.md)
+## 3. Cómo entregar cada semana
+
+1. **Al empezar:** en VS Code, `...` → **Pull**.
+2. Trabaja **solo en tus archivos**.
+3. Prueba que levante: `.venv\Scripts\python.exe -m uvicorn g2_api.main:app --reload --reload-dir g2_api`
+4. **+** a tus archivos → mensaje claro (por ejemplo `roles: GET y POST /roles`) → **Commit** → **Push**.
+5. Avisa en el grupo qué subiste.
+
+**Si no arranca, no lo subas.** Si te trabas, avisa antes del martes, no el martes.
+
+---
+
+## 4. Reglas (no cambian)
+
+- Rutas en inglés con `/api/v1`. Datos y variables en español.
+- Imports siempre con `g2_api.` al inicio (`from g2_api.routers import auth`).
+- Errores: `{"error": {"code": "...", "message": "...", "details": {}}}`
+- Listas: `page`, `per_page`, `total`, `data`.
+- Nunca devolver la contraseña ni el hash.
+- Nada de claves en el código: van en `.env`, y el `.env` no se sube.
+- Nunca push a `main`. Solo Daniel abre el PR `grupo-2 → main`.
+- Cada quien sube con **su propia cuenta** (el PM cuenta los commits).
+
+---
+
+## 5. Checklist del PR (del CONTRATO.md)
 
 - [ ] Se instala desde cero con `pip install -r requirements.txt`.
-- [ ] Cumple el CONTRATO_COMUN (rutas `/api/v1`, formato de error, paginación, fechas ISO 8601).
-- [ ] Tiene pruebas de 401, 403, 404, 409 y 422, y pasan.
-- [ ] No hay credenciales en el código.
-- [ ] La documentación OpenAPI coincide con lo que responde la API.
-- [ ] No se modificó nada fuera de nuestra carpeta.
-- [ ] No hay datos reales escritos en el código.
-- [ ] El README explica cómo instalar, las variables de entorno y la seguridad.
+- [ ] Rutas `/api/v1`, formato de error, paginación y fechas ISO 8601.
+- [ ] Pruebas de 401, 403, 404, 409 y 422, y pasan.
+- [ ] Sin credenciales ni datos reales en el código.
+- [ ] La documentación (`/api/v1/docs`) coincide con lo que responde la API.
+- [ ] No se tocó nada fuera de `grupos/grupo-2-api-seguridad/`.
 
 ---
 
-## 11. Pendientes de confirmar con el PM y el Grupo 1
+## 6. Referencia: estructura del proyecto (ya armada)
 
-**PM:**
-- ¿Ya están los 5 integrantes como colaboradores?
-- ¿Dónde va el frontend del login?
-- Propuesta del stack: FastAPI + SQLAlchemy + PyJWT + bcrypt + IDs enteros.
+```
+grupos/grupo-2-api-seguridad/
+├── CONTRATO.md, 02_Requerimientos...docx   ← del PM, no tocar
+├── README.md, requirements.txt, .env.example, .gitignore   ← Roberto
+├── frontend-login/        ← Fulvio
+├── tests/                 ← todos (cada uno su test_*.py)
+└── g2_api/
+    ├── main.py, config.py, database.py, models.py   ← Roberto
+    ├── seguridad.py       ← Daniel (token JWT)
+    ├── datos_prueba/      ← JSON temporal hasta tener MariaDB
+    ├── routers/           ← auth.py (Daniel), users.py y roles.py (Randy), files.py (Fulvio)
+    ├── middleware/        ← auth_middleware.py (Randy), error_handler.py (Edgar)
+    └── utils/             ← paginacion.py y registro.py (Edgar)
+```
 
-**Grupo 1:**
-- Tablas que faltan en el diagrama: permisos, archivos, registro/auditoría.
-- Campo `activo` en SEGURIDAD para poder desactivar usuarios.
-- Motor de base de datos que van a usar.
+Para correr la API: `http://127.0.0.1:8000/api/v1/docs`
+
+---
+
+## 7. Pendientes con otros grupos
+
+- **Grupo 1:** ¿MariaDB local o servidor compartido? ¿Cuándo sube el script con datos semilla?
+- **Grupos 3 y 5:** ¿necesitan un rol "autoridad" para autorizar programas?
+- **Todos:** el código de rol es `administrador` o `admin`. Hay que alinearlo.
