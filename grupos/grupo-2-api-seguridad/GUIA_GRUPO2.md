@@ -102,7 +102,7 @@ Cada tarea dice: **archivo → qué haces** y, en *cursiva*, con quién se conec
 **Semana 2 · martes 20-oct**
 - `frontend-login/script.js` → guardar el token del login y mandarlo en las siguientes peticiones.
 - `routers/files.py` (nuevo) → `POST /api/v1/files`: solo PDF, JPG o PNG, máximo 5 MB, nombre interno aleatorio. Devuelve `file_id`.
-  *Roberto lo agrega en `main.py`.*
+  *Robert lo agrega en `main.py`.*
 
 **Semana 3 · martes 27-oct**
 - `routers/files.py` → `GET /api/v1/files/{id}`: descarga solo si tiene token.
@@ -175,11 +175,11 @@ Cada tarea dice: **archivo → qué haces** y, en *cursiva*, con quién se conec
 ```
 grupos/grupo-2-api-seguridad/
 ├── CONTRATO.md, 02_Requerimientos...docx   ← del PM, no tocar
-├── README.md, requirements.txt, .env.example, .gitignore   ← Roberto
+├── README.md, requirements.txt, .env.example, .gitignore   ← Robert
 ├── frontend-login/        ← Fulvio
 ├── tests/                 ← todos (cada uno su test_*.py)
 └── g2_api/
-    ├── main.py, config.py, database.py, models.py   ← Roberto
+    ├── main.py, config.py, database.py, models.py   ← Robert
     ├── seguridad.py       ← Daniel (token JWT)
     ├── datos_prueba/      ← JSON temporal hasta tener MariaDB
     ├── routers/           ← auth.py (Daniel), users.py y roles.py (Randy), files.py (Fulvio)
