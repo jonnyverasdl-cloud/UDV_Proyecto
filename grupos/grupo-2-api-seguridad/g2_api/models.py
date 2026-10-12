@@ -98,10 +98,10 @@ class SesionToken(Base):
     # BIGINT en MySQL; en SQLite (pruebas) se usa INTEGER para que sea autoincremental
     id = Column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True)
     usuario_id = Column(Integer, ForeignKey("usuario.id"), nullable=False, index=True)
-    token_hash = Column(CHAR(64), unique=True, nullable=False)  # SHA-256 del token, nunca el token
+    token_hash = Column(CHAR(64), unique=True, nullable=False) # SHA-256 del token, nunca el token
     tipo = Column(String(10), nullable=False, default="acceso")
     emitido_en = Column(DateTime, nullable=False, default=ahora_utc)
     expira_en = Column(DateTime, nullable=False)
-    revocado_en = Column(DateTime, nullable=True)  # el logout llena esta fecha
+    revocado_en = Column(DateTime, nullable=True) # El logout llena esta fecha
     ip_origen = Column(String(45), nullable=True)
     user_agent = Column(String(300), nullable=True)
