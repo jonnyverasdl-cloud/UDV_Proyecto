@@ -1,6 +1,21 @@
+# Secretos y variables locales: Nunca se suben.
 .env
+.env.*
+!.env.example
+
+# Entorno virtual de Python.
+.venv/
+venv/
+
+# Archivos generados por Python y por pytest.
 __pycache__/
 *.py[cod]
-*.db
 .pytest_cache/
+
+# Bases de datos locales y archivos subidos.
+*.db
+*.sqlite3
 uploads/
+
+# Registros.
+*.log
