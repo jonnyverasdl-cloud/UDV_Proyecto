@@ -51,7 +51,7 @@ document.querySelector("form").addEventListener("submit", async function(e) {
 
       const datos = await respuesta.json();
 
-      if (datos.codigo === 200) {
+      if (datos.respuesta.ok) {
         alert("Bienvenido " + datos.usuario);
       } else {
         triggerShake(); // Hace temblar el campo cuando la contraseña/usuario es incorrecto
