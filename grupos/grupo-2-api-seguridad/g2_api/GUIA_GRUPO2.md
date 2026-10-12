@@ -15,7 +15,7 @@ Coordinador: Daniel (dancobs) · Versión 2 · 10-oct-2026
 | Listar, crear y actualizar usuarios (`/api/v1/users`) | Randy |
 | Formato de errores (`error_handler.py`) | Edgar |
 | Pantalla de login (`frontend-login/`) | Fulvio |
-| Esqueleto: `main.py`, `config.py`, `database.py`, `models.py`, `requirements.txt` | Roberto |
+| Esqueleto: `main.py`, `config.py`, `database.py`, `models.py`, `requirements.txt` | Robert |
 
 **Ojo:** todavía no hay base de datos. Mientras el Grupo 1 no entregue MariaDB, trabajamos con el JSON de prueba (`g2_api/datos_prueba/usuarios_prueba.json`).
 
