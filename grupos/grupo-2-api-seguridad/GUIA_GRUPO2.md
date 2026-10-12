@@ -59,7 +59,7 @@ Cada tarea dice: **archivo → qué haces** y, en *cursiva*, con quién se conec
 **Semana 1 · martes 13-oct**
 - `routers/users.py` → quitar `id` del body; el sistema pone el siguiente número.
 - `routers/roles.py` (nuevo) → `GET /api/v1/roles` lista los roles; `POST` crea uno (solo administrador).
-  *Roberto lo agrega en `main.py`.*
+  *Robert lo agrega en `main.py`.*
 
 **Semana 2 · martes 20-oct**
 - `middleware/auth_middleware.py` → leer el usuario del header `Authorization: Bearer <token>`, ya no del correo.
@@ -113,7 +113,7 @@ Cada tarea dice: **archivo → qué haces** y, en *cursiva*, con quién se conec
 
 ---
 
-### Roberto · Persona 5 · Base del proyecto e integración
+### Robert · Persona 5 · Base del proyecto e integración
 
 **Semana 1 · martes 13-oct**
 - `main.py` → conectar el `error_handler`: importar `register_error_handlers` y llamarlo con `app`.
