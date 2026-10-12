@@ -37,6 +37,6 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
 )
 
-# Routers: cada persona agrega el suyo.
+# Routers: Cada persona agrega el suyo.
 app.include_router(auth.router) # Persona 1.
 app.include_router(users.router) # Persona 2.
