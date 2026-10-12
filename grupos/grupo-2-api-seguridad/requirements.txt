@@ -9,7 +9,7 @@ email-validator==2.3.0 # Validar correos (EmailStr de pydantic) -> 422 por campo
 
 # Seguridad
 bcrypt==5.0.0 # hash de contraseñas login (Persona 1).
-PyJWT==2.15.1  # Tokens de sesion (Persona de autenticacion)
+PyJWT==2.15.1 # Tokens de sesion (Persona de autenticacion)
 
 # Base de datos
 SQLAlchemy==2.1.1 # Conexión a base de datos (Persona 5)
