@@ -7,12 +7,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from g2_api import config
 from g2_api.database import init_db
+from g2_api.middleware.error_handler import register_error_handlers
 from g2_api.routers import auth
 from g2_api.routers import users
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    init_db() # Crea las tablas si no existen
+    init_db() # Crea las tablas si no existen.
     yield
 
 app = FastAPI(
@@ -24,7 +25,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS: Solo los origenes definidos en CORS_ORIGINS del .env
+# Errores: Todos salen con el formato comun (codigo, mensaje y detalles). Es el archivo de Edgar.
+register_error_handlers(app)
+
+# CORS: Solo los origenes definidos en CORS_ORIGINS del .env.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=config.CORS_ORIGINS,
@@ -33,7 +37,6 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
 )
 
-# Routers (cada persona agrega el suyo)
-app.include_router(auth.router) # Persona 1
-app.include_router(users.router) # Persona 2
-
+# Routers: cada persona agrega el suyo.
+app.include_router(auth.router) # Persona 1.
+app.include_router(users.router) # Persona 2.
