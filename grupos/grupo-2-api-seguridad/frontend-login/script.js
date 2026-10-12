@@ -43,7 +43,7 @@ document.querySelector("form").addEventListener("submit", async function(e) {
     const password = document.getElementById("password").value;
 
     try {
-      const respuesta = await fetch("http://127.0.0.1:8000/login", {
+      const respuesta = await fetch("/api/v1/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ correo: correo, password: password })
