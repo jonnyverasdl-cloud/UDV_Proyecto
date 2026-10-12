@@ -12,7 +12,7 @@ from g2_api.routers import users
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    init_db()  # crea las tablas si no existen
+    init_db() # Crea las tablas si no existen
     yield
 
 app = FastAPI(
@@ -24,7 +24,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS: solo los origenes definidos en CORS_ORIGINS del .env
+# CORS: Solo los origenes definidos en CORS_ORIGINS del .env
 app.add_middleware(
     CORSMiddleware,
     allow_origins=config.CORS_ORIGINS,
