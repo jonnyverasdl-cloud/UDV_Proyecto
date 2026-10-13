@@ -8,7 +8,8 @@ Base de datos del sistema de solicitudes a docentes (`db_udv`, versión 1.1.0). 
 Docs/
 ├─ sql/
 │  ├─ db_udv_completo.sql   tablas, triggers, procedimientos, datos semilla y vistas
-│  └─ triggers.sql          solo los triggers y procedimientos (para consulta)
+│  ├─ triggers.sql          solo los triggers y procedimientos (para consulta)
+│  └─ verificacion.sql      pruebas de las restricciones
 ├─ Diagramas/               diagramas entidad-relación en PDF
 └─ diccionario/             diccionario de datos (abrir el .html en el navegador)
 ```
@@ -44,6 +45,18 @@ WHERE table_schema = 'db_udv' AND table_type = 'BASE TABLE';   -- 49
 SELECT * FROM v_inbox WHERE usuario_id = 3;                     -- 2 tareas
 ```
 
+### Pruebas de las restricciones
+
+`verificacion.sql` intenta cosas que la base debe rechazar (correo repetido, dos versiones vigentes, modificar una versión autorizada, borrar historial, transiciones que no existen, etc.) y otras que debe aceptar. Corre todo dentro de una transacción y al final la deshace, así que no cambia los datos.
+
+En phpMyAdmin: seleccionar `db_udv`, pestaña **SQL**, pegar el contenido del archivo y pulsar **Continuar**. Desde la consola:
+
+```
+mysql -u root db_udv < verificacion.sql
+```
+
+La primera fila del resultado debe decir `pasan 73, fallan 0`. Las demás filas muestran cada prueba con su resultado.
+
 ## Usuarios de prueba
 
 Todos con la contraseña `Demo2026!`.
@@ -75,6 +88,41 @@ mysql -u root db_udv < respaldo_db_udv.sql
 ```
 
 `--routines --triggers` es obligatorio. Sin esas opciones el respaldo pierde los triggers y procedimientos.
+
+## Migrar
+
+Esta es la primera versión subida. La tabla `schema_migracion` guarda qué versiones del esquema tiene aplicadas la base:
+
+```sql
+SELECT * FROM schema_migracion;
+```
+
+Para cambiar el esquema más adelante:
+
+1. Crear un script nuevo en `Docs/sql` con la versión en el nombre, por ejemplo `migracion_1.2.0.sql`. Solo lleva el cambio (`ALTER TABLE`, `CREATE TABLE`, triggers nuevos), no la base completa.
+2. Al final del script, registrar la versión:
+
+   ```sql
+   INSERT INTO schema_migracion (version, descripcion) VALUES ('1.2.0', 'Qué cambió');
+   ```
+
+3. Aplicarlo sobre la base que ya existe: `mysql -u root db_udv < migracion_1.2.0.sql`. No hace falta borrar la base ni perder datos.
+4. Actualizar también `db_udv_completo.sql`, el diccionario y el diagrama, para que quien monte la base desde cero ya tenga el cambio.
+5. Avisar a los grupos afectados antes de renombrar o quitar una tabla o columna.
+
+## Eliminación lógica
+
+Lo que tiene historial no se borra con `DELETE`. La base lo impide con triggers: si alguien intenta un `DELETE`, devuelve un error.
+
+| Tablas | Cómo se "borra" |
+|---|---|
+| `usuario`, `curso`, `tarea`, `comentario`, `archivo` | Se llenan `eliminado_en` (fecha) y `eliminado_por` (usuario). Las consultas filtran `eliminado_en IS NULL`. |
+| `tarea_destinatario` | Se pasa a estado `cancelled` con su transición. |
+| `programa_curso`, `programa_version` | No se borran. Una versión vieja queda como `superseded` cuando se autoriza la nueva. |
+| `entrega`, `entrega_valor`, `notificacion`, `programa_pdf`, `evento` | No se borran nunca. |
+| `tarea_transicion`, `programa_aprobacion`, `auditoria` | Historial: no se modifican ni se borran. |
+
+El contenido de un programa (competencias, unidades, bibliografía, evaluación, prerrequisitos, perfil de egreso) sí se puede editar y borrar mientras la versión está en borrador. Cuando la versión se autoriza queda bloqueada y cualquier cambio da error.
 
 ## Lo que deben saber los otros grupos
 
@@ -115,9 +163,3 @@ Si la transición no existe en el workflow, la base la rechaza.
 | `evento (procesado_en, id)` | Eventos pendientes de notificar |
 | `auditoria (tabla, registro_id, creado_en)` | Auditoría de un registro |
 | `sesion_token (usuario_id, expira_en)` | Sesiones activas de un usuario |
-
-## Cambios de la versión 1.1.0
-
-- Se eliminó `tarea.tipo_tarea_id`. El tipo de una tarea se obtiene por `tarea.workflow_id → workflow.tipo_tarea_id`.
-- Nuevo catálogo `perfil_egreso`. `programa_perfil_egreso` guarda `perfil_egreso_id` en lugar del código escrito a mano.
-- Nuevas tablas: `modalidad`, `area`, `docente_curso`, `flujo_programa`, `tarea_seleccion`, `entrega_borrador`, `evento`, `programa_pdf`, `workflow_detalle_rol`.

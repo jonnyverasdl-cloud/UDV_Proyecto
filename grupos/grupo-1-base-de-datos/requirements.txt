@@ -1,1 +1,2 @@
 # Dependencias del grupo-1-base-de-datos. Una por línea, con versión fija (ej.: libreria==1.2.3).
+# El Grupo 1 no usa librerías de Python: la base se crea con los scripts SQL de Docs/sql.
