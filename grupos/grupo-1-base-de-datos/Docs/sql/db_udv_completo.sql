@@ -1,25 +1,14 @@
--- db_udv_completo.sql: 01_schema + 02_triggers + 03_inserts + 04_vistas en un solo archivo (generado).
-/* =====================================================================
-   01_schema.sql | Grupo 1 - Base de datos | Workflow docente UDV
-   Motor: MariaDB 10.4+ (XAMPP)  |  utf8mb4
-   Orden: 01_schema -> 02_triggers -> 03_inserts -> 04_vistas -> 05_verificacion
-   ATENCION: borra y recrea la base db_udv desde cero.
-   Convenciones:
-   - IDs enteros AUTO_INCREMENT (pendiente confirmar con el Grupo 2).
-   - Estados en ingles y minusculas (CONTRATO_COMUN.md §2).
-   - creado_en / actualizado_en con CURRENT_TIMESTAMP(3).
-   - Eliminacion logica con eliminado_en / eliminado_por; los DELETE fisicos se bloquean en 02_triggers.sql.
-   Version 1.1.0: incorpora aportes del esquema de Pablo (modalidad, area, docente_curso,
-   flujo_programa, perfil de egreso, datos del encabezado del programa, seleccion de
-   destinatarios, borrador de entrega, eventos para notificaciones, historial de PDF,
-   bloqueo de login y accion/roles por transicion).
-   ===================================================================== */
+-- db_udv_completo.sql | Grupo 1 - Base de datos | Workflow docente UDV | version 1.1.0
+-- MariaDB 10.4+ (XAMPP), utf8mb4. Borra y recrea la base db_udv: tablas, triggers, datos semilla y vistas.
+-- Usuarios demo: contrasena Demo2026!
+
+-- ==================== TABLAS ====================
 DROP DATABASE IF EXISTS db_udv;
 SET NAMES utf8mb4;
 CREATE DATABASE db_udv CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE db_udv;
 
-/* ============================== 1. ACADEMICO ============================== */
+-- ACADEMICO
 CREATE TABLE facultad (
     id              INT          NOT NULL AUTO_INCREMENT,
     codigo          VARCHAR(20)  NOT NULL,
@@ -60,7 +49,7 @@ CREATE TABLE unidad_academica (
 
 CREATE TABLE periodo (
     id            INT               NOT NULL AUTO_INCREMENT,
-    codigo        VARCHAR(20)       NOT NULL,            -- ej. 2026-S1
+    codigo        VARCHAR(20)       NOT NULL,
     anio          SMALLINT          NOT NULL,
     ciclo         TINYINT UNSIGNED  NOT NULL,
     fecha_inicio  DATE              NOT NULL,
@@ -73,7 +62,6 @@ CREATE TABLE periodo (
     CONSTRAINT ck_periodo_fechas CHECK (fecha_fin > fecha_inicio)
 ) ENGINE=InnoDB;
 
--- Modalidad en que se imparte un curso (presencial, virtual...). Distingue programas del mismo curso y sede.
 CREATE TABLE modalidad (
     id              INT          NOT NULL AUTO_INCREMENT,
     codigo          VARCHAR(20)  NOT NULL,
@@ -85,7 +73,6 @@ CREATE TABLE modalidad (
     CONSTRAINT uq_modalidad_codigo UNIQUE (codigo)
 ) ENGINE=InnoDB;
 
--- Area de conocimiento del curso (aparece en el encabezado del programa)
 CREATE TABLE area (
     id              INT          NOT NULL AUTO_INCREMENT,
     codigo          VARCHAR(20)  NOT NULL,
@@ -97,20 +84,20 @@ CREATE TABLE area (
     CONSTRAINT uq_area_codigo UNIQUE (codigo)
 ) ENGINE=InnoDB;
 
-/* ============================== 2. SEGURIDAD ============================== */
+-- SEGURIDAD
 CREATE TABLE usuario (
     id                   INT          NOT NULL AUTO_INCREMENT,
-    correo               VARCHAR(254) NOT NULL,           -- unico; la collation _ci evita duplicados por mayusculas
+    correo               VARCHAR(254) NOT NULL,
     id_academico         VARCHAR(20)  NULL,
     nombres              VARCHAR(100) NOT NULL,
     apellidos            VARCHAR(100) NOT NULL,
     telefono             VARCHAR(20)  NULL,
-    hash_contrasena      VARCHAR(255) NOT NULL,           -- bcrypt; nunca texto plano
+    hash_contrasena      VARCHAR(255) NOT NULL,
     unidad_academica_id  INT          NULL,
     activo               TINYINT(1)   NOT NULL DEFAULT 1,
     ultimo_acceso_en     DATETIME(3)  NULL,
-    intentos_fallidos    TINYINT UNSIGNED NOT NULL DEFAULT 0,  -- intentos de login fallidos seguidos
-    bloqueado_hasta      DATETIME(3)  NULL,               -- bloqueo temporal tras varios intentos fallidos
+    intentos_fallidos    TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    bloqueado_hasta      DATETIME(3)  NULL,
     creado_en           DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     actualizado_en       DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
     eliminado_en         DATETIME(3)  NULL,
@@ -132,7 +119,7 @@ CREATE TABLE rol (
     actualizado_en  DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
     PRIMARY KEY (id),
     CONSTRAINT uq_rol_codigo UNIQUE (codigo),
-    CONSTRAINT ck_rol_codigo CHECK (codigo REGEXP BINARY '^[a-z][a-z_]*$')   -- ingles, minusculas, sin espacios (acuerdo con G2)
+    CONSTRAINT ck_rol_codigo CHECK (codigo REGEXP BINARY '^[a-z][a-z_]*$')
 ) ENGINE=InnoDB;
 
 CREATE TABLE permiso (
@@ -142,7 +129,7 @@ CREATE TABLE permiso (
     creado_en    DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     PRIMARY KEY (id),
     CONSTRAINT uq_permiso_codigo UNIQUE (codigo),
-    CONSTRAINT ck_permiso_codigo CHECK (codigo REGEXP BINARY '^[a-z][a-z_]*\\.[a-z][a-z_]*$')   -- recurso.accion
+    CONSTRAINT ck_permiso_codigo CHECK (codigo REGEXP BINARY '^[a-z][a-z_]*\\.[a-z][a-z_]*$')
 ) ENGINE=InnoDB;
 
 CREATE TABLE usuario_rol (
@@ -168,7 +155,7 @@ CREATE TABLE rol_permiso (
 CREATE TABLE sesion_token (
     id           BIGINT       NOT NULL AUTO_INCREMENT,
     usuario_id   INT          NOT NULL,
-    token_hash   CHAR(64)     NOT NULL,                   -- SHA-256 del token; el token en claro nunca se guarda
+    token_hash   CHAR(64)     NOT NULL,
     tipo         VARCHAR(10)  NOT NULL,
     emitido_en   DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     expira_en    DATETIME(3)  NOT NULL,
@@ -179,10 +166,10 @@ CREATE TABLE sesion_token (
     CONSTRAINT uq_sesion_token_hash UNIQUE (token_hash),
     CONSTRAINT ck_sesion_tipo CHECK (tipo IN ('access', 'refresh', 'reset')),
     CONSTRAINT fk_sesion_usuario FOREIGN KEY (usuario_id) REFERENCES usuario(id),
-    INDEX ix_sesion_usuario_expira (usuario_id, expira_en)   -- sesiones activas de un usuario
+    INDEX ix_sesion_usuario_expira (usuario_id, expira_en)
 ) ENGINE=InnoDB;
 
-/* ============================== 3. CURSOS ============================== */
+-- CURSOS
 CREATE TABLE curso (
     id              INT               NOT NULL AUTO_INCREMENT,
     codigo          VARCHAR(20)       NOT NULL,
@@ -208,7 +195,6 @@ CREATE TABLE unidad_academica_curso (
     CONSTRAINT fk_uac_curso FOREIGN KEY (curso_id)            REFERENCES curso(id)
 ) ENGINE=InnoDB;
 
--- Que docente imparte que curso, en que periodo y sede. Permite publicar tareas "a los docentes del curso X".
 CREATE TABLE docente_curso (
     usuario_id    INT          NOT NULL,
     curso_id      INT          NOT NULL,
@@ -226,7 +212,7 @@ CREATE TABLE docente_curso (
     INDEX ix_dc_curso_periodo (curso_id, periodo_id, sede_id)
 ) ENGINE=InnoDB;
 
-/* ============================== 4. WORKFLOW ============================== */
+-- WORKFLOW
 CREATE TABLE estado_tarea (
     codigo    VARCHAR(20)       NOT NULL,
     nombre    VARCHAR(60)       NOT NULL,
@@ -241,8 +227,8 @@ CREATE TABLE tipo_tarea (
     nombre             VARCHAR(100)      NOT NULL,
     descripcion        VARCHAR(300)      NULL,
     modalidad_entrega  VARCHAR(10)       NOT NULL,
-    requiere_archivo   TINYINT(1)        NOT NULL DEFAULT 0,   -- 1 = no se entrega sin adjunto (422)
-    extensiones        VARCHAR(100)      NULL,                 -- ej. 'pdf,docx'
+    requiere_archivo   TINYINT(1)        NOT NULL DEFAULT 0,
+    extensiones        VARCHAR(100)      NULL,
     tamano_max_mb      SMALLINT UNSIGNED NOT NULL DEFAULT 10,
     activo             TINYINT(1)        NOT NULL DEFAULT 1,
     creado_en          DATETIME(3)       NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -252,7 +238,6 @@ CREATE TABLE tipo_tarea (
     CONSTRAINT ck_tipo_tarea_modalidad CHECK (modalidad_entrega IN ('texto', 'archivo', 'ambos', 'formulario', 'programa'))
 ) ENGINE=InnoDB;
 
--- Campos propios de cada tipo (factura: numero, fecha, monto). Un tipo nuevo no obliga a cambiar el esquema.
 CREATE TABLE tipo_tarea_campo (
     id             INT          NOT NULL AUTO_INCREMENT,
     tipo_tarea_id  INT          NOT NULL,
@@ -269,7 +254,6 @@ CREATE TABLE tipo_tarea_campo (
     CONSTRAINT fk_ttc_tipo_tarea FOREIGN KEY (tipo_tarea_id) REFERENCES tipo_tarea(id)
 ) ENGINE=InnoDB;
 
--- Maquina de estados configurable por tipo de tarea
 CREATE TABLE workflow (
     id              INT          NOT NULL AUTO_INCREMENT,
     nombre          VARCHAR(100) NOT NULL,
@@ -284,10 +268,10 @@ CREATE TABLE workflow (
 CREATE TABLE workflow_detalle (
     id              INT          NOT NULL AUTO_INCREMENT,
     workflow_id     INT          NOT NULL,
-    estado_origen   VARCHAR(20)  NULL,                    -- NULL = transicion inicial (al publicar)
+    estado_origen   VARCHAR(20)  NULL,
     estado_destino  VARCHAR(20)  NOT NULL,
-    accion          VARCHAR(20)  NOT NULL,                -- accion de la API que produce la transicion
-    origen_clave    VARCHAR(20)  AS (IFNULL(estado_origen, '')) STORED,  -- los NULL no chocan en un UNIQUE
+    accion          VARCHAR(20)  NOT NULL,
+    origen_clave    VARCHAR(20)  AS (IFNULL(estado_origen, '')) STORED,
     PRIMARY KEY (id),
     CONSTRAINT uq_wd_transicion UNIQUE (workflow_id, origen_clave, estado_destino),
     CONSTRAINT ck_wd_accion CHECK (accion IN ('publish', 'start', 'submit', 'review', 'return', 'resubmit', 'approve', 'close', 'cancel')),
@@ -296,7 +280,6 @@ CREATE TABLE workflow_detalle (
     CONSTRAINT fk_wd_destino  FOREIGN KEY (estado_destino) REFERENCES estado_tarea(codigo)
 ) ENGINE=InnoDB;
 
--- Roles que pueden ejecutar cada transicion (una transicion puede tener varios roles)
 CREATE TABLE workflow_detalle_rol (
     workflow_detalle_id  INT  NOT NULL,
     rol_id               INT  NOT NULL,
@@ -305,7 +288,7 @@ CREATE TABLE workflow_detalle_rol (
     CONSTRAINT fk_wdr_rol     FOREIGN KEY (rol_id)              REFERENCES rol(id)
 ) ENGINE=InnoDB;
 
-/* ============================== 5. PROGRAMAS DE CURSO ============================== */
+-- PROGRAMAS DE CURSO
 CREATE TABLE estado_programa (
     codigo    VARCHAR(20)       NOT NULL,
     nombre    VARCHAR(60)       NOT NULL,
@@ -314,7 +297,6 @@ CREATE TABLE estado_programa (
     PRIMARY KEY (codigo)
 ) ENGINE=InnoDB;
 
--- Transiciones validas de una version de programa (las define el CONTRATO del G5)
 CREATE TABLE flujo_programa (
     estado_origen   VARCHAR(20)  NOT NULL,
     estado_destino  VARCHAR(20)  NOT NULL,
@@ -325,7 +307,6 @@ CREATE TABLE flujo_programa (
     CONSTRAINT fk_fp_destino FOREIGN KEY (estado_destino) REFERENCES estado_programa(codigo)
 ) ENGINE=InnoDB;
 
--- Identidad logica: un curso en una sede y una modalidad (el "contexto" del requerimiento)
 CREATE TABLE programa_curso (
     id              INT          NOT NULL AUTO_INCREMENT,
     curso_id        INT          NOT NULL,
@@ -343,20 +324,19 @@ CREATE TABLE programa_curso (
     CONSTRAINT fk_pc_creado_por FOREIGN KEY (creado_por)   REFERENCES usuario(id)
 ) ENGINE=InnoDB;
 
--- Versiones independientes; solo una autorizada (vigente) por programa y periodo
 CREATE TABLE programa_version (
     id                 INT           NOT NULL AUTO_INCREMENT,
     programa_curso_id  INT           NOT NULL,
     numero_version     SMALLINT      NOT NULL,
     periodo_id         INT           NOT NULL,
     estado_codigo      VARCHAR(20)   NOT NULL DEFAULT 'draft',
-    version_origen_id  INT           NULL,                -- version de la que se clono
+    version_origen_id  INT           NULL,
     nombre             VARCHAR(200)  NOT NULL,
     descripcion        TEXT          NULL,
     resumen_cambios    VARCHAR(1000) NULL,
-    -- Datos del encabezado del PDF institucional
+
     unidad_academica_id     INT           NULL,
-    programa_academico      VARCHAR(150)  NULL,          -- carrera, ej. Ingenieria en Sistemas
+    programa_academico      VARCHAR(150)  NULL,
     departamento            VARCHAR(150)  NULL,
     nivel                   VARCHAR(15)   NULL,
     area_id                 INT           NULL,
@@ -364,21 +344,21 @@ CREATE TABLE programa_version (
     horas_clase_semanal     DECIMAL(4,1)  NULL,
     docente_responsable_id  INT           NULL,
     revisor_id              INT           NULL,
-    tarea_destinatario_origen_id INT      NULL,          -- asignacion "Actualizar programa" que produjo esta version
+    tarea_destinatario_origen_id INT      NULL,
     creado_por         INT           NOT NULL,
     autorizado_por     INT           NULL,
     autorizado_en      DATETIME(3)   NULL,
     observaciones_autorizacion VARCHAR(1000) NULL,
-    pdf_archivo_id     INT           NULL,                -- documento final (FK al final del script)
+    pdf_archivo_id     INT           NULL,
     pdf_hash           CHAR(64)      NULL,
     pdf_generado_en    DATETIME(3)   NULL,
     creado_en          DATETIME(3)   NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     actualizado_en     DATETIME(3)   NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
-    -- 1 solo si esta autorizada; NULL en otro caso (los NULL no chocan en el UNIQUE)
+
     vigente            TINYINT(1)    AS (IF(estado_codigo = 'authorized', 1, NULL)) STORED,
     PRIMARY KEY (id),
     CONSTRAINT uq_pv_numero  UNIQUE (programa_curso_id, numero_version),
-    CONSTRAINT uq_pv_vigente UNIQUE (programa_curso_id, periodo_id, vigente),   -- una sola vigente
+    CONSTRAINT uq_pv_vigente UNIQUE (programa_curso_id, periodo_id, vigente),
     CONSTRAINT ck_pv_numero CHECK (numero_version > 0),
     CONSTRAINT ck_pv_nivel  CHECK (nivel IS NULL OR nivel IN ('tecnico', 'licenciatura', 'maestria', 'doctorado')),
     CONSTRAINT ck_pv_horas  CHECK (horas_clase_semanal IS NULL OR horas_clase_semanal > 0),
@@ -421,7 +401,6 @@ CREATE TABLE programa_competencia (
     CONSTRAINT fk_competencia_pv FOREIGN KEY (programa_version_id) REFERENCES programa_version(id)
 ) ENGINE=InnoDB;
 
--- Plan de contenidos: modulos (unidad_padre_id NULL) y unidades dentro de un modulo
 CREATE TABLE programa_unidad (
     id                   INT           NOT NULL AUTO_INCREMENT,
     programa_version_id  INT           NOT NULL,
@@ -443,7 +422,7 @@ CREATE TABLE programa_unidad_item (
     orden               SMALLINT      NOT NULL,
     item                VARCHAR(200)  NOT NULL,
     descripcion         VARCHAR(1000) NULL,
-    competencia_id      INT           NULL,               -- competencia que desarrolla (de la misma version, ver trigger)
+    competencia_id      INT           NULL,
     actividad           VARCHAR(300)  NULL,
     evidencia           VARCHAR(300)  NULL,
     punteo              DECIMAL(5,2)  NULL,
@@ -454,13 +433,11 @@ CREATE TABLE programa_unidad_item (
     CONSTRAINT fk_unidad_item_competencia FOREIGN KEY (competencia_id)     REFERENCES programa_competencia(id)
 ) ENGINE=InnoDB;
 
--- Contribucion del curso al perfil de egreso, en orden
--- Catalogo de rasgos del perfil de egreso de cada carrera (se escriben una vez y los programas los referencian)
 CREATE TABLE perfil_egreso (
     id                   INT           NOT NULL AUTO_INCREMENT,
-    programa_academico   VARCHAR(150)  NOT NULL,          -- carrera, ej. Ingenieria en Sistemas
-    codigo               VARCHAR(30)   NOT NULL,          -- codigo del rasgo, ej. PE-03
-    descripcion          VARCHAR(1000) NOT NULL,          -- texto oficial del rasgo
+    programa_academico   VARCHAR(150)  NOT NULL,
+    codigo               VARCHAR(30)   NOT NULL,
+    descripcion          VARCHAR(1000) NOT NULL,
     activo               TINYINT(1)    NOT NULL DEFAULT 1,
     creado_en            DATETIME(3)   NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     actualizado_en       DATETIME(3)   NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
@@ -468,13 +445,12 @@ CREATE TABLE perfil_egreso (
     CONSTRAINT uq_perfil_egreso_carrera_codigo UNIQUE (programa_academico, codigo)
 ) ENGINE=InnoDB;
 
--- Rasgos del perfil a los que contribuye una version del programa
 CREATE TABLE programa_perfil_egreso (
     id                   INT           NOT NULL AUTO_INCREMENT,
     programa_version_id  INT           NOT NULL,
     orden                SMALLINT      NOT NULL,
-    perfil_egreso_id     INT           NOT NULL,          -- rasgo del catalogo
-    contribucion         VARCHAR(1000) NOT NULL,          -- como contribuye este curso al rasgo
+    perfil_egreso_id     INT           NOT NULL,
+    contribucion         VARCHAR(1000) NOT NULL,
     PRIMARY KEY (id),
     CONSTRAINT uq_perfil_egreso_orden  UNIQUE (programa_version_id, orden),
     CONSTRAINT uq_perfil_egreso_rasgo  UNIQUE (programa_version_id, perfil_egreso_id),
@@ -502,7 +478,7 @@ CREATE TABLE programa_evaluacion (
     orden                SMALLINT          NOT NULL,
     nombre               VARCHAR(150)      NOT NULL,
     descripcion          VARCHAR(500)      NULL,
-    ponderacion          DECIMAL(5,2)      NOT NULL,      -- porcentaje; total por version = 100 (ver triggers)
+    ponderacion          DECIMAL(5,2)      NOT NULL,
     semana               TINYINT UNSIGNED  NULL,
     PRIMARY KEY (id),
     CONSTRAINT uq_evaluacion_orden UNIQUE (programa_version_id, orden),
@@ -510,24 +486,24 @@ CREATE TABLE programa_evaluacion (
     CONSTRAINT fk_evaluacion_pv FOREIGN KEY (programa_version_id) REFERENCES programa_version(id)
 ) ENGINE=InnoDB;
 
-/* ============================== 6. TAREAS, ASIGNACIONES Y ENTREGAS ============================== */
--- La solicitud que crea el coordinador
+-- TAREAS, ASIGNACIONES Y ENTREGAS
+
 CREATE TABLE tarea (
     id                   INT          NOT NULL AUTO_INCREMENT,
-    workflow_id          INT          NOT NULL,                  -- el tipo de tarea sale de workflow.tipo_tarea_id
-    estado_codigo        VARCHAR(20)  NOT NULL DEFAULT 'draft',  -- draft = no visible en inbox
+    workflow_id          INT          NOT NULL,
+    estado_codigo        VARCHAR(20)  NOT NULL DEFAULT 'draft',
     titulo               VARCHAR(200) NOT NULL,
-    descripcion          TEXT         NULL,                      -- instrucciones
+    descripcion          TEXT         NULL,
     prioridad            VARCHAR(10)  NOT NULL DEFAULT 'medium',
     creado_por           INT          NOT NULL,
     revisor_id           INT          NULL,
-    alcance              VARCHAR(12)  NOT NULL DEFAULT 'individual',  -- ver sp_publicar_tarea
-    rol_destino_id       INT          NULL,                      -- publicacion masiva por rol
-    sede_destino_id      INT          NULL,                      -- ... por sede
-    unidad_destino_id    INT          NULL,                      -- ... por unidad academica
-    curso_id             INT          NULL,                      -- alcance 'curso': docentes de docente_curso
+    alcance              VARCHAR(12)  NOT NULL DEFAULT 'individual',
+    rol_destino_id       INT          NULL,
+    sede_destino_id      INT          NULL,
+    unidad_destino_id    INT          NULL,
+    curso_id             INT          NULL,
     periodo_id           INT          NULL,
-    programa_version_id  INT          NULL,                      -- para "Actualizar programa"
+    programa_version_id  INT          NULL,
     fecha_limite         DATETIME(3)  NULL,
     publicada_en         DATETIME(3)  NULL,
     creado_en            DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -554,12 +530,11 @@ CREATE TABLE tarea (
     CONSTRAINT fk_tarea_periodo        FOREIGN KEY (periodo_id)          REFERENCES periodo(id),
     CONSTRAINT fk_tarea_pv             FOREIGN KEY (programa_version_id) REFERENCES programa_version(id),
     CONSTRAINT fk_tarea_eliminado_por  FOREIGN KEY (eliminado_por)       REFERENCES usuario(id),
-    INDEX ix_tarea_creador (creado_por, estado_codigo, creado_en),   -- "mis tareas" del coordinador
-    INDEX ix_tarea_revisor (revisor_id, estado_codigo),              -- bandeja del revisor
+    INDEX ix_tarea_creador (creado_por, estado_codigo, creado_en),
+    INDEX ix_tarea_revisor (revisor_id, estado_codigo),
     INDEX ix_tarea_curso_periodo (curso_id, periodo_id)
 ) ENGINE=InnoDB;
 
--- Criterios de destinatarios combinables (alcance 'seleccion'): usuarios sueltos, unidades, sedes, cursos o todos
 CREATE TABLE tarea_seleccion (
     id                   INT          NOT NULL AUTO_INCREMENT,
     tarea_id             INT          NOT NULL,
@@ -567,7 +542,7 @@ CREATE TABLE tarea_seleccion (
     usuario_id           INT          NULL,
     unidad_academica_id  INT          NULL,
     sede_id              INT          NULL,
-    curso_id             INT          NULL,               -- con tarea.periodo_id, via docente_curso
+    curso_id             INT          NULL,
     valor_clave          INT          AS (COALESCE(usuario_id, unidad_academica_id, sede_id, curso_id, 0)) STORED,
     creado_en            DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     PRIMARY KEY (id),
@@ -586,27 +561,25 @@ CREATE TABLE tarea_seleccion (
     CONSTRAINT fk_ts_curso   FOREIGN KEY (curso_id)            REFERENCES curso(id)
 ) ENGINE=InnoDB;
 
--- Asignacion individual: una fila por tarea y docente
 CREATE TABLE tarea_destinatario (
     id              INT          NOT NULL AUTO_INCREMENT,
     tarea_id        INT          NOT NULL,
     usuario_id      INT          NOT NULL,
     estado_codigo   VARCHAR(20)  NOT NULL DEFAULT 'assigned',
-    fecha_limite    DATETIME(3)  NULL,                    -- prorroga individual; NULL = la de la tarea
-    revisor_id      INT          NULL,                    -- revisor de esta asignacion; NULL = el de la tarea
+    fecha_limite    DATETIME(3)  NULL,
+    revisor_id      INT          NULL,
     asignado_en     DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     actualizado_en  DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
     PRIMARY KEY (id),
-    CONSTRAINT uq_td_tarea_usuario UNIQUE (tarea_id, usuario_id),   -- una asignacion por tarea y destinatario
+    CONSTRAINT uq_td_tarea_usuario UNIQUE (tarea_id, usuario_id),
     CONSTRAINT fk_td_tarea   FOREIGN KEY (tarea_id)      REFERENCES tarea(id),
     CONSTRAINT fk_td_usuario FOREIGN KEY (usuario_id)    REFERENCES usuario(id),
     CONSTRAINT fk_td_estado  FOREIGN KEY (estado_codigo) REFERENCES estado_tarea(codigo),
     CONSTRAINT fk_td_revisor FOREIGN KEY (revisor_id)    REFERENCES usuario(id),
-    INDEX ix_td_inbox (usuario_id, estado_codigo, asignado_en),     -- inbox del docente filtrado por estado
-    INDEX ix_td_tarea_estado (tarea_id, estado_codigo)              -- panel de cumplimiento por tarea
+    INDEX ix_td_inbox (usuario_id, estado_codigo, asignado_en),
+    INDEX ix_td_tarea_estado (tarea_id, estado_codigo)
 ) ENGINE=InnoDB;
 
--- Historial inmutable de cambios de estado de una asignacion
 CREATE TABLE tarea_transicion (
     id                     BIGINT        NOT NULL AUTO_INCREMENT,
     tarea_destinatario_id  INT           NOT NULL,
@@ -614,11 +587,11 @@ CREATE TABLE tarea_transicion (
     actor_id               INT           NOT NULL,
     estado_anterior        VARCHAR(20)   NULL,
     estado_nuevo           VARCHAR(20)   NOT NULL,
-    comentario             VARCHAR(1000) NULL,             -- obligatorio en devoluciones (trigger)
-    secuencia              SMALLINT      NOT NULL DEFAULT 0, -- 1, 2, 3... por asignacion (lo calcula el trigger)
+    comentario             VARCHAR(1000) NULL,
+    secuencia              SMALLINT      NOT NULL DEFAULT 0,
     creado_en              DATETIME(3)   NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     PRIMARY KEY (id),
-    CONSTRAINT uq_tt_secuencia UNIQUE (tarea_destinatario_id, secuencia),  -- evita dos transiciones simultaneas
+    CONSTRAINT uq_tt_secuencia UNIQUE (tarea_destinatario_id, secuencia),
     CONSTRAINT fk_tt_td       FOREIGN KEY (tarea_destinatario_id) REFERENCES tarea_destinatario(id),
     CONSTRAINT fk_tt_wd       FOREIGN KEY (workflow_detalle_id)   REFERENCES workflow_detalle(id),
     CONSTRAINT fk_tt_actor    FOREIGN KEY (actor_id)              REFERENCES usuario(id),
@@ -627,14 +600,13 @@ CREATE TABLE tarea_transicion (
     INDEX ix_tt_historial (tarea_destinatario_id, creado_en)
 ) ENGINE=InnoDB;
 
--- Cada envio es un intento nuevo; los anteriores se conservan como evidencia
 CREATE TABLE entrega (
     id                     INT          NOT NULL AUTO_INCREMENT,
     tarea_destinatario_id  INT          NOT NULL,
     numero_intento         SMALLINT     NOT NULL,
     entregado_por          INT          NOT NULL,
     contenido_texto        TEXT         NULL,
-    programa_version_id    INT          NULL,             -- version de programa entregada (tipo ACTUALIZAR_PROGRAMA)
+    programa_version_id    INT          NULL,
     entregado_en           DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     PRIMARY KEY (id),
     CONSTRAINT uq_entrega_intento UNIQUE (tarea_destinatario_id, numero_intento),
@@ -653,12 +625,11 @@ CREATE TABLE entrega_valor (
     CONSTRAINT fk_ev_campo   FOREIGN KEY (campo_id)   REFERENCES tipo_tarea_campo(id)
 ) ENGINE=InnoDB;
 
--- Avance guardado sin enviar: uno por asignacion; se sobrescribe y se descarta al entregar
 CREATE TABLE entrega_borrador (
     id                     INT          NOT NULL AUTO_INCREMENT,
     tarea_destinatario_id  INT          NOT NULL,
     contenido_texto        TEXT         NULL,
-    valores                LONGTEXT     NULL,             -- JSON {codigo_campo: valor} del formulario
+    valores                LONGTEXT     NULL,
     programa_version_id    INT          NULL,
     guardado_por           INT          NOT NULL,
     creado_en              DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -671,13 +642,13 @@ CREATE TABLE entrega_borrador (
     CONSTRAINT fk_eb_usuario FOREIGN KEY (guardado_por)          REFERENCES usuario(id)
 ) ENGINE=InnoDB;
 
-/* ============================== 7. COLABORACION ============================== */
+-- COLABORACION
 CREATE TABLE comentario (
     id                     INT          NOT NULL AUTO_INCREMENT,
     autor_id               INT          NOT NULL,
     tarea_destinatario_id  INT          NULL,
     programa_version_id    INT          NULL,
-    comentario_padre_id    INT          NULL,              -- respuestas en hilo
+    comentario_padre_id    INT          NULL,
     contenido              TEXT         NOT NULL,
     creado_en              DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     actualizado_en         DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
@@ -706,17 +677,17 @@ CREATE TABLE archivo (
     entrega_id           INT          NULL,
     comentario_id        INT          NULL,
     programa_version_id  INT          NULL,
-    reemplazado_por_id   INT          NULL,               -- reemplazo logico: apunta al archivo nuevo
+    reemplazado_por_id   INT          NULL,
     creado_en            DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     eliminado_en         DATETIME(3)  NULL,
     eliminado_por        INT          NULL,
     PRIMARY KEY (id),
     CONSTRAINT uq_archivo_nombre_interno UNIQUE (nombre_interno),
     CONSTRAINT ck_archivo_tamano CHECK (tamano_bytes > 0),
-    -- a lo sumo un destino; los tres NULL = archivo subido antes de asociarlo (si el equipo elige ese flujo)
+
     CONSTRAINT ck_archivo_destino CHECK ((entrega_id IS NOT NULL) + (comentario_id IS NOT NULL) + (programa_version_id IS NOT NULL) <= 1),
-    CONSTRAINT ck_archivo_hash CHECK (hash_sha256 REGEXP '^[0-9a-f]{64}$'),             -- SHA-256 en hexadecimal
-    CONSTRAINT ck_archivo_nombre_interno CHECK (nombre_interno REGEXP '^[A-Za-z0-9._-]+$'), -- sin espacios ni rutas
+    CONSTRAINT ck_archivo_hash CHECK (hash_sha256 REGEXP '^[0-9a-f]{64}$'),
+    CONSTRAINT ck_archivo_nombre_interno CHECK (nombre_interno REGEXP '^[A-Za-z0-9._-]+$'),
     CONSTRAINT fk_archivo_reemplazo     FOREIGN KEY (reemplazado_por_id)  REFERENCES archivo(id),
     CONSTRAINT fk_archivo_autor         FOREIGN KEY (autor_id)            REFERENCES usuario(id),
     CONSTRAINT fk_archivo_entrega       FOREIGN KEY (entrega_id)          REFERENCES entrega(id),
@@ -726,9 +697,6 @@ CREATE TABLE archivo (
     INDEX ix_archivo_hash (hash_sha256)
 ) ENGINE=InnoDB;
 
--- Eventos de dominio para el Grupo 6 (CONTRATO del G6 §3). Los generan los triggers de 02_triggers.sql;
--- el proceso de notificaciones lee los pendientes (procesado_en IS NULL) y los marca al terminar.
--- clave_unica evita que el mismo hecho se notifique dos veces.
 CREATE TABLE evento (
     id                     BIGINT        NOT NULL AUTO_INCREMENT,
     nombre                 VARCHAR(40)   NOT NULL,
@@ -755,12 +723,12 @@ CREATE TABLE evento (
 CREATE TABLE notificacion (
     id                     BIGINT        NOT NULL AUTO_INCREMENT,
     usuario_id             INT           NOT NULL,
-    tipo                   VARCHAR(40)   NOT NULL,        -- nombre del evento (CONTRATO del G6 §3)
+    tipo                   VARCHAR(40)   NOT NULL,
     titulo                 VARCHAR(200)  NOT NULL,
     mensaje                VARCHAR(1000) NOT NULL,
     tarea_destinatario_id  INT           NULL,
     programa_version_id    INT           NULL,
-    evento_id              BIGINT        NULL,            -- evento que origino el aviso
+    evento_id              BIGINT        NULL,
     leida_en               DATETIME(3)   NULL,
     creado_en              DATETIME(3)   NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     PRIMARY KEY (id),
@@ -768,11 +736,11 @@ CREATE TABLE notificacion (
     CONSTRAINT fk_notif_td      FOREIGN KEY (tarea_destinatario_id) REFERENCES tarea_destinatario(id),
     CONSTRAINT fk_notif_pv      FOREIGN KEY (programa_version_id)   REFERENCES programa_version(id),
     CONSTRAINT fk_notif_evento  FOREIGN KEY (evento_id)             REFERENCES evento(id),
-    CONSTRAINT uq_notif_evento_usuario UNIQUE (evento_id, usuario_id),   -- un aviso por evento y usuario
+    CONSTRAINT uq_notif_evento_usuario UNIQUE (evento_id, usuario_id),
     INDEX ix_notif_usuario (usuario_id, leida_en, creado_en)
 ) ENGINE=InnoDB;
 
-/* ============================== 8. APROBACION Y AUDITORIA ============================== */
+-- APROBACION Y AUDITORIA
 CREATE TABLE programa_aprobacion (
     id                   BIGINT        NOT NULL AUTO_INCREMENT,
     programa_version_id  INT           NOT NULL,
@@ -789,12 +757,11 @@ CREATE TABLE programa_aprobacion (
     INDEX ix_aprob_historial (programa_version_id, creado_en)
 ) ENGINE=InnoDB;
 
--- Historial de PDF generados por version (el oficial vigente queda en programa_version.pdf_archivo_id)
 CREATE TABLE programa_pdf (
     id                   INT          NOT NULL AUTO_INCREMENT,
     programa_version_id  INT          NOT NULL,
     archivo_id           INT          NOT NULL,
-    aprobacion_id        BIGINT       NULL,               -- autorizacion que lo origino
+    aprobacion_id        BIGINT       NULL,
     hash_contenido       CHAR(64)     NOT NULL,
     generado_por         INT          NOT NULL,
     generado_en          DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
@@ -812,10 +779,10 @@ CREATE TABLE auditoria (
     id           BIGINT       NOT NULL AUTO_INCREMENT,
     tabla        VARCHAR(64)  NOT NULL,
     registro_id  VARCHAR(64)  NOT NULL,
-    accion       VARCHAR(20)  NOT NULL,                   -- insert | update | soft_delete | login ...
+    accion       VARCHAR(20)  NOT NULL,
     actor_id     INT          NULL,
     ip_origen    VARCHAR(45)  NULL,
-    detalle      LONGTEXT     NULL,                       -- JSON con valores anteriores/nuevos
+    detalle      LONGTEXT     NULL,
     creado_en    DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     PRIMARY KEY (id),
     CONSTRAINT ck_auditoria_detalle CHECK (detalle IS NULL OR JSON_VALID(detalle)),
@@ -824,8 +791,8 @@ CREATE TABLE auditoria (
     INDEX ix_auditoria_actor (actor_id, creado_en)
 ) ENGINE=InnoDB;
 
-/* ============================== 9. ADMINISTRACION ============================== */
--- Control de versiones del esquema: cada migracion registra una fila
+-- ADMINISTRACION
+
 CREATE TABLE schema_migracion (
     version      VARCHAR(20)  NOT NULL,
     descripcion  VARCHAR(200) NOT NULL,
@@ -843,7 +810,6 @@ CREATE TABLE parametro (
     CONSTRAINT fk_parametro_usuario FOREIGN KEY (actualizado_por) REFERENCES usuario(id)
 ) ENGINE=InnoDB;
 
--- FK circulares de programa_version (archivo y asignacion se crean despues)
 ALTER TABLE programa_version
     ADD CONSTRAINT fk_pv_pdf_archivo FOREIGN KEY (pdf_archivo_id) REFERENCES archivo(id),
     ADD CONSTRAINT fk_pv_td_origen   FOREIGN KEY (tarea_destinatario_origen_id) REFERENCES tarea_destinatario(id);
@@ -851,18 +817,12 @@ ALTER TABLE programa_version
 INSERT INTO schema_migracion (version, descripcion) VALUES
 ('1.0.0', 'Esquema inicial (01_schema.sql)'),
 ('1.1.0', 'Aportes del esquema de Pablo: modalidad, area, docente_curso, flujo_programa, perfil de egreso, seleccion, borrador, evento, programa_pdf');
-/* =====================================================================
-   02_triggers.sql | Reglas de integridad que la base hace cumplir por si misma
-   Ejecutar despues de 01_schema.sql. Los errores usan SQLSTATE 45000; el texto
-   indica el codigo HTTP que la API deberia devolver (409, 422...).
-   ===================================================================== */
-USE db_udv;
-SET NAMES utf8mb4;
+-- ==================== TRIGGERS Y PROCEDIMIENTOS ====================
 
 DELIMITER $$
 
-/*------------------------------------------------ Historial inmutable (bitacoras) ------------------------------------------------*/
--- auditoria: solo se inserta
+-- Historial inmutable (bitacoras)
+
 CREATE TRIGGER trg_auditoria_no_update BEFORE UPDATE ON auditoria FOR EACH ROW
 BEGIN
 SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'auditoria es de solo insercion: no se permite UPDATE';
@@ -873,7 +833,6 @@ BEGIN
 SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'auditoria es de solo insercion: no se permite DELETE';
 END$$
 
--- tarea_transicion: solo se inserta
 CREATE TRIGGER trg_tarea_transicion_no_update BEFORE UPDATE ON tarea_transicion FOR EACH ROW
 BEGIN
 SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El historial de transiciones no se modifica';
@@ -884,7 +843,6 @@ BEGIN
 SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El historial de transiciones no se elimina';
 END$$
 
--- programa_aprobacion: solo se inserta
 CREATE TRIGGER trg_programa_aprobacion_no_update BEFORE UPDATE ON programa_aprobacion FOR EACH ROW
 BEGIN
 SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El historial de aprobaciones no se modifica';
@@ -895,7 +853,6 @@ BEGIN
 SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El historial de aprobaciones no se elimina';
 END$$
 
--- Las entregas son evidencia: una correccion es un nuevo intento, nunca se edita el anterior
 CREATE TRIGGER trg_entrega_no_update BEFORE UPDATE ON entrega FOR EACH ROW
 BEGIN
 SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'ERROR: Una entrega no se modifica. Registre un nuevo intento.';
@@ -911,8 +868,8 @@ BEGIN
 SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'ERROR: Los valores de una entrega no se eliminan.';
 END$$
 
-/*------------------------------------------------ Eliminacion logica: no se permite DELETE fisico ------------------------------------------------*/
--- Se usa eliminado_en / eliminado_por (o el estado 'cancelled' en las asignaciones).
+-- Eliminacion logica: no se permite DELETE fisico
+
 CREATE TRIGGER trg_usuario_no_delete BEFORE DELETE ON usuario FOR EACH ROW
 BEGIN
 SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'ERROR: usuario usa eliminacion logica (eliminado_en). No se permite ELIMINAR';
@@ -963,7 +920,6 @@ BEGIN
 SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Una version de programa no se elimina';
 END$$
 
--- Al eliminar logicamente un archivo se audita su metadato (nombre, tipo, ubicacion, hash y autor)
 CREATE TRIGGER trg_archivo_eliminacion_audit AFTER UPDATE ON archivo FOR EACH ROW
 BEGIN
   IF OLD.eliminado_en IS NULL AND NEW.eliminado_en IS NOT NULL THEN
@@ -975,9 +931,8 @@ BEGIN
   END IF;
 END$$
 
-/*------------------------------------------------ Workflow de tareas ------------------------------------------------*/
--- Toda transicion debe partir del estado actual de la asignacion y existir en el workflow de la tarea.
--- Orden en la API (dentro de una transaccion): 1) INSERT en tarea_transicion  2) UPDATE de tarea_destinatario.estado_codigo
+-- Workflow de tareas
+
 CREATE TRIGGER trg_tt_valida BEFORE INSERT ON tarea_transicion FOR EACH ROW
 BEGIN
   DECLARE v_estado_actual VARCHAR(20);
@@ -989,7 +944,7 @@ BEGIN
   WHERE td.id = NEW.tarea_destinatario_id;
 
   IF NEW.estado_anterior IS NULL THEN
-    -- transicion inicial: solo una por asignacion
+
     IF EXISTS (SELECT 1 FROM tarea_transicion WHERE tarea_destinatario_id = NEW.tarea_destinatario_id) THEN
       SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'ERROR: la asignacion ya tiene transicion inicial (409)';
     END IF;
@@ -1006,27 +961,22 @@ BEGIN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'ERROR: transicion no permitida por el workflow de la tarea (409)';
   END IF;
 
-  -- Numero de transicion dentro de la asignacion. Es UNIQUE: si dos sesiones intentan
-  -- transicionar la misma asignacion a la vez, ambas calculan el mismo numero y la segunda falla.
   SET NEW.secuencia = (SELECT COUNT(*) + 1 FROM tarea_transicion WHERE tarea_destinatario_id = NEW.tarea_destinatario_id);
 
-  -- Toda devolucion exige una observacion
   IF NEW.estado_nuevo = 'returned' AND (NEW.comentario IS NULL OR TRIM(NEW.comentario) = '') THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'ERROR: una devolucion exige una observacion (422)';
   END IF;
 END$$
 
-/*------------------------------------------------ Programas de curso ------------------------------------------------*/
+-- Programas de curso
 CREATE FUNCTION fn_pv_bloqueada(p_pv_id INT) RETURNS TINYINT(1)
 READS SQL DATA
 BEGIN
-  -- Una version autorizada o reemplazada no admite cambios en su contenido
+
   RETURN (SELECT COUNT(*) FROM programa_version
           WHERE id = p_pv_id AND estado_codigo IN ('authorized', 'superseded')) > 0;
 END$$
 
--- Inmutabilidad de una version autorizada
--- Solo se permite: pasar a 'superseded' sin cambiar contenido, o registrar el PDF una unica vez.
 CREATE TRIGGER trg_pv_inmutable BEFORE UPDATE ON programa_version FOR EACH ROW
 BEGIN
   DECLARE v_total DECIMAL(7,2);
@@ -1055,7 +1005,6 @@ BEGIN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Version reemplazada: es historica y no se modifica (409)';
   END IF;
 
-  -- Todo cambio de estado debe estar definido en flujo_programa
   IF NEW.estado_codigo <> OLD.estado_codigo
      AND NOT EXISTS (SELECT 1 FROM flujo_programa
                      WHERE estado_origen = OLD.estado_codigo AND estado_destino = NEW.estado_codigo) THEN
@@ -1065,10 +1014,10 @@ BEGIN
   IF OLD.estado_codigo = 'authorized' THEN
     IF NOT v_mismo_contenido
        OR NOT (
-            -- reemplazo por una nueva version autorizada
+
             (NEW.estado_codigo = 'superseded'
              AND NEW.pdf_archivo_id <=> OLD.pdf_archivo_id AND NEW.pdf_hash <=> OLD.pdf_hash)
-            -- registro del PDF oficial (una sola vez)
+
          OR (NEW.estado_codigo = 'authorized' AND OLD.pdf_hash IS NULL)
           ) THEN
       SIGNAL SQLSTATE '45000'
@@ -1076,7 +1025,6 @@ BEGIN
     END IF;
   END IF;
 
-  -- Al enviar a revision las evaluaciones deben sumar exactamente 100
   IF NEW.estado_codigo = 'submitted' AND OLD.estado_codigo <> 'submitted' THEN
     SELECT IFNULL(SUM(ponderacion), 0) INTO v_total
     FROM programa_evaluacion WHERE programa_version_id = NEW.id;
@@ -1085,14 +1033,12 @@ BEGIN
     END IF;
   END IF;
 
-  -- Al autorizar se exige quien y cuando
   IF NEW.estado_codigo = 'authorized' AND OLD.estado_codigo <> 'authorized'
      AND (NEW.autorizado_por IS NULL OR NEW.autorizado_en IS NULL) THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'ERROR: autorizar requiere autorizado_por y autorizado_en';
   END IF;
 END$$
 
--- Una devolucion de programa exige observacion
 CREATE TRIGGER trg_aprobacion_valida BEFORE INSERT ON programa_aprobacion FOR EACH ROW
 BEGIN
   IF NEW.estado_nuevo = 'returned' AND (NEW.comentario IS NULL OR TRIM(NEW.comentario) = '') THEN
@@ -1100,7 +1046,6 @@ BEGIN
   END IF;
 END$$
 
--- Contenido de una version bloqueada: competencias
 CREATE TRIGGER trg_competencia_bi BEFORE INSERT ON programa_competencia FOR EACH ROW
 BEGIN IF fn_pv_bloqueada(NEW.programa_version_id) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Version autorizada: el contenido no se modifica, cree una nueva version'; END IF; END$$
 CREATE TRIGGER trg_competencia_bu BEFORE UPDATE ON programa_competencia FOR EACH ROW
@@ -1108,7 +1053,6 @@ BEGIN IF fn_pv_bloqueada(OLD.programa_version_id) OR fn_pv_bloqueada(NEW.program
 CREATE TRIGGER trg_competencia_bd BEFORE DELETE ON programa_competencia FOR EACH ROW
 BEGIN IF fn_pv_bloqueada(OLD.programa_version_id) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Version autorizada: el contenido no se modifica, cree una nueva version'; END IF; END$$
 
--- prerrequisitos
 CREATE TRIGGER trg_prereq_bi BEFORE INSERT ON programa_prerrequisito FOR EACH ROW
 BEGIN IF fn_pv_bloqueada(NEW.programa_version_id) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Version autorizada: el contenido no se modifica, cree una nueva version'; END IF; END$$
 CREATE TRIGGER trg_prereq_bu BEFORE UPDATE ON programa_prerrequisito FOR EACH ROW
@@ -1116,7 +1060,6 @@ BEGIN IF fn_pv_bloqueada(OLD.programa_version_id) OR fn_pv_bloqueada(NEW.program
 CREATE TRIGGER trg_prereq_bd BEFORE DELETE ON programa_prerrequisito FOR EACH ROW
 BEGIN IF fn_pv_bloqueada(OLD.programa_version_id) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Version autorizada: el contenido no se modifica, cree una nueva version'; END IF; END$$
 
--- unidades
 CREATE TRIGGER trg_unidad_bi BEFORE INSERT ON programa_unidad FOR EACH ROW
 BEGIN IF fn_pv_bloqueada(NEW.programa_version_id) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Version autorizada: el contenido no se modifica, cree una nueva version'; END IF; END$$
 CREATE TRIGGER trg_unidad_bu BEFORE UPDATE ON programa_unidad FOR EACH ROW
@@ -1124,13 +1067,12 @@ BEGIN IF fn_pv_bloqueada(OLD.programa_version_id) OR fn_pv_bloqueada(NEW.program
 CREATE TRIGGER trg_unidad_bd BEFORE DELETE ON programa_unidad FOR EACH ROW
 BEGIN IF fn_pv_bloqueada(OLD.programa_version_id) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Version autorizada: el contenido no se modifica, cree una nueva version'; END IF; END$$
 
--- items de unidad (la version se obtiene a traves de la unidad)
 CREATE TRIGGER trg_unidad_item_bi BEFORE INSERT ON programa_unidad_item FOR EACH ROW
 BEGIN
   IF fn_pv_bloqueada((SELECT programa_version_id FROM programa_unidad WHERE id = NEW.programa_unidad_id)) THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Version autorizada: el contenido no se modifica, cree una nueva version';
   END IF;
-  -- la competencia asociada debe ser de la misma version
+
   IF NEW.competencia_id IS NOT NULL AND NOT EXISTS (
        SELECT 1 FROM programa_competencia c JOIN programa_unidad u ON u.programa_version_id = c.programa_version_id
        WHERE c.id = NEW.competencia_id AND u.id = NEW.programa_unidad_id) THEN
@@ -1152,7 +1094,6 @@ END$$
 CREATE TRIGGER trg_unidad_item_bd BEFORE DELETE ON programa_unidad_item FOR EACH ROW
 BEGIN IF fn_pv_bloqueada((SELECT programa_version_id FROM programa_unidad WHERE id = OLD.programa_unidad_id)) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Version autorizada: el contenido no se modifica, cree una nueva version'; END IF; END$$
 
--- bibliografia
 CREATE TRIGGER trg_bibliografia_bi BEFORE INSERT ON programa_bibliografia FOR EACH ROW
 BEGIN IF fn_pv_bloqueada(NEW.programa_version_id) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Version autorizada: el contenido no se modifica, cree una nueva version'; END IF; END$$
 CREATE TRIGGER trg_bibliografia_bu BEFORE UPDATE ON programa_bibliografia FOR EACH ROW
@@ -1160,7 +1101,6 @@ BEGIN IF fn_pv_bloqueada(OLD.programa_version_id) OR fn_pv_bloqueada(NEW.program
 CREATE TRIGGER trg_bibliografia_bd BEFORE DELETE ON programa_bibliografia FOR EACH ROW
 BEGIN IF fn_pv_bloqueada(OLD.programa_version_id) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Version autorizada: el contenido no se modifica, cree una nueva version'; END IF; END$$
 
--- perfil de egreso
 CREATE TRIGGER trg_perfil_egreso_bi BEFORE INSERT ON programa_perfil_egreso FOR EACH ROW
 BEGIN IF fn_pv_bloqueada(NEW.programa_version_id) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Version autorizada: el contenido no se modifica, cree una nueva version'; END IF; END$$
 CREATE TRIGGER trg_perfil_egreso_bu BEFORE UPDATE ON programa_perfil_egreso FOR EACH ROW
@@ -1168,7 +1108,6 @@ BEGIN IF fn_pv_bloqueada(OLD.programa_version_id) OR fn_pv_bloqueada(NEW.program
 CREATE TRIGGER trg_perfil_egreso_bd BEFORE DELETE ON programa_perfil_egreso FOR EACH ROW
 BEGIN IF fn_pv_bloqueada(OLD.programa_version_id) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Version autorizada: el contenido no se modifica, cree una nueva version'; END IF; END$$
 
--- historial de PDF: solo de versiones autorizadas y nunca se modifica
 CREATE TRIGGER trg_programa_pdf_bi BEFORE INSERT ON programa_pdf FOR EACH ROW
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM programa_version WHERE id = NEW.programa_version_id AND estado_codigo = 'authorized') THEN
@@ -1180,7 +1119,6 @@ BEGIN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El historial de PDF no se modi
 CREATE TRIGGER trg_programa_pdf_no_delete BEFORE DELETE ON programa_pdf FOR EACH ROW
 BEGIN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'El historial de PDF no se elimina'; END$$
 
--- evaluaciones: bloqueo + el total nunca pasa de 100
 CREATE TRIGGER trg_evaluacion_bi BEFORE INSERT ON programa_evaluacion FOR EACH ROW
 BEGIN
   IF fn_pv_bloqueada(NEW.programa_version_id) THEN
@@ -1204,16 +1142,15 @@ END$$
 CREATE TRIGGER trg_evaluacion_bd BEFORE DELETE ON programa_evaluacion FOR EACH ROW
 BEGIN IF fn_pv_bloqueada(OLD.programa_version_id) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Version autorizada: el contenido no se modifica, cree una nueva version'; END IF; END$$
 
-/*------------------------------------------------ Procedimiento de autorizacion ------------------------------------------------*/
--- Autoriza una version aprobada. Si ya habia una vigente para el mismo programa y periodo,
--- la pasa a 'superseded' en la misma transaccion. Deja el registro en programa_aprobacion.
+-- Procedimiento de autorizacion
+
 CREATE PROCEDURE sp_autorizar_version(IN p_pv_id INT, IN p_actor_id INT, IN p_comentario VARCHAR(1000))
 BEGIN
   DECLARE v_estado VARCHAR(20);
   DECLARE v_programa INT;
   DECLARE v_periodo INT;
   DECLARE v_anterior INT DEFAULT NULL;
-  -- Si ya hay una transaccion abierta (la API o un script de pruebas) se usa un SAVEPOINT
+
   DECLARE v_propia TINYINT(1) DEFAULT (@@in_transaction = 0);
   DECLARE EXIT HANDLER FOR SQLEXCEPTION
   BEGIN
@@ -1252,11 +1189,8 @@ BEGIN
   IF v_propia THEN COMMIT; END IF;
 END$$
 
-/*------------------------------------------------ Publicacion masiva ------------------------------------------------*/
--- Publica una tarea en borrador: crea una asignacion individual por destinatario y su transicion inicial.
--- Todo o nada: si algo falla no queda ninguna asignacion.
--- alcance: rol | sede | unidad | todos (docentes activos) | curso (docentes del curso y periodo en docente_curso)
---          | seleccion (union de los criterios de tarea_seleccion) | individual (filas ya creadas por la API)
+-- Publicacion masiva
+
 CREATE PROCEDURE sp_publicar_tarea(IN p_tarea_id INT, IN p_actor_id INT)
 BEGIN
   DECLARE v_estado VARCHAR(20);
@@ -1353,8 +1287,8 @@ BEGIN
   IF v_propia THEN COMMIT; END IF;
 END$$
 
-/*------------------------------------------------ Borrador de entrega ------------------------------------------------*/
--- Solo se guarda avance mientras la asignacion esta pendiente del docente
+-- Borrador de entrega
+
 CREATE TRIGGER trg_entrega_borrador_bi BEFORE INSERT ON entrega_borrador FOR EACH ROW
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM tarea_destinatario WHERE id = NEW.tarea_destinatario_id
@@ -1370,8 +1304,8 @@ BEGIN
   END IF;
 END$$
 
-/*------------------------------------------------ Eventos para notificaciones (Grupo 6) ------------------------------------------------*/
--- Un evento no se borra ni se edita; solo se marca procesado una vez
+-- Eventos para notificaciones (Grupo 6)
+
 CREATE TRIGGER trg_evento_no_delete BEFORE DELETE ON evento FOR EACH ROW
 BEGIN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Un evento no se elimina'; END$$
 CREATE TRIGGER trg_evento_bu BEFORE UPDATE ON evento FOR EACH ROW
@@ -1385,7 +1319,6 @@ BEGIN
   END IF;
 END$$
 
--- Entregada, devuelta o aprobada: un evento por transicion
 CREATE TRIGGER trg_tt_evento AFTER INSERT ON tarea_transicion FOR EACH ROW
 BEGIN
   DECLARE v_nombre VARCHAR(40) DEFAULT NULL;
@@ -1404,7 +1337,6 @@ BEGIN
   END IF;
 END$$
 
--- Tarea publicada o cancelada
 CREATE TRIGGER trg_tarea_evento AFTER UPDATE ON tarea FOR EACH ROW
 BEGIN
   IF OLD.estado_codigo = 'draft' AND NEW.estado_codigo = 'assigned' THEN
@@ -1418,7 +1350,6 @@ BEGIN
   END IF;
 END$$
 
--- Programa autorizado
 CREATE TRIGGER trg_pv_evento AFTER UPDATE ON programa_version FOR EACH ROW
 BEGIN
   IF NEW.estado_codigo = 'authorized' AND OLD.estado_codigo <> 'authorized' THEN
@@ -1429,10 +1360,6 @@ BEGIN
   END IF;
 END$$
 
--- Proximas a vencer: lo ejecuta el proceso programado del Grupo 6 (por ejemplo cada hora).
--- Crea un evento por asignacion pendiente que vence dentro de 'dias_aviso_vencimiento'.
--- Es idempotente: ejecutarlo varias veces no duplica avisos (si hay prorroga, se avisa de nuevo).
--- Uso: CALL sp_generar_eventos_vencimiento(@creados); SELECT @creados;
 CREATE PROCEDURE sp_generar_eventos_vencimiento(OUT p_creados INT)
 BEGIN
   DECLARE v_dias INT;
@@ -1448,12 +1375,11 @@ BEGIN
     AND td.estado_codigo IN ('assigned', 'in_progress', 'returned')
     AND COALESCE(td.fecha_limite, t.fecha_limite) >= NOW(3)
     AND COALESCE(td.fecha_limite, t.fecha_limite) < NOW(3) + INTERVAL IFNULL(v_dias, 3) DAY;
-  SET p_creados = ROW_COUNT();   -- no devuelve filas: phpMyAdmin falla si un CALL devuelve resultados
+  SET p_creados = ROW_COUNT();
 END$$
 
-/*------------------------------------------------ Auditoria de altas y cambios ------------------------------------------------*/
--- El actor se toma de la variable de sesion @actor_id, que la API fija despues de autenticar:
---   SET @actor_id = <id del usuario>;   (y @ip_origen si se desea)
+-- Auditoria de altas y cambios
+
 CREATE TRIGGER trg_tarea_audit_ai AFTER INSERT ON tarea FOR EACH ROW
 BEGIN
   INSERT INTO auditoria (tabla, registro_id, accion, actor_id, ip_origen, detalle)
@@ -1491,7 +1417,7 @@ BEGIN
 END$$
 CREATE TRIGGER trg_usuario_audit_au AFTER UPDATE ON usuario FOR EACH ROW
 BEGIN
-  -- no se audita el hash de la contrasena; solo se indica si cambio
+
   INSERT INTO auditoria (tabla, registro_id, accion, actor_id, ip_origen, detalle)
   VALUES ('usuario', NEW.id, IF(OLD.eliminado_en IS NULL AND NEW.eliminado_en IS NOT NULL, 'soft_delete', 'update'),
           COALESCE(NEW.eliminado_por, @actor_id), @ip_origen,
@@ -1501,16 +1427,9 @@ BEGIN
 END$$
 
 DELIMITER ;
-/* =====================================================================
-   03_inserts.sql | Datos semilla
-   Datos base del sistema + un escenario minimo para probar inbox, panel,
-   historial y version vigente. Ejecutar despues de 02_triggers.sql.
-   Todos los usuarios demo tienen la contrasena: Demo2026!  (bcrypt, costo 10)
-   ===================================================================== */
-USE db_udv;
-SET NAMES utf8mb4;
+-- ==================== DATOS SEMILLA ====================
 
-/*--------------------------------------------------- Catalogos academicos ---------------------------------------------------*/
+-- Catalogos academicos
 insert into facultad (id, codigo, nombre, activo) values
 (1, 'FING', 'Facultad de Ingeniería', 1),
 (2, 'FCE', 'Facultad de Ciencias Económicas', 1);
@@ -1548,13 +1467,12 @@ insert into area (id, codigo, nombre) values
 (2, 'INFRA',  'Infraestructura y redes'),
 (3, 'DATOS',  'Datos y bases de datos');
 
-/*--------------------------------------------------- Estados (CONTRATO_COMUN.md §2) ---------------------------------------------------*/
+-- Estados (CONTRATO_COMUN.md §2)
 insert into estado_programa (codigo, nombre, es_final, orden) values
 ('draft','Borrador',0,1), ('submitted','Enviado',0,2), ('under_review','En revisión',0,3),
 ('returned','Devuelto',0,4), ('approved','Aprobado',0,5), ('authorized','Autorizado',0,6),
 ('superseded','Reemplazado',1,7);
 
--- Transiciones de una version de programa (ajustar al CONTRATO del G5 si cambia)
 insert into flujo_programa (estado_origen, estado_destino, accion) values
 ('draft',        'submitted',    'submit'),
 ('submitted',    'under_review', 'review'),
@@ -1569,9 +1487,8 @@ insert into estado_tarea (codigo, nombre, es_final, orden) values
 ('submitted', 'Entregada', 0, 4),('under_review','En revisión',0,5),('returned','Devuelta',0,6),
 ('approved', 'Aprobada', 0, 7),('closed','Cerrada',1,8),('cancelled','Cancelada',1,9);
 
-/*--------------------------------------------------- Seguridad: roles de la matriz del proyecto ---------------------------------------------------*/
--- Codigos en ingles, minusculas y sin espacios (acordado con el Grupo 2); nombres visibles en espanol.
--- Los 4 primeros roles y los permisos 1 a 14 son los del JSON del Grupo 2 (para_validar_grupo1).
+-- Seguridad: roles de la matriz del proyecto
+
 insert into rol (id, codigo, nombre, descripcion, activo) values
 (1, 'admin',       'Administrador',         'Usuarios, roles, catálogos, tipos de tarea, parámetros y auditoría', 1),
 (2, 'coordinator', 'Coordinador académico', 'Crea tareas, selecciona destinatarios, fija plazos, monitorea y asigna revisores', 1),
@@ -1595,7 +1512,7 @@ insert into permiso (id, codigo, descripcion) values
 (12, 'tasks.submit',       'Iniciar, completar y entregar asignaciones'),
 (13, 'tasks.review',       'Revisar, aprobar o devolver entregas'),
 (14, 'programs.manage',    'Crear y editar versiones de programa en borrador'),
--- Agregados por el Grupo 1 para cubrir la matriz de roles (confirmar con el Grupo 2)
+
 (15, 'tasks.monitor',      'Ver panel de estados y cumplimiento'),
 (16, 'comments.create',    'Comentar en asignaciones y versiones'),
 (17, 'programs.read',      'Consultar programas, versiones y PDF'),
@@ -1605,17 +1522,17 @@ insert into permiso (id, codigo, descripcion) values
 (21, 'parameters.manage',  'Modificar parametros del sistema');
 
 insert into rol_permiso (rol_id, permiso_id) values
--- admin (Grupo 2) + catalogos, parametros, panel y programas
+
 (1,1),(1,2),(1,3),(1,4),(1,5),(1,6),(1,7),(1,8),(1,9),(1,10),(1,11),(1,12),(1,13),(1,14),(1,15),(1,17),(1,20),(1,21),
--- coordinator (Grupo 2) + panel, comentarios y consulta de programas
+
 (2,1),(2,5),(2,7),(2,8),(2,10),(2,11),(2,13),(2,14),(2,15),(2,16),(2,17),
--- teacher (Grupo 2) + comentarios y consulta de programas
+
 (3,7),(3,8),(3,12),(3,16),(3,17),
--- reviewer (Grupo 2) + comentarios, consulta y revision de programas
+
 (4,1),(4,8),(4,13),(4,14),(4,16),(4,17),(4,18),
--- authority
+
 (5,8),(5,15),(5,16),(5,17),(5,19),
--- auditor
+
 (6,1),(6,8),(6,9),(6,15),(6,17);
 
 insert into usuario (id, correo, id_academico, nombres, apellidos, hash_contrasena, unidad_academica_id, activo) values
@@ -1629,23 +1546,22 @@ insert into usuario (id, correo, id_academico, nombres, apellidos, hash_contrase
 (8, 'docente3@demo.udv.edu.gt',     'U-0008', 'María',  'García',         '$2b$10$IrPNlu9CPcXlLL.viZRic.z3vaku4uuI6eiWVXOoTa.HulL7SJyCu', 2, 1);
 
 insert into usuario_rol (usuario_id, rol_id, asignado_por) values
-(1, 1, NULL), -- Administrador
-(2, 2, 1),    -- Coordinador
-(3, 3, 1),    -- Docente
-(4, 3, 1),    -- Docente
-(5, 4, 1),    -- Revisor
-(5, 3, 1),    -- La revisora tambien es docente (un usuario puede tener varios roles)
-(6, 5, 1),    -- Autoridad
-(7, 6, 1),    -- Auditor
-(8, 3, 1);    -- Docente de otra sede
+(1, 1, NULL),
+(2, 2, 1),
+(3, 3, 1),
+(4, 3, 1),
+(5, 4, 1),
+(5, 3, 1),
+(6, 5, 1),
+(7, 6, 1),
+(8, 3, 1);
 
--- Quien imparte que curso (para publicar tareas "a los docentes del curso")
 insert into docente_curso (usuario_id, curso_id, periodo_id, sede_id, asignado_por) values
-(3, 1, 2, 1, 2),   -- Diana: Programacion Web, 2026-2, Sede Central
-(4, 1, 2, 1, 2),   -- Daniel: Programacion Web, 2026-2, Sede Central
-(8, 1, 2, 2, 2),   -- Maria: Programacion Web, 2026-2, Sede Regional
-(5, 3, 2, 1, 2),   -- Rosa: Bases de Datos I, 2026-2
-(3, 4, 1, 1, 2);   -- Diana: Programacion I, 2026-1
+(3, 1, 2, 1, 2),
+(4, 1, 2, 1, 2),
+(8, 1, 2, 2, 2),
+(5, 3, 2, 1, 2),
+(3, 4, 1, 1, 2);
 
 insert into parametro (codigo, valor, descripcion, actualizado_por) values
 ('zona_horaria',            'America/Guatemala', 'Zona horaria institucional para mostrar fechas (en BD se guardan en UTC)', 1),
@@ -1653,7 +1569,7 @@ insert into parametro (codigo, valor, descripcion, actualizado_por) values
 ('paginacion_max_por_pagina','100',              'Maximo de per_page en la API', 1),
 ('archivo_tamano_max_mb',   '20',                'Tamano maximo global de un archivo', 1);
 
-/*--------------------------------------------------- Tipos iniciales de tarea ---------------------------------------------------*/
+-- Tipos iniciales de tarea
 insert into tipo_tarea (id, codigo, nombre, descripcion, modalidad_entrega, requiere_archivo, extensiones, tamano_max_mb) values
 (1, 'ACTUALIZAR_PROGRAMA', 'Actualizar programa',  'Entrega del programa de curso por secciones',        'programa',   0, NULL,             10),
 (2, 'SUBIR_CV',            'Subir ficha o CV',     'Archivo PDF del CV y fecha de vigencia',             'ambos',      1, 'pdf',            5),
@@ -1670,8 +1586,8 @@ insert into tipo_tarea_campo (tipo_tarea_id, codigo, etiqueta, tipo_dato, obliga
 (4, 'fecha_actividad', 'Fecha de la actividad',    'fecha',   1, 2),
 (5, 'descripcion',     'Descripción de la evidencia','texto', 1, 1);
 
-/*--------------------------------------------------- Workflow por tipo de tarea ---------------------------------------------------*/
--- Transiciones por defecto; las validas las define el CONTRATO del G3. Si cambian, se ajusta solo esta seccion.
+-- Workflow por tipo de tarea
+
 insert into workflow (id, nombre, tipo_tarea_id)
 select id, concat('Flujo estandar - ', nombre), id from tipo_tarea;
 
@@ -1679,19 +1595,18 @@ insert into workflow_detalle (workflow_id, estado_origen, estado_destino, accion
 select w.id, t.origen, t.destino, t.accion
 from workflow w
 cross join (
-  select NULL as origen, 'assigned' as destino, 'publish' as accion  -- publicacion: se crea la asignacion
-  union all select 'assigned',     'in_progress',  'start'           -- docente abre e inicia
-  union all select 'in_progress',  'submitted',    'submit'          -- docente entrega
-  union all select 'submitted',    'under_review', 'review'          -- revisor toma la entrega
-  union all select 'under_review', 'returned',     'return'          -- revisor devuelve (exige observacion)
-  union all select 'returned',     'in_progress',  'resubmit'        -- docente atiende la devolucion
-  union all select 'under_review', 'approved',     'approve'         -- revisor aprueba
-  union all select 'approved',     'closed',       'close'           -- coordinacion cierra
+  select NULL as origen, 'assigned' as destino, 'publish' as accion
+  union all select 'assigned',     'in_progress',  'start'
+  union all select 'in_progress',  'submitted',    'submit'
+  union all select 'submitted',    'under_review', 'review'
+  union all select 'under_review', 'returned',     'return'
+  union all select 'returned',     'in_progress',  'resubmit'
+  union all select 'under_review', 'approved',     'approve'
+  union all select 'approved',     'closed',       'close'
   union all select 'assigned',     'cancelled',    'cancel'
   union all select 'in_progress',  'cancelled',    'cancel'
 ) t;
 
--- Roles que pueden ejecutar cada accion
 insert into workflow_detalle_rol (workflow_detalle_id, rol_id)
 select wd.id, r.id
 from workflow_detalle wd
@@ -1700,15 +1615,14 @@ join rol r on r.codigo = case
     when wd.accion in ('start', 'submit', 'resubmit')          then 'teacher'
     when wd.accion in ('review', 'return', 'approve')          then 'reviewer'
   end;
--- La autoridad tambien puede cancelar
+
 insert into workflow_detalle_rol (workflow_detalle_id, rol_id)
 select wd.id, (select id from rol where codigo = 'authority') from workflow_detalle wd where wd.accion = 'cancel';
 
-/*--------------------------------------------------- Programa de curso de ejemplo ---------------------------------------------------*/
+-- Programa de curso de ejemplo
 insert into programa_curso (id, curso_id, sede_id, modalidad_id, creado_por) values
 (1, 1, 1, 1, 2);
 
--- Version 1 (se autoriza abajo)
 insert into programa_version (id, programa_curso_id, numero_version, nombre, periodo_id, estado_codigo,
                               descripcion, resumen_cambios, unidad_academica_id, programa_academico, departamento,
                               nivel, area_id, pensum, horas_clase_semanal, docente_responsable_id, revisor_id, creado_por) values
@@ -1762,7 +1676,6 @@ insert into programa_evaluacion (programa_version_id, orden, nombre, descripcion
 (1, 3, 'Proyecto integrador', 'Entrega por grupos con demostración', 35, 16),
 (1, 4, 'Examen final',    'Contenido completo',        25, 18);
 
--- Flujo de aprobacion de la version 1
 update programa_version set estado_codigo = 'submitted'    where id = 1;
 insert into programa_aprobacion (programa_version_id, actor_id, estado_anterior, estado_nuevo, comentario) values (1, 3, 'draft', 'submitted', 'Envío a revisión');
 update programa_version set estado_codigo = 'under_review' where id = 1;
@@ -1771,7 +1684,6 @@ update programa_version set estado_codigo = 'approved'     where id = 1;
 insert into programa_aprobacion (programa_version_id, actor_id, estado_anterior, estado_nuevo, comentario) values (1, 5, 'under_review', 'approved', 'Cumple con el formato institucional');
 call sp_autorizar_version(1, 6, 'Se autoriza como versión vigente');
 
--- PDF oficial de la version 1 (se registra una sola vez)
 insert into archivo (id, nombre_original, nombre_interno, tipo_mime, tamano_bytes, hash_sha256, ubicacion, autor_id, programa_version_id) values
 (1, 'Programa_ISW-301_2026-1.pdf', 'pv1-7f3a2c.pdf', 'application/pdf', 184320,
  'a3f1c2d4e5b6978877665544332211aabbccddeeff00112233445566778899aa', 'programas/2026-1/pv1-7f3a2c.pdf', 6, 1);
@@ -1781,7 +1693,6 @@ insert into programa_pdf (programa_version_id, archivo_id, aprobacion_id, hash_c
 select 1, 1, max(id), 'a3f1c2d4e5b6978877665544332211aabbccddeeff00112233445566778899aa', 6
 from programa_aprobacion where programa_version_id = 1 and estado_nuevo = 'authorized';
 
--- Version 2: borrador clonado de la version 1 (coexiste sin sobrescribirla)
 insert into programa_version (id, programa_curso_id, numero_version, nombre, periodo_id, estado_codigo,
                               version_origen_id, descripcion, resumen_cambios, unidad_academica_id, programa_academico,
                               departamento, nivel, area_id, pensum, horas_clase_semanal, docente_responsable_id, revisor_id,
@@ -1812,32 +1723,29 @@ select 2, orden, tipo, referencia, isbn, url from programa_bibliografia where pr
 insert into programa_evaluacion (programa_version_id, orden, nombre, descripcion, ponderacion, semana)
 select 2, orden, nombre, descripcion, ponderacion, semana from programa_evaluacion where programa_version_id = 1;
 
-/*--------------------------------------------------- Escenario minimo de tareas ---------------------------------------------------*/
--- Tarea 1: publicada a los docentes de la unidad 1 para actualizar el programa
+-- Escenario minimo de tareas
+
 insert into tarea (id, workflow_id, estado_codigo, creado_por, curso_id, periodo_id, programa_version_id,
                    titulo, descripcion, prioridad, alcance, unidad_destino_id, revisor_id, fecha_limite, publicada_en) values
 (1, 1, 'assigned', 2, 1, 1, 2, 'Actualizar programa de Programación Web',
  'Revise y actualice la bibliografía y las evaluaciones del programa vigente.', 'high', 'unidad', 1, 5,
  '2026-12-15 23:59:59', '2026-10-01 08:00:00');
 
--- Tarea 2: CV con plazo ya vencido
 insert into tarea (id, workflow_id, estado_codigo, creado_por, titulo, descripcion, alcance,
                    rol_destino_id, revisor_id, fecha_limite, publicada_en) values
 (2, 2, 'assigned', 2, 'Actualizar CV docente 2026',
  'Suba su CV actualizado en PDF e indique la fecha de vigencia.', 'rol', 3, 5,
  '2026-09-30 23:59:59', '2026-09-01 08:00:00');
 
--- Tarea 3: borrador (no debe aparecer en ningun inbox)
 insert into tarea (id, workflow_id, estado_codigo, creado_por, titulo, alcance, rol_destino_id) values
 (3, 4, 'draft', 2, 'Confirmar asistencia a capacitación', 'rol', 3);
 
 insert into tarea_destinatario (id, tarea_id, usuario_id, estado_codigo, asignado_en) values
-(1, 1, 3, 'assigned', '2026-10-01 08:00:00'),   -- de esta asignacion salio la version 2
+(1, 1, 3, 'assigned', '2026-10-01 08:00:00'),
 (2, 1, 4, 'assigned', '2026-10-01 08:00:00'),
 (3, 2, 3, 'assigned', '2026-09-01 08:00:00'),
 (4, 2, 4, 'assigned', '2026-09-01 08:00:00');
 
--- Procedimiento auxiliar SOLO para cargar el historial de ejemplo (se elimina al final)
 DELIMITER $$
 CREATE PROCEDURE sp_seed_transicion(IN p_td INT, IN p_destino VARCHAR(20), IN p_actor INT, IN p_comentario VARCHAR(1000))
 BEGIN
@@ -1854,13 +1762,11 @@ BEGIN
 END$$
 DELIMITER ;
 
--- Registro inicial de las 4 asignaciones (NULL -> assigned)
 insert into tarea_transicion (tarea_destinatario_id, workflow_detalle_id, actor_id, estado_anterior, estado_nuevo, comentario)
 select td.id, wd.id, 2, NULL, 'assigned', 'Publicación de la tarea'
 from tarea_destinatario td join tarea t on t.id = td.tarea_id
 join workflow_detalle wd on wd.workflow_id = t.workflow_id and wd.estado_origen is null and wd.estado_destino = 'assigned';
 
--- Docente 1 trabaja el programa, se le devuelve y lo vuelve a entregar
 call sp_seed_transicion(1, 'in_progress', 3, NULL);
 insert into entrega (id, tarea_destinatario_id, numero_intento, entregado_por, contenido_texto, programa_version_id) values
 (1, 1, 1, 3, 'Se actualizó la bibliografía (versión 2 del programa).', 2);
@@ -1876,7 +1782,6 @@ insert into entrega (id, tarea_destinatario_id, numero_intento, entregado_por, c
 (2, 1, 2, 3, 'Bibliografía actualizada con referencia reciente.', 2);
 call sp_seed_transicion(1, 'submitted', 3, 'Segunda entrega');
 
--- Docente 1 entrega su CV con archivo y fecha de vigencia
 call sp_seed_transicion(3, 'in_progress', 3, NULL);
 insert into entrega (id, tarea_destinatario_id, numero_intento, entregado_por) values (3, 3, 1, 3);
 insert into entrega_valor (entrega_id, campo_id, valor)
@@ -1888,34 +1793,23 @@ call sp_seed_transicion(3, 'submitted', 3, NULL);
 
 DROP PROCEDURE sp_seed_transicion;
 
--- La version 2 es el trabajo de la asignacion 1 (Diana) y se entrego con la segunda entrega
 update programa_version set tarea_destinatario_origen_id = 1 where id = 2;
 
--- Daniel guardo avance sin enviar en la tarea del programa
 insert into entrega_borrador (tarea_destinatario_id, contenido_texto, guardado_por) values
 (2, 'Borrador: revisar unidades 3 y 4.', 4);
 
--- Prorroga individual: Daniel tiene hasta el 15/10/2026 para el CV
 update tarea_destinatario set fecha_limite = '2026-10-15 23:59:59' where id = 4;
 
--- Notificaciones (las de entregas y devoluciones vienen de los eventos que generaron los triggers)
 insert into notificacion (usuario_id, tipo, titulo, mensaje, tarea_destinatario_id, evento_id)
 select 3, 'assignment.returned', 'Tarea devuelta', 'Su entrega de "Actualizar programa de Programación Web" fue devuelta con observaciones.', 1, id
 from evento where nombre = 'assignment.returned' and tarea_destinatario_id = 1;
 insert into notificacion (usuario_id, tipo, titulo, mensaje, tarea_destinatario_id) values
 (4, 'assignment.due_soon', 'Tarea vencida', 'La tarea "Actualizar CV docente 2026" venció el 30/09/2026.', 4),
 (5, 'assignment.submitted', 'Nueva entrega', 'Diana Pérez entregó "Actualizar programa de Programación Web".', 1);
--- El evento de la devolucion ya se notifico
-update evento set procesado_en = CURRENT_TIMESTAMP(3) where nombre = 'assignment.returned' and tarea_destinatario_id = 1;
-/* =====================================================================
-   04_vistas.sql | Vistas que consumen la API y las pantallas
-   Ejecutar despues de 03_inserts.sql.
-   ===================================================================== */
-USE db_udv;
-SET NAMES utf8mb4;
 
--- Inbox del docente: solo tareas publicadas (las draft nunca aparecen) y no eliminadas.
--- Uso: SELECT * FROM v_inbox WHERE usuario_id = ? [AND estado_codigo = ?] ORDER BY fecha_limite;
+update evento set procesado_en = CURRENT_TIMESTAMP(3) where nombre = 'assignment.returned' and tarea_destinatario_id = 1;
+-- ==================== VISTAS ====================
+
 CREATE OR REPLACE VIEW v_inbox AS
 SELECT
     td.id                AS asignacion_id,
@@ -1927,7 +1821,7 @@ SELECT
     tt.codigo            AS tipo_codigo,
     tt.nombre            AS tipo_nombre,
     t.prioridad,
-    COALESCE(td.fecha_limite, t.fecha_limite) AS fecha_limite,   -- incluye prorroga individual
+    COALESCE(td.fecha_limite, t.fecha_limite) AS fecha_limite,
     t.publicada_en,
     td.asignado_en,
     td.actualizado_en,
@@ -1947,7 +1841,6 @@ JOIN usuario      c  ON c.id = t.creado_por
 WHERE t.estado_codigo <> 'draft'
   AND t.eliminado_en IS NULL;
 
--- Panel de cumplimiento por tarea (coordinador / autoridad / auditor)
 CREATE OR REPLACE VIEW v_panel_tarea AS
 SELECT
     t.id            AS tarea_id,
@@ -1966,7 +1859,7 @@ SELECT
     SUM(td.estado_codigo IN ('approved', 'closed'))                   AS aprobadas,
     SUM(td.estado_codigo = 'cancelled')                               AS canceladas,
     SUM(COALESCE(td.fecha_limite, t.fecha_limite) < NOW(3) AND td.estado_codigo IN ('assigned', 'in_progress', 'returned')) AS vencidas,
-    -- proxima a vencer: pendiente y vence dentro de los dias del parametro 'dias_aviso_vencimiento'
+
     SUM(COALESCE(td.fecha_limite, t.fecha_limite) >= NOW(3)
         AND COALESCE(td.fecha_limite, t.fecha_limite) < NOW(3) + INTERVAL (SELECT CAST(valor AS UNSIGNED) FROM parametro WHERE codigo = 'dias_aviso_vencimiento') DAY
         AND td.estado_codigo IN ('assigned', 'in_progress', 'returned')) AS proximas_a_vencer,
@@ -1979,8 +1872,6 @@ LEFT JOIN tarea_destinatario td ON td.tarea_id = t.id
 WHERE t.eliminado_en IS NULL
 GROUP BY t.id, t.titulo, tt.nombre, t.estado_codigo, t.creado_por, t.revisor_id, t.fecha_limite;
 
--- Historial completo de una tarea (todas sus asignaciones), en orden
--- Uso: SELECT * FROM v_historial_tarea WHERE tarea_id = ? ORDER BY creado_en, transicion_id;
 CREATE OR REPLACE VIEW v_historial_tarea AS
 SELECT
     tr.id                AS transicion_id,
@@ -1998,7 +1889,6 @@ JOIN tarea_destinatario td ON td.id = tr.tarea_destinatario_id
 JOIN usuario d ON d.id = td.usuario_id
 JOIN usuario a ON a.id = tr.actor_id;
 
--- Version vigente (autorizada) de cada programa por periodo
 CREATE OR REPLACE VIEW v_programa_vigente AS
 SELECT
     pc.id               AS programa_curso_id,
@@ -2029,7 +1919,6 @@ LEFT JOIN area a ON a.id = pv.area_id
 LEFT JOIN usuario u ON u.id = pv.autorizado_por
 WHERE pv.estado_codigo = 'authorized';
 
--- Todas las versiones de un programa con su total de evaluaciones (consulta de versiones anteriores, RF18)
 CREATE OR REPLACE VIEW v_programa_versiones AS
 SELECT
     pv.programa_curso_id,
@@ -2047,7 +1936,6 @@ SELECT
 FROM programa_version pv
 JOIN periodo p ON p.id = pv.periodo_id;
 
--- Historial de aprobacion de una version de programa
 CREATE OR REPLACE VIEW v_historial_programa AS
 SELECT
     pa.id               AS aprobacion_id,
@@ -2063,7 +1951,6 @@ FROM programa_aprobacion pa
 JOIN programa_version pv ON pv.id = pa.programa_version_id
 JOIN usuario u ON u.id = pa.actor_id;
 
--- Eventos pendientes de notificar (los consume el proceso del Grupo 6 en orden)
 CREATE OR REPLACE VIEW v_evento_pendiente AS
 SELECT id AS evento_id, nombre, tarea_id, tarea_destinatario_id, programa_version_id, actor_id, payload, creado_en
 FROM evento
