@@ -2,81 +2,134 @@
 g4_inbox — Backend del Grupo 4 (Inbox y entregas docentes)
 Proyecto integrador de API REST y workflow docente — UDV
 
+
 Cómo correr esto:
     pip install -r requirements.txt
     uvicorn main:app --reload
 
-Luego abran http://127.0.0.1:8000/docs — FastAPI genera ahí mismo una
-pantalla donde pueden probar cada endpoint sin necesitar Postman.
+Luego:
+    - http://127.0.0.1:8000/docs           → probar los 13 endpoints
+    - http://127.0.0.1:8000/static/inbox.html → la pantalla real del inbox
 
-
-   
+IMPORTANTE — cosas temporales que hay que reemplazar más adelante:
+1. No hay base de datos real todavía (G1). Los datos combinan
+   datos_ejemplo.py (del inbox) con DETALLE_EXTRA (de abajo), en memoria.
+2. No hay autenticación real todavía (G2). Usamos encabezados HTTP simples
+   (X-User, X-Role) para simular quién está llamando.
+3. El servicio de transiciones de G3 (g3_workflow) todavía no existe.
+   ejecutar_transicion_g3(), más abajo, es un STUB que imita su
+   comportamiento usando la misma tabla de transiciones del contrato.
 """
 
-from fastapi import FastAPI, HTTPException, Header
-from pydantic import BaseModel
-from typing import Optional, List
-import itertools
+from datetime import date
+from typing import List, Optional
 
-app = FastAPI(title="g4_inbox", version="0.1.0")
+from fastapi import FastAPI, Header, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
+
+from .datos_ejemplo import asignaciones_ejemplo
+from .inbox import Asignacion, ErrorValidacion, listar_inbox, resumen_inbox
+
+app = FastAPI(title="g4_inbox", version="0.2.0")
+
+# CORS: por defecto el navegador bloquea que una página le hable a este
+# servidor. Esto se lo permite. "allow_origins=["*"]" es a propósito muy
+# permisivo porque estamos en desarrollo local.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Sirve la carpeta static/ en http://127.0.0.1:8000/static/... — así se
+# puede abrir inbox.html ya hablándole a este mismo servidor, sin CORS.
+app.mount("/static", StaticFiles(directory="g4_inbox/static"), name="static")
+
+# Sirve grupos/udv-styles en http://127.0.0.1:8000/udv-styles/... — así el
+# HTML del inbox encuentra udv.css con su ruta relativa (../../../udv-styles/...).
+# Corre esto desde dentro de grupos/grupo-4-inbox-entregas, como dice el README.
+app.mount("/udv-styles", StaticFiles(directory="../udv-styles"), name="udv-styles")
 
 
 # ============================================================================
 # "BASE DE DATOS" EN MEMORIA (reemplaza temporalmente a G1)
 # ============================================================================
-ASSIGNMENTS = [
-    {
-        "id": 101, "task_type": "Actualizar programa", "assignee": "docente1",
-        "title": "Actualizar programa Programación Web", "status": "assigned",
-        "priority": "alta", "due_date": "2026-10-10",
-        "instructions": "Completar el formulario del programa por secciones.",
-        "program_version_id": 32, "files": [], "comments": [],
-        "draft_comment": None,
-        "history": [{"action": "publish", "new_status": "assigned", "actor": "coordinacion"}],
-    },
-    {
-        "id": 102, "task_type": "Subir ficha o CV", "assignee": "docente1",
-        "title": "Actualizar CV docente 2026", "status": "in_progress",
-        "priority": "media", "due_date": "2026-10-05",
-        "instructions": "Adjuntar CV actualizado en PDF.",
-        "program_version_id": None, "files": [], "comments": [],
-        "draft_comment": None,
-        "history": [
-            {"action": "publish", "new_status": "assigned", "actor": "coordinacion"},
-            {"action": "start", "new_status": "in_progress", "actor": "docente1"},
-        ],
-    },
-    {
-        "id": 103, "task_type": "Entregar factura", "assignee": "docente1",
-        "title": "Factura de honorarios septiembre", "status": "submitted",
-        "priority": "alta", "due_date": "2026-10-02",
-        "instructions": "Adjuntar factura con número, fecha y monto.",
+# Los campos básicos (id, assignee_id, title, task_type, status, priority,
+# due_at) son EXACTAMENTE los de datos_ejemplo.py — así el inbox y el
+# detalle siempre hablan de las mismas 10 tareas. Aquí solo se le agregan
+# los campos que el inbox no necesita pero el detalle sí.
+DETALLE_EXTRA = {
+    1: {"instructions": "Completar el formulario del programa por secciones.",
+        "program_version_id": 32, "files": [], "comments": [], "draft_comment": None},
+    2: {"instructions": "Adjuntar el CV en PDF con vigencia no mayor a 6 meses.",
+        "program_version_id": None, "files": [], "comments": [], "draft_comment": None},
+    3: {"instructions": "Adjuntar factura con número, fecha y monto correctos.",
         "program_version_id": None,
         "files": [{"file_id": "f-001", "name": "factura_sept.pdf"}],
-        "comments": [], "draft_comment": None,
-        "history": [
-            {"action": "publish", "new_status": "assigned", "actor": "coordinacion"},
-            {"action": "start", "new_status": "in_progress", "actor": "docente1"},
-            {"action": "submit", "new_status": "submitted", "actor": "docente1"},
-        ],
-    },
-]
+        "comments": [{"author": "revisor1", "text": "El monto no coincide. Verificar y reenviar."}],
+        "draft_comment": "Factura corregida con el monto correcto."},
+    4: {"instructions": "Adjuntar evidencia fotográfica o documento del laboratorio.",
+        "program_version_id": None,
+        "files": [{"file_id": "f-002", "name": "evidencia_lab1.pdf"}],
+        "comments": [], "draft_comment": None},
+    5: {"instructions": "Confirmar asistencia al claustro de este ciclo.",
+        "program_version_id": None, "files": [], "comments": [], "draft_comment": None},
+    6: {"instructions": "Confirmar el horario de tutorías para este ciclo.",
+        "program_version_id": None, "files": [], "comments": [], "draft_comment": None},
+    7: {"instructions": "Evidencia ya aprobada del proyecto integrador.",
+        "program_version_id": None,
+        "files": [{"file_id": "f-003", "name": "evidencia_proyecto.pdf"}],
+        "comments": [], "draft_comment": None},
+    8: {"instructions": "Completar el formulario del programa de Bases de Datos.",
+        "program_version_id": 40, "files": [], "comments": [], "draft_comment": None},
+    9: {"instructions": "Factura privada del docente 2 — no debe verla el docente 1.",
+        "program_version_id": None, "files": [], "comments": [], "draft_comment": None},
+    10: {"instructions": "CV del docente 2 — no debe verlo el docente 1.",
+         "program_version_id": None, "files": [], "comments": [], "draft_comment": None},
+}
 
-_siguiente_id = itertools.count(start=max(a["id"] for a in ASSIGNMENTS) + 1)
+
+def _construir_db() -> List[dict]:
+    """Une datos_ejemplo.py (del inbox) con DETALLE_EXTRA (de arriba)."""
+    base = [a.to_dict() for a in asignaciones_ejemplo()]
+    for item in base:
+        item.update(DETALLE_EXTRA.get(item["id"], {}))
+        item["history"] = [{"action": "publish", "new_status": "assigned", "actor": "coordinacion"}]
+    return base
+
+
+DB: List[dict] = _construir_db()
 
 
 def buscar_asignacion(assignment_id: int) -> Optional[dict]:
-    for a in ASSIGNMENTS:
+    for a in DB:
         if a["id"] == assignment_id:
             return a
     return None
 
 
-# ============================================================================
+def _asignaciones_para_inbox() -> List[Asignacion]:
+    """Reconstruye objetos Asignacion desde DB — inbox.py los exige así.
+
+    Se recrean en cada pedido (no se guardan aparte) para que el inbox
+    siempre refleje el estado más reciente después de una transición.
+    """
+    return [
+        Asignacion(
+            id=d["id"], assignee_id=d["assignee_id"], title=d["title"],
+            task_type=d["task_type"], status=d["status"], priority=d["priority"],
+            due_at=date.fromisoformat(d["due_at"]) if d["due_at"] else None,
+        )
+        for d in DB
+    ]
+
 
 # ============================================================================
-
-# (estado_actual, accion) -> {nuevo_estado, actor que puede ejecutarla}
+# STUB DEL SERVICIO DE TRANSICIONES DE G3 (g3_workflow)
+# ============================================================================
 TABLA_TRANSICIONES = {
     ("assigned", "start"):       {"nuevo_estado": "in_progress", "actor": "docente"},
     ("in_progress", "submit"):   {"nuevo_estado": "submitted",   "actor": "docente"},
@@ -89,17 +142,14 @@ TABLA_TRANSICIONES = {
 
 def ejecutar_transicion_g3(asignacion: dict, accion: str, rol_usuario: str,
                             comentario: Optional[str] = None) -> dict:
-    """Imita el servicio real de G3: valida, cambia el estado, guarda historial."""
     clave = (asignacion["status"], accion)
     regla = TABLA_TRANSICIONES.get(clave)
-
     if regla is None:
         raise HTTPException(status_code=409, detail="Transición no permitida desde este estado")
     if regla["actor"] != rol_usuario:
         raise HTTPException(status_code=403, detail=f"Esta acción le corresponde al rol '{regla['actor']}'")
     if accion == "return" and not comentario:
         raise HTTPException(status_code=422, detail="La observación es obligatoria para devolver")
-
     asignacion["status"] = regla["nuevo_estado"]
     if comentario:
         asignacion["comments"].append({"author": rol_usuario, "text": comentario})
@@ -108,12 +158,11 @@ def ejecutar_transicion_g3(asignacion: dict, accion: str, rol_usuario: str,
 
 
 def acciones_permitidas(asignacion: dict) -> List[str]:
-    """También saldría del servicio real de G3 cuando exista."""
     return [accion for (estado, accion) in TABLA_TRANSICIONES if estado == asignacion["status"]]
 
 
 # ============================================================================
-# MODELOS DE ENTRADA 
+# MODELOS DE ENTRADA
 # ============================================================================
 class BorradorIn(BaseModel):
     comment: Optional[str] = None
@@ -124,7 +173,7 @@ class ComentarioIn(BaseModel):
 
 
 class ArchivoIn(BaseModel):
-    file_id: str   # viene de POST /api/v1/files del Grupo 2
+    file_id: str
     name: str
 
 
@@ -133,28 +182,26 @@ class DevolucionIn(BaseModel):
 
 
 # ============================================================================
-# 1-3. INBOX Y DETALLE 
+# 1-2. INBOX — usa la lógica real de inbox.py (compañero)
 # ============================================================================
 @app.get("/api/v1/inbox")
-def listar_inbox(page: int = 1, per_page: int = 10, status: Optional[str] = None,
-                  x_user: str = Header(default="docente1")):
-    propias = [a for a in ASSIGNMENTS if a["assignee"] == x_user]
-    if status:
-        propias = [a for a in propias if a["status"] == status]
-    inicio = (page - 1) * per_page
-    pagina = propias[inicio: inicio + per_page]
-    return {"data": pagina, "page": page, "per_page": per_page, "total": len(propias)}
+def inbox(q: str = "", status: Optional[str] = None, page: int = 1,
+          per_page: int = 20, x_user: int = Header(default=1)):
+    try:
+        return listar_inbox(_asignaciones_para_inbox(), x_user,
+                             q=q, status=status, page=page, per_page=per_page)
+    except ErrorValidacion as e:
+        raise HTTPException(status_code=422, detail=e.details)
 
 
 @app.get("/api/v1/inbox/summary")
-def resumen_inbox(x_user: str = Header(default="docente1")):
-    resumen: dict = {}
-    for a in ASSIGNMENTS:
-        if a["assignee"] == x_user:
-            resumen[a["status"]] = resumen.get(a["status"], 0) + 1
-    return resumen
+def inbox_summary(x_user: int = Header(default=1)):
+    return resumen_inbox(_asignaciones_para_inbox(), x_user)
 
 
+# ============================================================================
+# 3. DETALLE — base propia
+# ============================================================================
 @app.get("/api/v1/assignments/{assignment_id}")
 def detalle_asignacion(assignment_id: int):
     a = buscar_asignacion(assignment_id)
@@ -164,7 +211,7 @@ def detalle_asignacion(assignment_id: int):
 
 
 # ============================================================================
-# 4. BORRADOR 
+# 4. BORRADOR
 # ============================================================================
 @app.put("/api/v1/assignments/{assignment_id}/submission-draft")
 def guardar_borrador(assignment_id: int, borrador: BorradorIn):
@@ -176,7 +223,7 @@ def guardar_borrador(assignment_id: int, borrador: BorradorIn):
 
 
 # ============================================================================
-# 5-6. COMENTARIOS 
+# 5-6. COMENTARIOS
 # ============================================================================
 @app.get("/api/v1/assignments/{assignment_id}/comments")
 def listar_comentarios(assignment_id: int):
@@ -188,28 +235,20 @@ def listar_comentarios(assignment_id: int):
 
 @app.post("/api/v1/assignments/{assignment_id}/comments")
 def crear_comentario(assignment_id: int, comentario: ComentarioIn,
-                      x_user: str = Header(default="docente1")):
+                      x_user: int = Header(default=1)):
     a = buscar_asignacion(assignment_id)
     if not a:
         raise HTTPException(status_code=404, detail="Asignación no encontrada")
-    nuevo = {"author": x_user, "text": comentario.text}
+    nuevo = {"author": str(x_user), "text": comentario.text}
     a["comments"].append(nuevo)
     return nuevo
 
 
 # ============================================================================
-# 7. VINCULAR ARCHIVO 
+# 7. VINCULAR ARCHIVO
 # ============================================================================
 @app.post("/api/v1/assignments/{assignment_id}/files")
 def vincular_archivo(assignment_id: int, archivo: ArchivoIn):
-    """
-    Este endpoint NO recibe el archivo en sí (no sube bytes). El archivo ya
-    debió subirse ANTES a POST /api/v1/files del Grupo 2, que devuelve un
-    file_id. Aquí solo guardamos ese file_id + su nombre junto a la asignación.
-
-    Body esperado:
-        { "file_id": "f-123", "name": "evidencia.pdf" }
-    """
     a = buscar_asignacion(assignment_id)
     if not a:
         raise HTTPException(status_code=404, detail="Asignación no encontrada")
@@ -218,7 +257,7 @@ def vincular_archivo(assignment_id: int, archivo: ArchivoIn):
 
 
 # ============================================================================
-# 8-13. TRANSICIONES —
+# 8-13. TRANSICIONES
 # ============================================================================
 def _transicionar(assignment_id: int, accion: str, rol_usuario: str,
                    comentario: Optional[str] = None) -> dict:
