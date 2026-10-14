@@ -2,8 +2,8 @@
 # Instalar con: pip install -r requirements.txt
 
 # API
-fastapi==0.142.1
-uvicorn[standard]==0.54.0
+fastapi==0.142.1 # Oficial
+uvicorn[standard]==0.54.0 # Oficial
 python-multipart==0.0.31 # Recibir archivos en /files
 email-validator==2.3.0 # Validar correos (EmailStr de pydantic) -> 422 por campo
 
@@ -13,6 +13,8 @@ PyJWT==2.15.1 # Tokens de sesion (Persona de autenticacion)
 
 # Base de datos
 SQLAlchemy==2.1.1 # Conexión a base de datos (Persona 5)
+PyMySQL==1.1.1 # Oficial. Driver de MySQL: mysql+pymysql://...
+cryptography==44.0.2 # Oficial. PyMySQL la necesita para el login de MySQL 8 (caching_sha2_password).
 
 # Configuracion
 python-dotenv==1.2.3 # Leer el archivo .env
