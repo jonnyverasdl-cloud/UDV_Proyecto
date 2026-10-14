@@ -10,7 +10,7 @@ from g2_api import config
 _es_sqlite = config.DATABASE_URL.startswith("sqlite")
 _connect_args = {"check_same_thread": False} if _es_sqlite else {}
 
-# El engine es el "enchufe" a la base: guarda un grupo de conexiones y las reutiliza.
+# El engine es el "enchufe" a la base: Guarda un grupo de conexiones y las reutiliza.
 # pool_pre_ping=True prueba la conexión antes de usarla (evita errores si MySQL cerró una inactiva).
 # pool_recycle evita que MySQL corte conexiones viejas (wait_timeout).
 engine = create_engine(
@@ -20,12 +20,11 @@ engine = create_engine(
     pool_recycle=1800,
 )
 
-# SessionLocal fabrica sesiones: una sesión es una "conversación" con la base (consultas y cambios).
+# SessionLocal fabrica sesiones: Una sesión es una "conversación" con la base (consultas y cambios).
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
 # Base es la clase madre de todos los modelos de models.py.
 Base = declarative_base()
-
 
 def get_db():
     # Dependencia de FastAPI: abre una sesión por petición y siempre la cierra al terminar.
@@ -35,7 +34,6 @@ def get_db():
         yield db
     finally:
         db.close()
-
 
 def probar_conexion():
     # Devuelve True si la base responde. Sirve para diagnóstico (no crea ni cambia nada).
