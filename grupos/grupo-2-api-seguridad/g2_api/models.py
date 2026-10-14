@@ -23,10 +23,8 @@ from sqlalchemy.orm import relationship
 
 from g2_api.database import Base
 
-
 def ahora_utc():
     return datetime.now(timezone.utc).replace(tzinfo=None)
-
 
 class Usuario(Base):
     __tablename__ = "usuario"
@@ -56,7 +54,6 @@ class Usuario(Base):
         viewonly=True,
     )
 
-
 class Rol(Base):
     __tablename__ = "rol"
 
@@ -71,7 +68,6 @@ class Rol(Base):
 
     permisos = relationship("Permiso", secondary="rol_permiso", viewonly=True)
 
-
 class Permiso(Base):
     __tablename__ = "permiso"
 
@@ -80,14 +76,12 @@ class Permiso(Base):
     descripcion = Column(String(300), nullable=True)
     creado_en = Column(DateTime, nullable=False, default=ahora_utc)
 
-
 class RolPermiso(Base):
     __tablename__ = "rol_permiso"
 
     rol_id = Column(Integer, ForeignKey("rol.id"), primary_key=True)
     permiso_id = Column(Integer, ForeignKey("permiso.id"), primary_key=True)
     creado_en = Column(DateTime, nullable=False, default=ahora_utc)
-
 
 class UsuarioRol(Base):
     __tablename__ = "usuario_rol"
@@ -113,7 +107,6 @@ class SesionToken(Base):
     ip_origen = Column(String(45), nullable=True)
     user_agent = Column(String(300), nullable=True)
 
-
 class Archivo(Base):
     __tablename__ = "archivo"
 
@@ -135,7 +128,6 @@ class Archivo(Base):
     creado_en = Column(DateTime, nullable=False, default=ahora_utc)
     eliminado_en = Column(DateTime, nullable=True)  # Eliminación lógica.
     eliminado_por = Column(Integer, ForeignKey("usuario.id"), nullable=True)
-
 
 class Auditoria(Base):
     __tablename__ = "auditoria"
