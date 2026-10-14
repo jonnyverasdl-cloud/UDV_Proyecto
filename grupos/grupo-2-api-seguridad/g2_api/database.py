@@ -35,7 +35,6 @@ def get_db():
     finally:
         db.close()
 
-
 def probar_conexion():
     # Devuelve True si la base responde. Sirve para diagnóstico (no crea ni cambia nada).
     from sqlalchemy import text
