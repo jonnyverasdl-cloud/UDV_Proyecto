@@ -2,10 +2,11 @@
 # Instalar con: pip install -r requirements.txt
 
 # API
-fastapi==0.142.1 # Oficial
-uvicorn[standard]==0.54.0 # Oficial
-python-multipart==0.0.31 # Recibir archivos en /files
-email-validator==2.3.0 # Validar correos (EmailStr de pydantic) -> 422 por campo
+fastapi==0.142.1 # Oficial.
+uvicorn[standard]==0.54.0 # Oficial.4
+pydantic==2.14.0 # Oficial. Validación de datos (422 por campo).
+python-multipart==0.0.31 # Recibir archivos en /files (Persona 4).
+email-validator==2.3.0 # Validar correos (EmailStr de pydantic).
 
 # Seguridad
 bcrypt==5.0.0 # hash de contraseñas login (Persona 1).
@@ -20,5 +21,5 @@ cryptography==44.0.2 # Oficial. PyMySQL la necesita para el login de MySQL 8 (ca
 python-dotenv==1.2.3 # Leer el archivo .env
 
 # Pruebas
-pytest==9.1.1
+pytest==9.1.1 # Oficial.
 httpx==0.28.1 # Lo usa TestClient de FastAPI
