@@ -16,7 +16,6 @@ Probar
 pytest
 
 Variables de entorno (`.env`, nunca se sube)
-| | | |
 | Variable | Para que sirve |
 | `DATABASE_URL` | Conexion a la base (SQLite local por ahora) |
 | `SECRET_KEY` | Firma de los JWT. Obligatoria; usar un valor largo y aleatorio |
