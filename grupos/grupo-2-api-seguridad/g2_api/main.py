@@ -41,4 +41,4 @@ app.add_middleware(
 # Routers: Cada persona agrega el suyo.
 app.include_router(auth.router) # Persona 1.
 app.include_router(users.router) # Persona 2.
-app.include_router(roles.router)
+app.include_router(roles.router) # Persona 2.
