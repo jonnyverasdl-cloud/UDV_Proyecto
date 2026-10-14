@@ -10,6 +10,7 @@ from g2_api.database import init_db
 from g2_api.middleware.error_handler import register_error_handlers
 from g2_api.routers import auth
 from g2_api.routers import users
+from g2_api.routers import roles
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -40,3 +41,4 @@ app.add_middleware(
 # Routers: Cada persona agrega el suyo.
 app.include_router(auth.router) # Persona 1.
 app.include_router(users.router) # Persona 2.
+app.include_router(roles.router)

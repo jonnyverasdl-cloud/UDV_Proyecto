@@ -6,7 +6,7 @@ import bcrypt
 from g2_api.routers.auth import usuarios
 from g2_api.middleware.auth_middleware import requerir_rol
 
-router = APIRouter(prefix="/api/v1/users", tags=["Users and Roles"])
+router = APIRouter(prefix="/api/v1/users", tags=["Users"])
 
 class UsuarioCreate(BaseModel):
     usuario: str
