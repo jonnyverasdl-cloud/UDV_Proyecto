@@ -20,7 +20,7 @@ app = FastAPI(
     title="Grupo 2 - API y Seguridad",
     version="0.1.0",
     docs_url="/api/v1/docs",
-    openapi_url="/api/v1/openapi.json",  # Misma ruta que el main.py de la raíz del PM.
+    openapi_url="/api/v1/openapi.json", # Misma ruta que el main.py de la raíz del PM.
     redoc_url=None,
 )
 
