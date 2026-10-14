@@ -2,7 +2,6 @@
 g4_inbox — Backend del Grupo 4 (Inbox y entregas docentes)
 Proyecto integrador de API REST y workflow docente — UDV
 
-
 Cómo correr esto:
     pip install -r requirements.txt
     uvicorn main:app --reload
@@ -49,18 +48,16 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory="g4_inbox/static"), name="static")
 
 # Sirve grupos/udv-styles en http://127.0.0.1:8000/udv-styles/... — así el
-# HTML del inbox encuentra udv.css con su ruta relativa (../../../udv-styles/...).
-# Corre esto desde dentro de grupos/grupo-4-inbox-entregas, como dice el README.
+# HTML del inbox y el de detalle encuentran udv.css con su ruta relativa
+# (../../../udv-styles/...). Corre esto desde dentro de
+# grupos/grupo-4-inbox-entregas, como dice el README.
 app.mount("/udv-styles", StaticFiles(directory="../udv-styles"), name="udv-styles")
 
 
 # ============================================================================
 # "BASE DE DATOS" EN MEMORIA (reemplaza temporalmente a G1)
 # ============================================================================
-# Los campos básicos (id, assignee_id, title, task_type, status, priority,
-# due_at) son EXACTAMENTE los de datos_ejemplo.py — así el inbox y el
-# detalle siempre hablan de las mismas 10 tareas. Aquí solo se le agregan
-# los campos que el inbox no necesita pero el detalle sí.
+
 DETALLE_EXTRA = {
     1: {"instructions": "Completar el formulario del programa por secciones.",
         "program_version_id": 32, "files": [], "comments": [], "draft_comment": None},

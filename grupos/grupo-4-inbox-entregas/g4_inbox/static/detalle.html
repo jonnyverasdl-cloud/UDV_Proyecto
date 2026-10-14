@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Detalle de la asignación · UDV</title>
+  <!-- Estilos institucionales del PM (grupos/udv-styles): se importan, no se copian -->
+  <link rel="stylesheet" href="../../../udv-styles/udv.css">
+  <link rel="stylesheet" href="css/detalle.css">
+</head>
+<body>
+
+  <header class="udv-header">
+    <a href="inbox.html" class="udv-header__logo">
+      <div class="udv-header__logo-text">
+        Universidad Da Vinci
+        <span>de Guatemala</span>
+      </div>
+    </a>
+    <nav aria-label="Principal">
+      <ul class="udv-header__nav">
+        <li><a href="#">Inicio</a></li>
+        <li><a href="inbox.html" aria-current="page">Inbox</a></li>
+        <li><a href="#">Tareas</a></li>
+        <li><a href="#">Programas</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main class="udv-section">
+    <div class="udv-container">
+      <a href="inbox.html" class="btn-udv btn-udv-outline btn-udv-sm" style="margin-bottom:1.5rem;">&larr; Volver al inbox</a>
+
+      <div id="cargando" class="udv-alert udv-alert-info">Cargando la asignación…</div>
+      <div id="avisoError" class="udv-alert udv-alert-danger" style="display:none;"></div>
+
+      <div id="detalle" style="display:none;">
+        <p class="udv-card__category" id="detTipo"></p>
+        <h1 class="udv-section-title" id="detTitulo" style="margin-bottom:.5rem;"></h1>
+        <span class="udv-badge" id="detEstadoBadge"></span>
+        <p id="detInstrucciones" style="color:var(--udv-text-muted);margin:1rem 0;"></p>
+
+        <div id="detComentario"></div>
+
+        <div id="detBotones" class="udv-gap-2" style="display:flex;flex-wrap:wrap;margin-top:1rem;"></div>
+
+        <div class="udv-form-group" id="obsGroup" style="display:none;margin-top:1rem;max-width:480px;">
+          <label class="udv-label" for="obs">Observación (obligatoria para devolver)</label>
+          <textarea class="udv-textarea" id="obs" placeholder="Escribe la observación antes de devolver…"></textarea>
+        </div>
+
+        <!-- Formulario de entrega -->
+        <div id="formEntrega" style="display:none;margin-top:1.5rem;border-top:1px solid #E5E7EB;padding-top:1.5rem;max-width:480px;">
+          <div class="udv-form-group">
+            <label class="udv-label" for="entregaComentario">Comentario de la entrega</label>
+            <textarea class="udv-textarea" id="entregaComentario" placeholder="Describe brevemente lo que estás entregando…"></textarea>
+          </div>
+          <div class="udv-form-group">
+            <label class="udv-label" for="entregaArchivo">Adjuntar evidencia</label>
+            <input class="udv-input" type="file" id="entregaArchivo">
+          </div>
+          <p id="archivoInfo" style="font-size:.8rem;color:var(--udv-text-muted);margin-bottom:.6rem;"></p>
+          <div id="entregaBotones" class="udv-gap-2" style="display:flex;flex-wrap:wrap;"></div>
+        </div>
+
+        <div id="avisoEntregaError" class="udv-alert udv-alert-danger" style="display:none;"></div>
+        <div id="avisoEntregaOk" class="udv-alert udv-alert-success" style="display:none;"></div>
+      </div>
+    </div>
+  </main>
+
+  <script src="js/detalle.js"></script>
+</body>
+</html>

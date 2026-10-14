@@ -1,7 +1,6 @@
 // =====================================================
 // CAPA DE DATOS DEL INBOX
-// Ya conectado al servidor real — reemplaza los datos de prueba que
-// vivían aquí antes. La pantalla (inbox.js) no cambió nada.
+// Ya conectado al servidor real — .
 // =====================================================
 
 const Api = (function () {

@@ -1,6 +1,8 @@
 """Lógica del inbox del docente (GET /inbox y GET /inbox/summary).
 
-
+Python puro, sin framework ni base de datos: cuando el PM defina el stack,
+los endpoints solo llaman a estas funciones. Las reglas vienen de CONTRATO.md §4
+y los estados de CONTRATO_COMUN.md §2 (inglés, minúsculas).
 """
 import unicodedata
 from dataclasses import asdict, dataclass

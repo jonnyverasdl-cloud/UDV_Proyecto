@@ -1,6 +1,6 @@
 """Datos de ejemplo para desarrollar sin G1/G3 (README raíz §3).
 
-Se reemplazan por la base de datos real cuando exista. más un segundo docente para probar privacidad.
+Se reemplazan por la base de datos real cuando exista, más un segundo docente para probar privacidad.
 """
 from datetime import date, timedelta
 

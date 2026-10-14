@@ -54,7 +54,8 @@ function textoVencimiento(a) {
 
 function crearTarjeta(a) {
   return `
-    <article class="udv-card inbox-tarjeta ${escapar(a.due_state)}">
+    <article class="udv-card inbox-tarjeta ${escapar(a.due_state)}"
+              style="cursor:pointer" onclick="location.href='detalle.html?id=${encodeURIComponent(a.id)}'">
       <p class="udv-card__category">${escapar(a.task_type)}</p>
       <h3 class="udv-card__title">${escapar(a.title)}</h3>
       <div class="inbox-tarjeta__detalles">
