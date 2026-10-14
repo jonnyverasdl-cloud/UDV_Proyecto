@@ -17,7 +17,7 @@ async def lifespan(app: FastAPI):
     init_db() # Crea las tablas si no existen.
     yield
     
-# Nota: aquí NO se crean tablas. El esquema de la base lo crea el Grupo 1 (regla del PM).
+# Nota: aquí No se crean tablas. El esquema de la base lo crea el Grupo 1 (regla del PM).
 app = FastAPI(
     title="Grupo 2 - API y Seguridad",
     version="0.1.0",
