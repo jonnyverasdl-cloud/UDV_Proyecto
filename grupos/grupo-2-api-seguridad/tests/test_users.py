@@ -6,12 +6,10 @@ from sqlalchemy.orm import configure_mappers
 from g2_api import models
 from g2_api.database import Base, engine, probar_conexion
 
-
 def test_la_app_arranca_y_muestra_la_documentacion(client):
     # La interfaz de documentación (Swagger) responde.
     respuesta = client.get("/api/v1/docs")
     assert respuesta.status_code == 200
-
 
 def test_openapi_lista_las_rutas_del_contrato(client):
     # El OpenAPI se genera solo y debe incluir las rutas que ya existen.
@@ -23,7 +21,6 @@ def test_openapi_lista_las_rutas_del_contrato(client):
     assert "/api/v1/users" in rutas
     assert "/api/v1/roles" in rutas
 
-
 def test_ruta_inexistente_responde_404_con_formato_comun(client):
     respuesta = client.get("/api/v1/esta-ruta-no-existe")
     assert respuesta.status_code == 404
@@ -31,7 +28,6 @@ def test_ruta_inexistente_responde_404_con_formato_comun(client):
     assert cuerpo["error"]["code"] == "NOT_FOUND"
     assert "message" in cuerpo["error"]
     assert "details" in cuerpo["error"]
-
 
 def test_login_con_cuerpo_vacio_responde_422_con_detalle_por_campo(client):
     respuesta = client.post("/api/v1/auth/login", json={})
@@ -41,13 +37,11 @@ def test_login_con_cuerpo_vacio_responde_422_con_detalle_por_campo(client):
     campos = {d["field"] for d in cuerpo["error"]["details"]}
     assert {"correo", "password"} <= campos
 
-
 def test_los_errores_no_muestran_informacion_interna(client):
     # Un 404 no debe traer rutas del servidor, SQL ni trazas.
     texto = client.get("/api/v1/nada").text.lower()
     for prohibido in ("traceback", "select ", "/home/", "c:\\", "secret"):
         assert prohibido not in texto
-
 
 def test_los_modelos_coinciden_con_las_tablas_del_grupo_1():
     # Si un modelo está mal armado, configure_mappers lanza un error.
@@ -59,12 +53,10 @@ def test_los_modelos_coinciden_con_las_tablas_del_grupo_1():
     # Estas dos columnas son las del límite de intentos de login (versión 1.1.0 de la base).
     assert {"intentos_fallidos", "bloqueado_hasta", "hash_contrasena", "eliminado_en"} <= columnas_usuario
 
-
 def test_la_conexion_a_la_base_responde():
     assert probar_conexion() is True
     with engine.connect() as conexion:
         assert conexion.execute(text("SELECT 1")).scalar() == 1
-
 
 def test_guardar_y_leer_un_usuario_con_su_rol(db):
     # Solo en SQLite (tablas temporales). Con MySQL no se escribe en la base compartida desde las pruebas.
