@@ -1,28 +1,29 @@
 # Aplicacion principal del Grupo 2 (Persona 5).
 # Cada persona agrega aqui su router cuando lo sube.
-from importlib.util import find_spec
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from g2_api import config
+from g2_api.database import init_db
 from g2_api.middleware.error_handler import register_error_handlers
 from g2_api.routers import auth
+from g2_api.routers import users
 from g2_api.routers import roles
-from g2_api.routers import user
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db() # Crea las tablas si no existen.
     yield
-    
-# Nota: aquí No se crean tablas. El esquema de la base lo crea el Grupo 1 (regla del PM).
+
 app = FastAPI(
     title="Grupo 2 - API y Seguridad",
     version="0.1.0",
     docs_url="/api/v1/docs",
-    openapi_url="/api/v1/openapi.json", # Misma ruta que el main.py de la raíz del PM.
+    openapi_url="/api/v1/openapi",
     redoc_url=None,
+    lifespan=lifespan,
 )
 
 # Errores: Todos salen con el formato comun (codigo, mensaje y detalles). Es el archivo de Edgar.
@@ -38,6 +39,6 @@ app.add_middleware(
 )
 
 # Routers: Cada persona agrega el suyo.
-app.include_router(auth.router) # Persona 1: /auth/login, /auth/logout, /me.
-app.include_router(users.router) # Persona 2: /users.
-app.include_router(roles.router) # Persona 2: /roles.
+app.include_router(auth.router) # Persona 1.
+app.include_router(users.router) # Persona 2.
+app.include_router(roles.router) # Persona 2.
