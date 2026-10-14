@@ -34,11 +34,11 @@ def lista_roles(usuario_actual: dict = Depends(obtener_usuario_actual)):
 @router.post("/", status_code=status.HTTP_201_CREATED,
              dependencies=[Depends(requerir_rol(["administrador"]))])
 def crea_rol(datos: RolCreate):
-    if any(r["rol"] == datos.rol for r in roles):
+    if any(j["rol"] == datos.rol for j in roles):
         raise HTTPException(status.HTTP_409_CONFLICT, detail="Este rol ya existe") #si el rol ya existe, no lo crea
 
     nuevo = {
-        "id": max((r["id"] for r in roles), default=0) + 1,  #aquí es donde se crea un id automáticamente para cada rol nuevo
+        "id": max((i["id"] for i in roles), default=0) + 1,  #aquí es donde se crea un id automáticamente para cada rol nuevo
         "rol": datos.rol,
         "nombre": datos.nombre,
         "descripcion": datos.descripcion,
