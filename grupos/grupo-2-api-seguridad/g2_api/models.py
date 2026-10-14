@@ -142,4 +142,3 @@ class Auditoria(Base):
     ip_origen = Column(String(45), nullable=True)
     detalle = Column(Text, nullable=True) # JSON como texto (LONGTEXT en MySQL).
     creado_en = Column(DateTime, nullable=False, default=ahora_utc)
-
