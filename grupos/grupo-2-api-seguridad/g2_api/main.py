@@ -1,16 +1,15 @@
 # Aplicacion principal del Grupo 2 (Persona 5).
 # Cada persona agrega aqui su router cuando lo sube.
-from contextlib import asynccontextmanager
+from importlib.util import find_spec
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from g2_api import config
-from g2_api.database import init_db
 from g2_api.middleware.error_handler import register_error_handlers
 from g2_api.routers import auth
-from g2_api.routers import users
 from g2_api.routers import roles
+from g2_api.routers import user
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -22,9 +21,8 @@ app = FastAPI(
     title="Grupo 2 - API y Seguridad",
     version="0.1.0",
     docs_url="/api/v1/docs",
-    openapi_url="/api/v1/openapi",
+    openapi_url="/api/v1/openapi.json", # Misma ruta que el main.py de la raíz del PM.
     redoc_url=None,
-    lifespan=lifespan,
 )
 
 # Errores: Todos salen con el formato comun (codigo, mensaje y detalles). Es el archivo de Edgar.
