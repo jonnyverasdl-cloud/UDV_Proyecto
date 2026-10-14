@@ -22,7 +22,7 @@ class UsuarioUpdate(BaseModel):
     rol: Optional[str] = None
     activo: Optional[bool] = None
 
-@router.get("/", dependencies=[Depends(requerir_rol(["administrador"]))]) #Endpoint para buscar usuarios 
+@router.get("", dependencies=[Depends(requerir_rol(["administrador"]))]) #Endpoint para buscar usuarios 
 def listar_usuarios():
     lista_limpia = []
     for u in usuarios: 
@@ -32,13 +32,13 @@ def listar_usuarios():
         lista_limpia.append(copia) #en la variable lista limpia, guarda el usuario sin la contraseña
     return lista_limpia
 
-@router.post("/", status_code=status.HTTP_201_CREATED, dependencies=[Depends(requerir_rol(["administrador"]))]) #Crea usuarios 
+@router.post("", status_code=status.HTTP_201_CREATED, dependencies=[Depends(requerir_rol(["administrador"]))]) #Crea usuarios 
 def crear_usuario(datos: UsuarioCreate): #recibe parámetro tipo class
     for u in usuarios:
         if u.get("correo") == datos.correo: #Compara el correo únicamente
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="El ID o correo ya se encuentra registrado" #si los datos son iguales no acepta la creación  del usuario
+                detail="El correo ya está registrado" #si los datos son iguales no acepta la creación  del usuario
             )
     #si no existe el usuario guarda la contraseña usando el método hash y los demás datos
     password_hash = bcrypt.hashpw(datos.password.encode(), bcrypt.gensalt()).decode('utf-8') 

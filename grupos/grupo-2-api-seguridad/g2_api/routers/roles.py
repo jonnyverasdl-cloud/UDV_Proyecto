@@ -8,7 +8,7 @@ from g2_api.middleware.auth_middleware import obtener_usuario_actual, requerir_r
 router = APIRouter(prefix="/api/v1/roles", tags=["Roles"])
 #lista de los roles, esperando el db
 roles = [
-    {"id": 1, "rol": "administrador", "nombre": "Administrador",
+    {"id": 1, "rol": "admin", "nombre": "Administrador",
      "descripcion": "acceso completo", "activo": True},
     {"id": 2, "rol": "coordinador ", "nombre": "Coordinador",
      "descripcion": "Crear tareas", "activo": True},
@@ -27,11 +27,11 @@ class RolCreate(BaseModel):
     nombre: str
     descripcion: Optional[str] = None
 #esto lista los roles
-@router.get("/")
+@router.get("")
 def lista_roles(usuario_actual: dict = Depends(obtener_usuario_actual)):
     return roles
 #este método crea los roles
-@router.post("/", status_code=status.HTTP_201_CREATED,
+@router.post("", status_code=status.HTTP_201_CREATED,
              dependencies=[Depends(requerir_rol(["administrador"]))])
 def crea_rol(datos: RolCreate):
     if any(j["rol"] == datos.rol for j in roles):
