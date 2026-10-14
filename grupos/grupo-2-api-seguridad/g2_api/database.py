@@ -1,6 +1,6 @@
 # Conexión a la base de datos (Persona 5).
 # Motor oficial: MySQL 8 con el driver PyMySQL. La URL viene siempre de DATABASE_URL (.env).
-# Regla del PM: el esquema lo crea el Grupo 1 (db_udv_completo.sql). Aquí NO se crean tablas.
+# Regla del PM: El esquema lo crea el Grupo 1 (db_udv_completo.sql). Aquí No se crean tablas.
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
@@ -10,8 +10,8 @@ from g2_api import config
 _es_sqlite = config.DATABASE_URL.startswith("sqlite")
 _connect_args = {"check_same_thread": False} if _es_sqlite else {}
 
-# El engine es el "enchufe" a la base: guarda un grupo de conexiones y las reutiliza.
-# pool_pre_ping=True prueba la conexión antes de usarla (evita errores si MySQL cerró una inactiva).
+# El engine es el "enchufe" a la base: Guarda un grupo de conexiones y las reutiliza.
+# pool_pre_ping=True prueba la conexión antes de usarla (Evita errores si MySQL cerró una inactiva).
 # pool_recycle evita que MySQL corte conexiones viejas (wait_timeout).
 engine = create_engine(
     config.DATABASE_URL,
@@ -20,7 +20,7 @@ engine = create_engine(
     pool_recycle=1800,
 )
 
-# SessionLocal fabrica sesiones: una sesión es una "conversación" con la base (consultas y cambios).
+# SessionLocal fabrica sesiones: Una sesión es una "conversación" con la base (consultas y cambios).
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
 # Base es la clase madre de todos los modelos de models.py.
@@ -34,6 +34,7 @@ def get_db():
         yield db
     finally:
         db.close()
+
 
 def probar_conexion():
     # Devuelve True si la base responde. Sirve para diagnóstico (no crea ni cambia nada).
