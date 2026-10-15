@@ -51,11 +51,11 @@ document.querySelector("form").addEventListener("submit", async function(e) {
 
       const datos = await respuesta.json();
 
-      if (datos.respuesta.ok) {
+      if (respuesta.ok) {
         alert("Bienvenido " + datos.usuario);
       } else {
         triggerShake(); // Hace temblar el campo cuando la contraseña/usuario es incorrecto
-        alert(datos.mensaje);
+        alert(datos.error.mensaje);
       }
     } catch (error) {
       triggerShake(); // Hace temblar si falla la conexión con la API
