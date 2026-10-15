@@ -145,14 +145,4 @@ def esta_bloqueado(
     return contar_intentos_fallidos(db, correo, minutos) >= int(max_intentos)
 
 
-def limpiar_intentos(db: Session, correo: str) -> None:
-    """ Borra los LOGIN_FALLIDO del correo tras un login correcto."""
-    try:
-        Auditoria = _modelo_auditoria()
-        db.query(Auditoria).filter(
-            Auditoria.accion == LOGIN_FALLIDO,
-            Auditoria.entidad_id == (correo or "").strip().lower(),
-        ).delete(synchronize_session=False)
-        db.commit()
-    except Exception: 
-        db.rollback()
+
