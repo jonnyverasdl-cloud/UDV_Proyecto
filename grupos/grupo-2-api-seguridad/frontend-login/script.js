@@ -43,7 +43,7 @@ document.querySelector("form").addEventListener("submit", async function(e) {
     const password = document.getElementById("password").value;
 
     try {
-      const respuesta = await fetch("/api/v1/auth/login", {
+      const respuesta = await fetch("http://127.0.0.1:8000/api/v1/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ correo: correo, password: password })
@@ -51,11 +51,11 @@ document.querySelector("form").addEventListener("submit", async function(e) {
 
       const datos = await respuesta.json();
 
-      if (datos.respuesta.ok) {
-        alert("Bienvenido " + datos.usuario);
+      if (respuesta.ok) {
+        alert("Bienvenido " + datos.usuario.nombres);
       } else {
         triggerShake(); // Hace temblar el campo cuando la contraseña/usuario es incorrecto
-        alert(datos.mensaje);
+        alert(datos.error.message);
       }
     } catch (error) {
       triggerShake(); // Hace temblar si falla la conexión con la API
