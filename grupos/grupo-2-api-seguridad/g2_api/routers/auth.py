@@ -1,54 +1,82 @@
-#Libreria para anotar los endpoints
-from fastapi import APIRouter, HTTPException, status
-router = APIRouter(prefix="/api/v1/auth", tags=["Autenticacion"])
+# POST /api/v1/auth/login: valida correo y contraseña contra la base del Grupo 1 y entrega un token JWT.
 
-import bcrypt
-
-#Herramienta para leer json temporalmente
 import json
 import os
+from datetime import datetime, timezone
 
-#Buscara la ruta del archivo usuarios_prueba.json en la carpeta g2_api/datos_prueba
-#Temporal: cuando el Grupo 1 entregue la base de datos, se cambia por la conexion real
-ruta_actual = os.path.dirname(__file__)
-ruta_json = os.path.join(ruta_actual, "..", "datos_prueba", "usuarios_prueba.json")
-
-with open(ruta_json, "r", encoding="utf-8") as archivo:
-    datos = json.load(archivo)
-
-usuarios = datos["usuarios"]
-
-#Definir qué datos recibe el login, si correo o contraseña no son str lo rechaza
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
+from g2_api import config
+from g2_api.database import get_db
+from g2_api.models import SesionToken, Usuario
+from g2_api.seguridad import crear_token, hash_token, verificar_contrasena
+
+router = APIRouter(prefix="/api/v1/auth", tags=["Autenticacion"])
+
+
+# TEMPORAL: users.py y auth_middleware.py (Randy) todavía importan esta lista.
+# El login YA NO la usa. Se borra cuando users y el middleware pasen a la base (semana 2).
+_ruta_json = os.path.join(os.path.dirname(__file__), "..", "datos_prueba", "usuarios_prueba.json")
+with open(_ruta_json, "r", encoding="utf-8") as _archivo:
+    usuarios = json.load(_archivo)["usuarios"]
+
+
+# Lo que recibe el login. Si falta un campo o no es texto, FastAPI responde 422 solo.
 class LoginRequest(BaseModel):
     correo: str
     password: str
 
-#El endpoint POST /api/v1/auth/login
+
+# Mismo mensaje para "no existe" y "contraseña mala": así nadie puede adivinar qué correos existen.
+CREDENCIALES_INVALIDAS = "Correo o contraseña incorrectos"
+
+
 @router.post("/login")
-def login(datos_login: LoginRequest): #Recibimos los datos de LoginRequest
-    usuario_encontrado = None
-    for usuario in usuarios: # buscamos el usuario en la lista de usuarios
-        if usuario["correo"] == datos_login.correo:
-            usuario_encontrado = usuario
-            break
-
-    if usuario_encontrado is None: #si no encuentra el usuario responde 401
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuario o contraseña incorrectos")
-
-    #comparacion de contraseña con el hash guardado
-    contraseña_correcta = bcrypt.checkpw(
-        datos_login.password.encode(),
-        usuario_encontrado["hash_contrasena"].encode()
+def login(datos: LoginRequest, request: Request, db: Session = Depends(get_db)):
+    # 1. Buscar al usuario por correo (sin contar los eliminados).
+    usuario = (
+        db.query(Usuario)
+        .filter(Usuario.correo == datos.correo, Usuario.eliminado_en.is_(None))
+        .first()
     )
 
-    if not contraseña_correcta:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuario o contraseña incorrectos")
+    # 2. Si no existe, está inactivo o la contraseña no coincide: 401.
+    if usuario is None or not usuario.activo:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=CREDENCIALES_INVALIDAS)
+    if not verificar_contrasena(datos.password, usuario.hash_contrasena):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=CREDENCIALES_INVALIDAS)
 
+    # 3. Crear el token JWT.
+    token, expira = crear_token(usuario.id)
+
+    # 4. Guardar la sesión en sesion_token (solo el hash del token, nunca el token).
+    #    Sirve para el logout: se marca revocado_en y ese token deja de servir.
+    #    MySQL guarda DATETIME sin zona, por eso se quita tzinfo (queda en UTC).
+    db.add(
+        SesionToken(
+            usuario_id=usuario.id,
+            token_hash=hash_token(token),
+            tipo="access",
+            expira_en=expira.replace(tzinfo=None),
+            ip_origen=request.client.host if request.client else None,
+            user_agent=(request.headers.get("user-agent") or "")[:300] or None,
+        )
+    )
+    usuario.ultimo_acceso_en = datetime.now(timezone.utc).replace(tzinfo=None)
+    db.commit()
+
+    # 5. Responder con el token. El frontend lo manda después en: Authorization: Bearer <token>
     return {
-        "mensaje": "Login exitoso",
-        "id": usuario_encontrado["id"],
-        "correo": usuario_encontrado["correo"],
-        "roles": usuario_encontrado["roles"]
+        "access_token": token,
+        "token_type": "bearer",
+        "expires_in": config.ACCESS_TOKEN_EXPIRE_MINUTES * 60,  # en segundos
+        "usuario": {
+            "id": usuario.id,
+            "correo": usuario.correo,
+            "nombres": usuario.nombres,
+            "apellidos": usuario.apellidos,
+            "roles": [rol.codigo for rol in usuario.roles],
+        },
     }
