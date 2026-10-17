@@ -1,0 +1,99 @@
+# Grupo 6: Administración, notificaciones, pruebas y despliegue
+
+Módulo `g6_admin`. Este README explica qué existe hasta ahora y cómo probarlo
+(CONTRATO.md del G6 §5).
+
+## Qué hay por ahora
+
+| Pieza | Ruta | Escenarios QA |
+|---|---|---|
+| Catálogos: listar (con sesión) y agregar (solo administración) | `GET` y `POST` en `/api/v1/academic-units`, `/campuses`, `/courses`, `/periods`, `/modalities` y `/areas` | G6-01, G6-02, G6-03, G6-21 a G6-25 |
+| Pantalla de catálogos | `g6_admin/pantallas/catalogos.html` | G6-01, G6-02 |
+| Estado del servicio | `GET /api/v1/health` | G6-34, G6-36 (en lo que toca a esta ruta) |
+
+**Quién puede hacer qué**
+
+| Rol (código del G1) | Consultar catálogos | Agregar registros |
+|---|---|---|
+| Administración (`admin`) | Sí | Sí |
+| Docente (`teacher`) y demás roles | Sí | No: el servidor responde 403 |
+| Sin sesión | No: 401 | No: 401 |
+
+## Qué usamos del Grupo 2
+
+El G6 no tiene login, usuarios de prueba ni formato de error propios. Todo eso
+es del G2 y se importa desde `g2_api` (CONTRATO_COMUN §1):
+
+| Para qué | Qué se importa |
+|---|---|
+| Saber quién inició sesión | `g2_api.middleware.auth_middleware.obtener_usuario_actual` |
+| Permitir agregar solo a administración | `requerir_rol(["admin"])` del mismo archivo |
+| Formato de error (401, 403, 409, 422) | `api_error` y `register_error_handlers` de `g2_api.middleware.error_handler` |
+| Paginación y máximo de `per_page` | `params_paginacion` de `g2_api.utils.paginacion` |
+| Revisar la base en `/api/v1/health` | `probar_conexion` de `g2_api.database` |
+
+La pantalla manda el token del login del G2 como
+`Authorization: Bearer <token>` y pregunta los roles a `GET /api/v1/me`.
+
+## Cómo correr las pruebas
+
+Se necesita que la carpeta `grupos/grupo-2-api-seguridad/` tenga el código del
+G2 (llega a `main` cuando se acepte su PR). Desde la raíz del repositorio:
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate            # Windows
+source .venv/bin/activate         # Mac o Linux
+pip install -r requirements.txt
+cd grupos/grupo-6-administracion
+python -m pytest
+```
+
+Las pruebas usan el control de roles y el formato de error reales del G2.
+Solo reemplazan quién inició sesión (`dependency_overrides` de FastAPI) y usan
+un SQLite temporal, así que no necesitan MySQL ni un `.env`.
+
+## Cómo se integra a la aplicación
+
+El G6 no levanta su propia app ni servidor (CONTRATO_COMUN §1). Lo integra el
+PM en el `main.py` de la raíz. **Pedidos al PM:**
+
+1. Activar la línea `("g6_admin.api", "router")` en `ROUTERS`.
+2. Servir la pantalla: la carpeta `g6_admin/pantallas/` en `/g6` y
+   `grupos/udv-styles/` en `/udv-styles`. La pantalla queda en
+   `/g6/catalogos.html` y usa rutas relativas (`/api/v1/...`).
+3. Agregar `APP_ENV` y `APP_VERSION` al `.env.example`.
+
+## Pendientes con el Grupo 2
+
+| Qué | Por qué importa | Dónde se cambia si difiere |
+|---|---|---|
+| Middleware con `Authorization: Bearer` y `GET /api/v1/me` (su tarea de la semana del 20-oct) | Hoy su middleware lee el encabezado `usuario-actual`; la pantalla manda el token Bearer | Nada en el G6: se usa su dependencia |
+| Clave donde su login guarda el token | La pantalla la lee para mandarla | `CLAVE_TOKEN` en `catalogos.html` (hoy `udv_token`) |
+| Ruta de su pantalla de login | El aviso "Ir al inicio de sesión" apunta ahí | `PAGINA_INICIO_SESION` en `catalogos.html` (hoy `/g2/index.html`) |
+| Código del rol de administración | La semilla del G1 usa `admin`; su JSON de prueba usa `administrador` | `ROLES_ADMINISTRACION` en `api.py` y `ROL_ADMINISTRACION` en `catalogos.html` |
+
+## Piezas temporales
+
+| Pieza | Por qué es temporal | Se reemplaza por |
+|---|---|---|
+| Repositorio en memoria | Los registros se borran al reiniciar | Un repositorio con los mismos métodos sobre las tablas del G1 (`sede`, `unidad_academica`, `curso`, `periodo`, `modalidad`, `area`) y `paginar(consulta, ...)` del G2 |
+| Campos `code`, `name`, `is_active` | Las columnas reales son las del esquema del G1 | Los campos del G1 |
+
+## Cómo está organizado
+
+| Archivo | Qué hace |
+|---|---|
+| `g6_admin/api.py` | Rutas `/api/v1/...` en `router`, que monta el `main.py` de la raíz |
+| `g6_admin/catalogos.py` | Reglas de catálogos: validación, búsqueda, filtro y orden |
+| `g6_admin/salud.py` | Respuesta de `/api/v1/health`, sin exponer detalles internos |
+| `g6_admin/pantallas/catalogos.html` | Pantalla con los estilos de `grupos/udv-styles/udv.css` |
+| `tests/` | 48 pruebas automáticas |
+
+## Variables de entorno
+
+| Variable | Uso | Valor por defecto |
+|---|---|---|
+| `APP_ENV` | Nombre del ambiente que muestra `/api/v1/health` (G6-35) | `desarrollo` |
+| `APP_VERSION` | Versión que muestra `/api/v1/health` | La versión de `g6_admin` |
+| `DATABASE_URL` | La lee el G2; `/api/v1/health` informa si la base responde | Sin valor: `not_configured` |
