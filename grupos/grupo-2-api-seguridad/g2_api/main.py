@@ -36,11 +36,3 @@ app.include_router(auth.router) # Persona 1: /auth/login, /auth/logout, /me.
 app.include_router(users.router) # Persona 2: /users.
 app.include_router(roles.router) # Persona 2: /roles.
 app.include_router(files.router) # Persona 4: /files.
-
-# Persona 4: /files. El archivo routers/files.py lo sube Fulvio en la semana 2.
-# Mientras no exista, la app arranca igual; en cuanto exista, se monta solo.
-# Si files.py existe pero tiene un error, el error Sí se muestra (no se oculta).
-if find_spec("g2_api.routers.files") is not None:
-    from g2_api.routers import files
-
-    app.include_router(files.router)
