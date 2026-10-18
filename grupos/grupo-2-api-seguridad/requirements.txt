@@ -6,6 +6,7 @@ fastapi==0.142.1 # Oficial.
 uvicorn[standard]==0.54.0 # Oficial.
 pydantic==2.14.0 # Oficial. Validación de datos (422 por campo).
 python-multipart==0.0.31 # Recibir archivos en /files (Persona 4).
+puremagic==2.2.0 # Lee los bytes del archivo para verificar que es real (files.py, Persona 4).
 email-validator==2.3.0 # Validar correos (EmailStr de pydantic).
 
 # Seguridad
