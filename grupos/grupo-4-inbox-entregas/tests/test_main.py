@@ -2,14 +2,12 @@
 Pruebas automáticas de main.py — los 11 endpoints que no son del inbox
 (detalle, borrador, comentarios, archivos, y las 6 transiciones).
 
-Usa TestClient de FastAPI: no necesita levantar uvicorn ni abrir un
-navegador, llama a la aplicación directamente en memoria. Rápido y
-sin dependencias externas.
+
 """
 import pytest
 from fastapi.testclient import TestClient
 
-import g4_inbox.main as modulo_main
+import g4_inbox.routes as modulo_routes
 from g4_inbox.main import app
 
 cliente = TestClient(app)
@@ -18,7 +16,7 @@ cliente = TestClient(app)
 @pytest.fixture(autouse=True)
 def reiniciar_base_de_datos():
     """Cada prueba empieza con los datos originales, sin lo que dejaron las anteriores."""
-    modulo_main.DB[:] = modulo_main._construir_db()
+    modulo_routes.DB[:] = modulo_routes._construir_db()
     yield
 
 

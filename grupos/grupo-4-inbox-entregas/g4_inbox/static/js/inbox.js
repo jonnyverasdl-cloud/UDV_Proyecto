@@ -16,7 +16,7 @@ const nombresEstado = {
   closed: "Cerrada",
   cancelled: "Cancelada"
 };
-const nombresPrioridad = { urgent: "Urgente", high: "Alta", medium: "Media", low: "Baja" };
+const nombresPrioridad = { high: "Alta", medium: "Media", low: "Baja" };
 
 const el = (id) => document.getElementById(id);
 

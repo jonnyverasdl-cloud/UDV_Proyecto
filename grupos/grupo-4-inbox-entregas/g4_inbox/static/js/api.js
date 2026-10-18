@@ -1,6 +1,6 @@
 // =====================================================
 // CAPA DE DATOS DEL INBOX
-// Ya conectado al servidor real — .
+// Ya conectado al servidor real 
 // =====================================================
 
 const Api = (function () {
