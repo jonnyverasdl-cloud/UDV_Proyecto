@@ -1,13 +1,12 @@
 # Aplicacion principal del Grupo 2 (Persona 5).
 # Cada persona agrega aqui su router cuando lo sube.
-from importlib.util import find_spec
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from g2_api import config
 from g2_api.middleware.error_handler import register_error_handlers
 from g2_api.routers import auth
+from g2_api.routers import files
 from g2_api.routers import roles
 from g2_api.routers import users
 
