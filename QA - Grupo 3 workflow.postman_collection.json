@@ -1,0 +1,243 @@
+{
+  "info": {
+    "_postman_id": "be16a586-bbb8-4545-a90e-98cd090a2c35",
+    "name": "QA - Grupo 3 workflow",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "59070311",
+    "_collection_link": "https://go.postman.co/collection/59070311-be16a586-bbb8-4545-a90e-98cd090a2c35?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "1. Crear Tarea",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-User-Id",
+            "value": "1"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"type_id\": 1,\r\n  \"title\": \"Programa\",\r\n  \"due_date\": \"2026-10-30\",\r\n  \"reviewer_id\": 2\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8000/api/v1/tasks",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8000",
+          "path": [
+            "api",
+            "v1",
+            "tasks"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "2. Asignar destinatario",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-User-Id",
+            "value": "1"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"mode\": \"all\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8000/api/v1/tasks/{tid}/recipients",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8000",
+          "path": [
+            "api",
+            "v1",
+            "tasks",
+            "{tid}",
+            "recipients"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "3. publicar tarea",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-User-Id",
+            "value": "1"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:8000/api/v1/tasks/{tid}/recipients",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8000",
+          "path": [
+            "api",
+            "v1",
+            "tasks",
+            "{tid}",
+            "recipients"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "4. Iniciar Tarea",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-User-Id",
+            "value": "7"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:8000/api/v1/assignments/{aid}/actions/start",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8000",
+          "path": [
+            "api",
+            "v1",
+            "assignments",
+            "{aid}",
+            "actions",
+            "start"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "5. Devolver Tarea",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-User-Id",
+            "value": "3"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"comment\": \"Corrija\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8000/api/v1/assignments/{aid}/actions/return",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8000",
+          "path": [
+            "api",
+            "v1",
+            "assignments",
+            "{aid}",
+            "actions",
+            "return"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "6. Ver historial",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-User-Id",
+            "value": "1"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:8000/api/v1/assignments/{aid}/history",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8000",
+          "path": [
+            "api",
+            "v1",
+            "assignments",
+            "{aid}",
+            "history"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "7. Cancelar Tarea",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-User-Id",
+            "value": "1"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"reason\": \"Se suspendió la clase\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8000/api/v1/tasks/{tid}/cancel",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8000",
+          "path": [
+            "api",
+            "v1",
+            "tasks",
+            "{tid}",
+            "cancel"
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}
