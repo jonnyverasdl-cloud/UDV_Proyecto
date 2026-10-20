@@ -20,3 +20,8 @@ uploads/
 # Registros.
 *.log
 almacen_archivos/
+
+# Datos de acceso que da el PM: nunca se suben.
+grupo-2.txt
+semilla_local.py
+
