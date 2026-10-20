@@ -31,7 +31,10 @@ app.add_middleware(
 )
 
 # Routers: Cada persona agrega el suyo.
-app.include_router(auth.router) # Persona 1: /auth/login, /auth/logout, /me.
+app.include_router(auth.router) # Persona 1: /auth/login y /auth/logout.
+# GET /api/v1/me (Daniel): Se conecta solo cuando auth.py ya trae me_router. Así main.py no se rompe antes.
+if hasattr(auth, "me_router"):
+    app.include_router(auth.me_router)
 app.include_router(users.router) # Persona 2: /users.
 app.include_router(roles.router) # Persona 2: /roles.
 app.include_router(files.router) # Persona 4: /files.
