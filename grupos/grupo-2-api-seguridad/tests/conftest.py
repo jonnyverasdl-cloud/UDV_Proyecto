@@ -18,7 +18,7 @@ def db():
     # Sesion con tablas limpias en cada prueba.
     from g2_api import models # noqa: F401
 
-    # Seguro: drop_all BORRA tablas. Solo se permite sobre SQLite temporal, jamás sobre la base compartida (MySQL).
+    # Seguro: drop_all Borrrar tablas. Solo se permite sobre SQLite temporal, jamás sobre la base compartida (MySQL).
     assert engine.url.get_backend_name() == "sqlite", "Las pruebas solo corren con SQLite"
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
