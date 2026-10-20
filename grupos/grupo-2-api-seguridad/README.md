@@ -44,8 +44,8 @@ El archivo `.env` **nunca se sube** al repositorio. Se copia desde `.env.example
 | `ALGORITHM` | Algoritmo del token (`HS256`). |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | Vigencia del token (120 minutos = 7200 s). |
 | `CORS_ORIGINS` | Orígenes del frontend permitidos, separados por coma. |
-| `LOGIN_MAX_INTENTOS` | Intentos fallidos antes del bloqueo (5). |
-| `LOGIN_BLOQUEO_MINUTOS` | Minutos de bloqueo (15). |
+| `LOGIN_MAX_INTENTOS` | Intentos fallidos antes del bloqueo (5 intentos). |
+| `LOGIN_BLOQUEO_MINUTOS` | Minutos de bloqueo (15 minutos). |
 | `UPLOAD_DIR` | Carpeta donde se guardan los archivos subidos. |
 
 ## 5. Base de datos
