@@ -8,7 +8,7 @@ def _lista(valor: str):
     return [v.strip() for v in valor.split(",") if v.strip()]
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./dev.db")
-SECRET_KEY = os.getenv("SECRET_KEY", "")
+SECRET_KEY = os.getenv("SECRET_KEY", "670627497438665583011ca77a2871d8c8ad7e5fe868762b3d84a2a9319c35de")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES= int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "120"))
 CORS_ORIGINS = _lista(os.getenv("CORS_ORIGINS", "http://localhost:5500"))

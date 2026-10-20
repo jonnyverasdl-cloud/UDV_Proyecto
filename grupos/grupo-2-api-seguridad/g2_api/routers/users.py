@@ -29,8 +29,22 @@ def listar_usuarios():
         copia = u.copy() #Copia elementos u
         copia.pop("password", None) #elimina la password
         copia.pop("hash_contrasena", None) #tampoco se devuelve el hash
-        lista_limpia.append(copia) #en la variable lista limpia, guarda el usuario sin la contraseña
+         #en la variable lista limpia, guarda el usuario sin la contraseña
+        lista_limpia.append(copia)
     return lista_limpia
+
+@router.get("/{usuario_id}", dependencies=[Depends(requerir_rol(["administrador"]))])
+def obtiene_usuario(usuario_id: int):
+    for u in usuarios:
+        if u.get("id") == usuario_id:
+            copia = u.copy()
+            copia.pop("password", None)
+            copia.pop("hash_contrasena", None)
+            return copia
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="El usuario no se encontró o no existe"
+    )
 
 @router.post("", status_code=status.HTTP_201_CREATED, dependencies=[Depends(requerir_rol(["administrador"]))]) #Crea usuarios 
 def crear_usuario(datos: UsuarioCreate): #recibe parámetro tipo class
