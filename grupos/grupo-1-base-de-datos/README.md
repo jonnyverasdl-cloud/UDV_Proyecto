@@ -1,37 +1,61 @@
 # Grupo 1 · Base de datos
 
-Base de datos del sistema de solicitudes a docentes (`db_udv`, versión 1.1.0). Motor: MariaDB 10.4 o superior (el que trae XAMPP).
+Base de datos del sistema de solicitudes a docentes (`db_udv`, versión 1.1.0). Motor: MySQL 8.0 o superior, o MariaDB 10.4 o superior (el que trae XAMPP).
 
 ## Contenido
 
 ```
+g1_bd/                      comandos en Python para crear y verificar la base
 Docs/
 ├─ sql/
-│  ├─ db_udv_completo.sql   tablas, triggers, procedimientos, datos semilla y vistas
+│  ├─ 01_schema.sql         tablas, triggers, procedimientos y vistas
+│  ├─ 02_seed.sql           datos semilla (catálogos, roles, usuarios demo, ejemplos)
 │  ├─ triggers.sql          solo los triggers y procedimientos (para consulta)
 │  └─ verificacion.sql      pruebas de las restricciones
 ├─ Diagramas/               diagramas entidad-relación en PDF
-└─ diccionario/             diccionario de datos (abrir el .html en el navegador)
+└─ diccionario/
+   ├─ diccionario_db_udv.html   diccionario de datos (abrir en el navegador)
+   ├─ generar_diccionario.py    vuelve a generar el .html leyendo la base
+   ├─ descripciones.py          textos de cada tabla y columna
+   └─ plantilla.html            diseño de la página
 ```
 
-Para montar la base solo se usa `db_udv_completo.sql`. `triggers.sql` ya está incluido en ese archivo; no hay que ejecutarlo aparte.
+Para montar la base se usan `01_schema.sql` y luego `02_seed.sql`, en ese orden. `triggers.sql` ya está incluido en `01_schema.sql`; no hay que ejecutarlo aparte.
 
 ## Montar la base
 
-`db_udv_completo.sql` borra la base `db_udv` si ya existe y la crea desde cero.
+`01_schema.sql` borra la base `db_udv` si ya existe y la crea desde cero. `02_seed.sql` carga los datos.
 
 ### Con phpMyAdmin
 
 1. En XAMPP, iniciar **MySQL**.
 2. Abrir `http://localhost/phpmyadmin`.
-3. Pestaña **Importar**, elegir `Docs/sql/db_udv_completo.sql` y pulsar **Importar**.
+3. Pestaña **Importar**, elegir `Docs/sql/01_schema.sql` y pulsar **Importar**.
+4. Repetir con `Docs/sql/02_seed.sql`.
+
+### Con Docker (entorno del proyecto)
+
+El `docker-compose.yml` de la raíz levanta MySQL 8 y carga estos scripts la primera vez. Para volver a crear la base desde cero: `docker compose down -v && docker compose up --build`.
+
+### Con Python (paquete g1_bd)
+
+Desde la carpeta del grupo:
+
+```
+pip install -r requirements.txt
+python -m g1_bd crear --host localhost --port 3306 --user root --password <clave>
+python -m g1_bd verificar --host localhost --port 3306 --user root --password <clave>
+```
+
+`crear` corre `01_schema.sql` y `02_seed.sql` y muestra cuántas tablas, vistas, triggers y procedimientos quedaron. `verificar` corre `verificacion.sql` y debe terminar con `pasan 73, fallan 0`. Si existe la variable `DATABASE_URL` (`mysql+pymysql://usuario:clave@host:puerto/db_udv`), se puede omitir `--host` y lo demás.
 
 ### Con la consola
 
 Desde la carpeta `Docs/sql`:
 
 ```
-mysql -u root < db_udv_completo.sql
+mysql -u root < 01_schema.sql
+mysql -u root < 02_seed.sql
 ```
 
 Si el usuario `root` tiene contraseña, agregar `-p`.
@@ -107,7 +131,7 @@ Para cambiar el esquema más adelante:
    ```
 
 3. Aplicarlo sobre la base que ya existe: `mysql -u root db_udv < migracion_1.2.0.sql`. No hace falta borrar la base ni perder datos.
-4. Actualizar también `db_udv_completo.sql`, el diccionario y el diagrama, para que quien monte la base desde cero ya tenga el cambio.
+4. Actualizar también `01_schema.sql` (o `02_seed.sql` si son datos), el diccionario y el diagrama, para que quien monte la base desde cero ya tenga el cambio.
 5. Avisar a los grupos afectados antes de renombrar o quitar una tabla o columna.
 
 ## Eliminación lógica
@@ -123,6 +147,20 @@ Lo que tiene historial no se borra con `DELETE`. La base lo impide con triggers:
 | `tarea_transicion`, `programa_aprobacion`, `auditoria` | Historial: no se modifican ni se borran. |
 
 El contenido de un programa (competencias, unidades, bibliografía, evaluación, prerrequisitos, perfil de egreso) sí se puede editar y borrar mientras la versión está en borrador. Cuando la versión se autoriza queda bloqueada y cualquier cambio da error.
+
+## Diccionario de datos
+
+`Docs/diccionario/diccionario_db_udv.html` se genera con `generar_diccionario.py`, que lee la estructura real de la base (tablas, columnas, llaves, restricciones, índices y triggers) y le agrega los textos de `descripciones.py`.
+
+Después de cambiar el esquema, con la base ya montada:
+
+```
+pip install -r requirements.txt
+cd Docs/diccionario
+python generar_diccionario.py --host localhost --port 3306 --user root --password <clave>
+```
+
+Con el Docker del proyecto el puerto es `3307`. Hay que usar `root` u otro usuario que pueda ver los triggers; con un usuario de solo lectura el diccionario sale sin ellos. Si una tabla o columna nueva no tiene texto, el script lo avisa: se agrega en `descripciones.py` y se vuelve a correr.
 
 ## Lo que deben saber los otros grupos
 
@@ -154,9 +192,13 @@ Si la transición no existe en el workflow, la base la rechaza.
 |---|---|
 | `tarea_destinatario (usuario_id, estado_codigo, asignado_en)` | Inbox del docente |
 | `tarea_destinatario (tarea_id, estado_codigo)` | Panel de cumplimiento por tarea |
+| `tarea_destinatario (usuario_id, fecha_limite)` | Asignaciones por vencer en la bandeja del docente |
+| `tarea_destinatario (revisor_id, estado_codigo)` | Asignaciones pendientes de un revisor |
 | `tarea_transicion (tarea_destinatario_id, creado_en)` | Historial de una asignación |
 | `tarea (creado_por, estado_codigo, creado_en)` | Tareas de un coordinador |
 | `tarea (revisor_id, estado_codigo)` | Pendientes de un revisor |
+| `tarea (eliminado_en, estado_codigo, fecha_limite)` | Tareas vigentes por estado y plazo |
+| `tarea (prioridad, fecha_limite)` | Búsqueda por prioridad y fecha límite |
 | `programa_version (estado_codigo)` | Versiones por estado |
 | `programa_aprobacion (programa_version_id, creado_en)` | Historial de aprobación de un programa |
 | `notificacion (usuario_id, leida_en, creado_en)` | Notificaciones no leídas |

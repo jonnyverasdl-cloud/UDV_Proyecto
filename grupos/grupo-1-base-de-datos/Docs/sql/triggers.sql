@@ -337,14 +337,21 @@ BEGIN
   DECLARE v_periodo INT;
   DECLARE v_anterior INT DEFAULT NULL;
 
-  DECLARE v_propia TINYINT(1) DEFAULT (@@in_transaction = 0);
+  DECLARE v_propia TINYINT(1) DEFAULT 0;
   DECLARE EXIT HANDLER FOR SQLEXCEPTION
   BEGIN
     IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT sp_autorizar; END IF;
     RESIGNAL;
   END;
 
-  IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT sp_autorizar; END IF;
+  -- Si quien llama ya abrio una transaccion, el savepoint sobrevive y se usa;
+  -- si no, el ROLLBACK TO falla y el procedimiento abre su propia transaccion.
+  BEGIN
+    DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET v_propia = 1;
+    SAVEPOINT sp_autorizar;
+    ROLLBACK TO SAVEPOINT sp_autorizar;
+  END;
+  IF v_propia THEN START TRANSACTION; END IF;
   SELECT estado_codigo, programa_curso_id, periodo_id INTO v_estado, v_programa, v_periodo
   FROM programa_version WHERE id = p_pv_id FOR UPDATE;
 
@@ -385,14 +392,21 @@ BEGIN
   DECLARE v_curso INT; DECLARE v_periodo INT;
   DECLARE v_wd_inicial INT;
   DECLARE v_total INT;
-  DECLARE v_propia TINYINT(1) DEFAULT (@@in_transaction = 0);
+  DECLARE v_propia TINYINT(1) DEFAULT 0;
   DECLARE EXIT HANDLER FOR SQLEXCEPTION
   BEGIN
     IF v_propia THEN ROLLBACK; ELSE ROLLBACK TO SAVEPOINT sp_publicar; END IF;
     RESIGNAL;
   END;
 
-  IF v_propia THEN START TRANSACTION; ELSE SAVEPOINT sp_publicar; END IF;
+  -- Si quien llama ya abrio una transaccion, el savepoint sobrevive y se usa;
+  -- si no, el ROLLBACK TO falla y el procedimiento abre su propia transaccion.
+  BEGIN
+    DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET v_propia = 1;
+    SAVEPOINT sp_publicar;
+    ROLLBACK TO SAVEPOINT sp_publicar;
+  END;
+  IF v_propia THEN START TRANSACTION; END IF;
   SELECT estado_codigo, alcance, rol_destino_id, sede_destino_id, unidad_destino_id, workflow_id, curso_id, periodo_id
     INTO v_estado, v_alcance, v_rol, v_sede, v_unidad, v_workflow, v_curso, v_periodo
   FROM tarea WHERE id = p_tarea_id AND eliminado_en IS NULL FOR UPDATE;

@@ -1,6 +1,6 @@
 /* =====================================================================
    verificacion.sql | Pruebas de las restricciones
-   Ejecutar despues de importar db_udv_completo.sql. Todo corre dentro de una transaccion
+   Ejecutar despues de 01_schema.sql y 02_seed.sql. Todo corre dentro de una transaccion
    que se deshace al final: los datos semilla quedan intactos.
    Resultado esperado: la primera fila dice 'pasan 73, fallan 0'.
    ===================================================================== */
