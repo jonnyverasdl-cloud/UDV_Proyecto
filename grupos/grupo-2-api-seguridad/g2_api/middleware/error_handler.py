@@ -42,7 +42,7 @@ DEFAULT_CODES: dict[int, str] = {
     500: ErrorCode.INTERNAL_ERROR,
 }
 
-''''DEFAULT_MESSAGES: dict[int, str] = {
+DEFAULT_MESSAGES: dict[int, str] = {
     400: "Solicitud inválida.",
     401: "No autenticado o credenciales inválidas.",
     403: "No tiene permiso para realizar esta acción.",
@@ -52,7 +52,7 @@ DEFAULT_CODES: dict[int, str] = {
     422: "Datos de entrada inválidos.",
     429: "Demasiadas solicitudes.",
     500: "Error interno del servidor.",
-}'''
+}
 
 
 def api_error(
