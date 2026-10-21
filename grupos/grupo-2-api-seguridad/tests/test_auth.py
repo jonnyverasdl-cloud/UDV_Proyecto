@@ -1,8 +1,8 @@
-# Pruebas de autenticación (Persona 1: Daniel): login, logout y /me.
+# Pruebas de autenticación (Persona 1: Daniel): login, logout, /me y auditoría.
 # Corren contra una base SQLite temporal (tests/conftest.py), nunca contra MySQL.
 # Correr: pytest tests/test_auth.py -v
 
-from g2_api.models import Permiso, Rol, RolPermiso, SesionToken, Usuario, UsuarioRol
+from g2_api.models import Auditoria, Permiso, Rol, RolPermiso, SesionToken, Usuario, UsuarioRol
 from g2_api.seguridad import hash_token, hashear_contrasena, verificar_token
 
 CORREO = "admin@demo.udv.edu.gt"
@@ -147,3 +147,34 @@ def test_despues_del_logout_el_token_ya_no_sirve(client, db):
 def test_logout_sin_token_401(client, db):
     r = client.post(URL_LOGOUT)
     assert r.status_code == 401
+
+
+# ---------- AUDITORÍA (G2-36) ----------
+
+def _acciones(db):
+    db.expire_all()
+    return [fila.accion for fila in db.query(Auditoria).order_by(Auditoria.id).all()]
+
+
+def test_login_correcto_queda_en_auditoria(client, db):
+    _crear_admin(db)
+    _token(client)
+
+    fila = db.query(Auditoria).filter_by(accion="LOGIN_OK").one()
+    assert fila.actor_id == 1
+    assert fila.tabla == "usuario"
+
+
+def test_login_fallido_queda_en_auditoria(client, db):
+    _crear_admin(db)
+    client.post(URL, json={"correo": CORREO, "password": "otra-clave"})
+    client.post(URL, json={"correo": "nadie@demo.udv.edu.gt", "password": "x"})
+
+    assert _acciones(db) == ["LOGIN_FALLIDO", "LOGIN_FALLIDO"]
+
+
+def test_logout_queda_en_auditoria(client, db):
+    _crear_admin(db)
+    client.post(URL_LOGOUT, headers=_bearer(_token(client)))
+
+    assert _acciones(db) == ["LOGIN_OK", "LOGOUT"]

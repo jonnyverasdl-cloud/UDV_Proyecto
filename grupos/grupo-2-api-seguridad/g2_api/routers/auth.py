@@ -2,6 +2,7 @@
 # POST /api/v1/auth/login  → valida correo y contraseña y entrega un token JWT.
 # POST /api/v1/auth/logout → cierra la sesión: ese token deja de servir.
 # GET  /api/v1/me          → quién soy, mis roles y mis permisos (nunca la contraseña).
+# Cada login (bien o mal) y cada logout queda en la tabla auditoria (utils/registro.py de Edgar).
 
 import json
 import os
@@ -10,12 +11,14 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from g2_api import config
 from g2_api.database import get_db
 from g2_api.models import SesionToken, Usuario
 from g2_api.seguridad import crear_token, hash_token, verificar_contrasena, verificar_token
+from g2_api.utils.registro import LOGIN_OK, LOGOUT, registrar_accion, registrar_login_fallido
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Autenticacion"])
 me_router = APIRouter(prefix="/api/v1", tags=["Autenticacion"])  # main.py lo conecta solo si existe.
@@ -45,7 +48,17 @@ class LoginRequest(BaseModel):
 CREDENCIALES_INVALIDAS = "Correo o contraseña incorrectos"
 
 
-@router.post("/login")
+# G2-33: Respuestas documentadas para que aparezcan en /docs.
+RESPUESTA_401 = {401: {"description": "No autenticado: token ausente, inválido, vencido o sesión cerrada"}}
+
+
+@router.post(
+    "/login",
+    responses={
+        401: {"description": "Correo o contraseña incorrectos, o usuario inactivo"},
+        422: {"description": "Falta el correo o la contraseña"},
+    },
+)
 def login(datos: LoginRequest, request: Request, db: Session = Depends(get_db)):
     # 1. Buscar al usuario por correo (sin contar los eliminados).
     usuario = (
@@ -54,10 +67,14 @@ def login(datos: LoginRequest, request: Request, db: Session = Depends(get_db)):
         .first()
     )
 
-    # 2. Si no existe, está inactivo o la contraseña no coincide: 401.
-    if usuario is None or not usuario.activo:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=CREDENCIALES_INVALIDAS)
-    if not verificar_contrasena(datos.password, usuario.hash_contrasena):
+    # 2. Si no existe, está inactivo o la contraseña no coincide: se registra el intento y 401.
+    ip = request.client.host if request.client else None
+    if (
+        usuario is None
+        or not usuario.activo
+        or not verificar_contrasena(datos.password, usuario.hash_contrasena)
+    ):
+        registrar_login_fallido(db, datos.correo, ip_origen=ip)  # G2-36
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=CREDENCIALES_INVALIDAS)
 
     # 3. Crear el token JWT.
@@ -70,14 +87,17 @@ def login(datos: LoginRequest, request: Request, db: Session = Depends(get_db)):
             token_hash=hash_token(token),
             tipo="access",
             expira_en=expira.replace(tzinfo=None),
-            ip_origen=request.client.host if request.client else None,
+            ip_origen=ip,
             user_agent=(request.headers.get("user-agent") or "")[:300] or None,
         )
     )
     usuario.ultimo_acceso_en = _ahora_utc()
     db.commit()
 
-    # 5. Responder con el token. El frontend lo manda después en: Authorization: Bearer <token>
+    # 5. Dejar constancia en auditoria (G2-36).
+    registrar_accion(db, LOGIN_OK, tabla="usuario", registro_id=usuario.id, actor_id=usuario.id, ip_origen=ip)
+
+    # 6. Responder con el token. El frontend lo manda después en: Authorization: Bearer <token>
     return {
         "access_token": token,
         "token_type": "bearer",
@@ -138,27 +158,52 @@ def obtener_sesion_actual(
     return sesion
 
 
+def obtener_usuario_actual(
+    request: Request,
+    sesion: SesionToken = Depends(obtener_sesion_actual),
+    db: Session = Depends(get_db),
+) -> Usuario:
+    # Para usar en cualquier ruta protegida (Randy: users y roles):
+    #   def mi_ruta(usuario: Usuario = Depends(obtener_usuario_actual)): ...
+    usuario = db.get(Usuario, sesion.usuario_id)
+
+    # Lo pide el Grupo 1 (CONTRATO_COMUN): después de autenticar, la conexión guarda quién es el actor.
+    # Así sus triggers anotan en auditoria quién hizo cada cambio. En SQLite (pruebas) no existe y se salta.
+    if db.get_bind().dialect.name == "mysql":
+        db.execute(text("SET @actor_id = :id"), {"id": usuario.id})
+        db.execute(text("SET @ip_origen = :ip"), {"ip": request.client.host if request.client else None})
+
+    return usuario
+
+
 # ---------- LOGOUT ----------
 
-@router.post("/logout")
+@router.post("/logout", responses=RESPUESTA_401)
 def logout(
+    request: Request,
     sesion: SesionToken = Depends(obtener_sesion_actual),
     db: Session = Depends(get_db),
 ):
     # Marca la sesión como cerrada. Desde ahora ese token responde 401, aunque no haya vencido.
     sesion.revocado_en = _ahora_utc()
     db.commit()
+
+    # Dejar constancia en auditoria (G2-36).
+    registrar_accion(
+        db,
+        LOGOUT,
+        tabla="sesion_token",
+        registro_id=sesion.id,
+        actor_id=sesion.usuario_id,
+        ip_origen=request.client.host if request.client else None,
+    )
     return {"mensaje": "Sesión cerrada"}
 
 
 # ---------- /me ----------
 
-@me_router.get("/me")
-def me(
-    sesion: SesionToken = Depends(obtener_sesion_actual),
-    db: Session = Depends(get_db),
-):
-    usuario = db.get(Usuario, sesion.usuario_id)
+@me_router.get("/me", responses=RESPUESTA_401)
+def me(usuario: Usuario = Depends(obtener_usuario_actual)):
 
     # Permisos de todos sus roles, sin repetir y ordenados (por ejemplo: users.read).
     permisos = sorted({p.codigo for rol in usuario.roles for p in rol.permisos})
