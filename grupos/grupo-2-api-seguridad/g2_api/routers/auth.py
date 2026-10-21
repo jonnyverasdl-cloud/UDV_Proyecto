@@ -1,8 +1,7 @@
-# Autenticación del Grupo 2 (Persona 1: Daniel).
-# POST /api/v1/auth/login  → valida correo y contraseña y entrega un token JWT.
-# POST /api/v1/auth/logout → cierra la sesión: ese token deja de servir.
-# GET  /api/v1/me          → quién soy, mis roles y mis permisos (nunca la contraseña).
-# Cada login (bien o mal) y cada logout queda en la tabla auditoria (utils/registro.py de Edgar).
+# Autenticacion del Grupo 2 (Persona 1: Daniel)
+# login: entra y recibe un token
+# logout: cierra la sesion
+# me: muestra quien soy, mis roles y permisos
 
 import json
 import os
@@ -21,66 +20,64 @@ from g2_api.seguridad import crear_token, hash_token, verificar_contrasena, veri
 from g2_api.utils.registro import LOGIN_OK, LOGOUT, registrar_accion, registrar_login_fallido
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Autenticacion"])
-me_router = APIRouter(prefix="/api/v1", tags=["Autenticacion"])  # main.py lo conecta solo si existe.
+me_router = APIRouter(prefix="/api/v1", tags=["Autenticacion"])
 
 
-# TEMPORAL: users.py y auth_middleware.py (Randy) todavía importan esta lista.
-# El login YA NO la usa. Se borra cuando users y el middleware pasen a la base.
+# temporal: users.py y auth_middleware.py todavia usan esta lista
 _ruta_json = os.path.join(os.path.dirname(__file__), "..", "datos_prueba", "usuarios_prueba.json")
 with open(_ruta_json, "r", encoding="utf-8") as _archivo:
     usuarios = json.load(_archivo)["usuarios"]
 
 
+# hora actual en UTC
 def _ahora_utc():
-    # Hora actual en UTC sin zona (así guarda las fechas MySQL).
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 # ---------- LOGIN ----------
 
-# Lo que recibe el login. Si falta un campo o no es texto, FastAPI responde 422 solo.
+# datos que recibe el login
 class LoginRequest(BaseModel):
     correo: str
     password: str
 
 
-# Mismo mensaje para "no existe" y "contraseña mala": así nadie puede adivinar qué correos existen.
+# mismo mensaje para correo o contraseña mal
 CREDENCIALES_INVALIDAS = "Correo o contraseña incorrectos"
 
-
-# G2-33: Respuestas documentadas para que aparezcan en /docs.
-RESPUESTA_401 = {401: {"description": "No autenticado: token ausente, inválido, vencido o sesión cerrada"}}
+# respuesta 401 que se muestra en /docs
+RESPUESTA_401 = {401: {"description": "Token faltante, invalido, vencido o sesion cerrada"}}
 
 
 @router.post(
     "/login",
     responses={
-        401: {"description": "Correo o contraseña incorrectos, o usuario inactivo"},
+        401: {"description": "Correo o contraseña incorrectos"},
         422: {"description": "Falta el correo o la contraseña"},
     },
 )
 def login(datos: LoginRequest, request: Request, db: Session = Depends(get_db)):
-    # 1. Buscar al usuario por correo (sin contar los eliminados).
+    # busca el usuario por correo
     usuario = (
         db.query(Usuario)
         .filter(Usuario.correo == datos.correo, Usuario.eliminado_en.is_(None))
         .first()
     )
 
-    # 2. Si no existe, está inactivo o la contraseña no coincide: se registra el intento y 401.
+    # si no existe, esta inactivo o la contraseña esta mal: guarda el intento y da 401
     ip = request.client.host if request.client else None
     if (
         usuario is None
         or not usuario.activo
         or not verificar_contrasena(datos.password, usuario.hash_contrasena)
     ):
-        registrar_login_fallido(db, datos.correo, ip_origen=ip)  # G2-36
+        registrar_login_fallido(db, datos.correo, ip_origen=ip)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=CREDENCIALES_INVALIDAS)
 
-    # 3. Crear el token JWT.
+    # crea el token
     token, expira = crear_token(usuario.id)
 
-    # 4. Guardar la sesión en sesion_token (solo el hash del token, nunca el token).
+    # guarda la sesion (solo la huella del token)
     db.add(
         SesionToken(
             usuario_id=usuario.id,
@@ -94,14 +91,14 @@ def login(datos: LoginRequest, request: Request, db: Session = Depends(get_db)):
     usuario.ultimo_acceso_en = _ahora_utc()
     db.commit()
 
-    # 5. Dejar constancia en auditoria (G2-36).
+    # guarda el login en auditoria
     registrar_accion(db, LOGIN_OK, tabla="usuario", registro_id=usuario.id, actor_id=usuario.id, ip_origen=ip)
 
-    # 6. Responder con el token. El frontend lo manda después en: Authorization: Bearer <token>
+    # responde con el token y los datos del usuario
     return {
         "access_token": token,
         "token_type": "bearer",
-        "expires_in": config.ACCESS_TOKEN_EXPIRE_MINUTES * 60,  # en segundos
+        "expires_in": config.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         "usuario": {
             "id": usuario.id,
             "correo": usuario.correo,
@@ -112,13 +109,13 @@ def login(datos: LoginRequest, request: Request, db: Session = Depends(get_db)):
     }
 
 
-# ---------- REVISAR EL TOKEN (lo usan logout y /me) ----------
+# ---------- REVISAR LA SESION ----------
 
-# HTTPBearer lee el header "Authorization: Bearer <token>".
-# auto_error=False: si no viene, nos deja responder 401 nosotros (y no 403).
+# lee el header Authorization: Bearer <token>
 _bearer = HTTPBearer(auto_error=False)
 
 
+# arma el error 401
 def _no_autenticado(mensaje: str):
     return HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -127,21 +124,22 @@ def _no_autenticado(mensaje: str):
     )
 
 
+# revisa que la sesion siga activa
 def obtener_sesion_actual(
     credenciales: HTTPAuthorizationCredentials | None = Depends(_bearer),
     db: Session = Depends(get_db),
 ) -> SesionToken:
-    # 1. ¿Mandó el token?
+    # trae token?
     if credenciales is None:
         raise _no_autenticado("Falta el token de autenticación")
     token = credenciales.credentials
 
-    # 2. ¿La firma es válida y no ha vencido?
+    # el token es valido y no vencio
     payload = verificar_token(token)
     if payload is None:
         raise _no_autenticado("Token inválido o vencido")
 
-    # 3. ¿La sesión existe en la base y no fue cerrada con logout?
+    # la sesion existe y no se cerro
     sesion = (
         db.query(SesionToken)
         .filter(SesionToken.token_hash == hash_token(token), SesionToken.revocado_en.is_(None))
@@ -150,7 +148,7 @@ def obtener_sesion_actual(
     if sesion is None:
         raise _no_autenticado("La sesión no existe o ya fue cerrada")
 
-    # 4. ¿El usuario sigue activo y no fue eliminado?
+    # el usuario sigue activo?
     usuario = db.get(Usuario, sesion.usuario_id)
     if usuario is None or not usuario.activo or usuario.eliminado_en is not None:
         raise _no_autenticado("El usuario no está activo")
@@ -158,17 +156,15 @@ def obtener_sesion_actual(
     return sesion
 
 
+# devuelve el usuario de la sesion (para las rutas protegidas)
 def obtener_usuario_actual(
     request: Request,
     sesion: SesionToken = Depends(obtener_sesion_actual),
     db: Session = Depends(get_db),
 ) -> Usuario:
-    # Para usar en cualquier ruta protegida (Randy: users y roles):
-    #   def mi_ruta(usuario: Usuario = Depends(obtener_usuario_actual)): ...
     usuario = db.get(Usuario, sesion.usuario_id)
 
-    # Lo pide el Grupo 1 (CONTRATO_COMUN): después de autenticar, la conexión guarda quién es el actor.
-    # Así sus triggers anotan en auditoria quién hizo cada cambio. En SQLite (pruebas) no existe y se salta.
+    # le dice a MySQL quien hace el cambio (lo pide el Grupo 1)
     if db.get_bind().dialect.name == "mysql":
         db.execute(text("SET @actor_id = :id"), {"id": usuario.id})
         db.execute(text("SET @ip_origen = :ip"), {"ip": request.client.host if request.client else None})
@@ -184,11 +180,11 @@ def logout(
     sesion: SesionToken = Depends(obtener_sesion_actual),
     db: Session = Depends(get_db),
 ):
-    # Marca la sesión como cerrada. Desde ahora ese token responde 401, aunque no haya vencido.
+    # cierra la sesion guardando la hora
     sesion.revocado_en = _ahora_utc()
     db.commit()
 
-    # Dejar constancia en auditoria (G2-36).
+    # guarda el logout en auditoria
     registrar_accion(
         db,
         LOGOUT,
@@ -200,14 +196,14 @@ def logout(
     return {"mensaje": "Sesión cerrada"}
 
 
-# ---------- /me ----------
+# ---------- ME ----------
 
 @me_router.get("/me", responses=RESPUESTA_401)
 def me(usuario: Usuario = Depends(obtener_usuario_actual)):
-
-    # Permisos de todos sus roles, sin repetir y ordenados (por ejemplo: users.read).
+    # junta los permisos de todos sus roles sin repetir
     permisos = sorted({p.codigo for rol in usuario.roles for p in rol.permisos})
 
+    # devuelve sus datos, nunca la contraseña
     return {
         "id": usuario.id,
         "correo": usuario.correo,
@@ -216,5 +212,4 @@ def me(usuario: Usuario = Depends(obtener_usuario_actual)):
         "activo": usuario.activo,
         "roles": [rol.codigo for rol in usuario.roles],
         "permisos": permisos,
-        # Nunca se devuelve hash_contrasena.
     }
