@@ -1,18 +1,21 @@
-# Pruebas del login (Persona 1: Daniel).
+# Pruebas de autenticación (Persona 1: Daniel): login, logout y /me.
 # Corren contra una base SQLite temporal (tests/conftest.py), nunca contra MySQL.
 # Correr: pytest tests/test_auth.py -v
 
-from g2_api.models import Rol, SesionToken, Usuario, UsuarioRol
+from g2_api.models import Permiso, Rol, RolPermiso, SesionToken, Usuario, UsuarioRol
 from g2_api.seguridad import hash_token, hashear_contrasena, verificar_token
 
 CORREO = "admin@demo.udv.edu.gt"
 CLAVE = "Demo2026!"
 URL = "/api/v1/auth/login"
+URL_LOGOUT = "/api/v1/auth/logout"
+URL_ME = "/api/v1/me"
 
 
 def _crear_admin(db, activo=True):
-    # Siembra un rol "admin" y un usuario con ese rol, igual que los datos del Grupo 1.
+    # Siembra el rol "admin" con un permiso y un usuario con ese rol, igual que los datos del Grupo 1.
     db.add(Rol(id=1, codigo="admin", nombre="Administrador"))
+    db.add(Permiso(id=1, codigo="users.read", descripcion="Consultar usuarios"))
     db.add(
         Usuario(
             id=1,
@@ -24,9 +27,20 @@ def _crear_admin(db, activo=True):
         )
     )
     db.flush()
+    db.add(RolPermiso(rol_id=1, permiso_id=1))
     db.add(UsuarioRol(usuario_id=1, rol_id=1))
     db.commit()
 
+
+def _token(client):
+    return client.post(URL, json={"correo": CORREO, "password": CLAVE}).json()["access_token"]
+
+
+def _bearer(token):
+    return {"Authorization": f"Bearer {token}"}
+
+
+# ---------- LOGIN ----------
 
 def test_login_correcto_devuelve_token(client, db):
     _crear_admin(db)
@@ -45,7 +59,7 @@ def test_login_correcto_devuelve_token(client, db):
 
 def test_login_guarda_solo_el_hash_del_token(client, db):
     _crear_admin(db)
-    token = client.post(URL, json={"correo": CORREO, "password": CLAVE}).json()["access_token"]
+    token = _token(client)
 
     sesion = db.query(SesionToken).filter_by(usuario_id=1).one()
     assert sesion.token_hash == hash_token(token)
@@ -78,5 +92,58 @@ def test_login_sin_password_422(client, db):
 
 def test_token_alterado_no_es_valido(client, db):
     _crear_admin(db)
-    token = client.post(URL, json={"correo": CORREO, "password": CLAVE}).json()["access_token"]
-    assert verificar_token(token + "x") is None
+    assert verificar_token(_token(client) + "x") is None
+
+
+# ---------- /me ----------
+
+def test_me_con_token_devuelve_usuario_roles_y_permisos(client, db):
+    _crear_admin(db)
+    r = client.get(URL_ME, headers=_bearer(_token(client)))
+
+    assert r.status_code == 200
+    datos = r.json()
+    assert datos["correo"] == CORREO
+    assert datos["roles"] == ["admin"]
+    assert datos["permisos"] == ["users.read"]
+    assert "hash_contrasena" not in datos
+
+
+def test_me_sin_token_401(client, db):
+    r = client.get(URL_ME)
+    assert r.status_code == 401
+
+
+def test_me_con_token_falso_401(client, db):
+    _crear_admin(db)
+    r = client.get(URL_ME, headers=_bearer("esto.no.es-un-token"))
+    assert r.status_code == 401
+
+
+# ---------- LOGOUT ----------
+
+def test_logout_cierra_la_sesion(client, db):
+    _crear_admin(db)
+    token = _token(client)
+
+    r = client.post(URL_LOGOUT, headers=_bearer(token))
+    assert r.status_code == 200
+
+    # La sesión quedó marcada como cerrada en la base.
+    db.expire_all()
+    sesion = db.query(SesionToken).filter_by(token_hash=hash_token(token)).one()
+    assert sesion.revocado_en is not None
+
+
+def test_despues_del_logout_el_token_ya_no_sirve(client, db):
+    _crear_admin(db)
+    token = _token(client)
+    client.post(URL_LOGOUT, headers=_bearer(token))
+
+    assert client.get(URL_ME, headers=_bearer(token)).status_code == 401
+    assert client.post(URL_LOGOUT, headers=_bearer(token)).status_code == 401
+
+
+def test_logout_sin_token_401(client, db):
+    r = client.post(URL_LOGOUT)
+    assert r.status_code == 401
