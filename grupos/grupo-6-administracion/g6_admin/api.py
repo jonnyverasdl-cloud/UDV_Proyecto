@@ -2,7 +2,7 @@
 
 Todo lo de seguridad viene del G2 y se importa desde g2_api, no se copia:
 - quién es el usuario: middleware de autenticación del G2;
-- quién puede agregar: requerir_rol del G2 con el rol de administración;
+- quién puede agregar o modificar: requerir_rol del G2 con el rol de administración;
 - formato de error y paginación: servicios compartidos del G2.
 """
 
@@ -10,7 +10,7 @@ import os
 import time
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, Path, Query, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from g2_api.middleware.auth_middleware import obtener_usuario_actual, requerir_rol
@@ -61,6 +61,15 @@ class RegistroNuevo(BaseModel):
         None, description="Opcional. Si se omite, el registro queda activo.")
 
 
+class CambioRegistro(BaseModel):
+    """Solo los campos que se envían cambian. Las reglas son las de RegistroNuevo."""
+    model_config = ConfigDict(extra="forbid")
+
+    code: str | None = Field(None, examples=["CENTRAL"])
+    name: str | None = Field(None, examples=["Campus Central"])
+    is_active: bool | None = Field(None, examples=[False])
+
+
 class RegistroSalida(BaseModel):
     id: int
     code: str
@@ -86,7 +95,8 @@ class EstadoSalud(BaseModel):
     checks: dict[str, str]
 
 
-_ERRORES = {401: "Sin sesión", 403: "Sin permiso", 409: "El código ya existe",
+_ERRORES = {401: "Sin sesión", 403: "Sin permiso", 404: "El registro no existe",
+            409: "El código ya existe",
             422: "Error de validación con detalle por campo"}
 
 
@@ -149,6 +159,16 @@ def _registrar_catalogo(catalogo: Catalogo) -> None:
         return servicio.crear(catalogo.recurso,
                               datos.model_dump(exclude_unset=True),
                               _id_del_usuario(usuario))
+
+    @router.patch(f"{ruta}/{{registro_id}}", tags=["Catálogos"],
+                  response_model=RegistroSalida,
+                  summary=f"Modificar en {catalogo.nombre} (solo administración)",
+                  operation_id=f"modificar_{sufijo}",
+                  responses=_errores(401, 403, 404, 409, 422))
+    def modificar(registro_id: Annotated[int, Path(ge=1)], datos: CambioRegistro,
+                  servicio: Servicio, _usuario: Administracion) -> dict[str, Any]:
+        return servicio.modificar(catalogo.recurso, registro_id,
+                                  datos.model_dump(exclude_unset=True))
 
 
 for _catalogo in CATALOGOS.values():

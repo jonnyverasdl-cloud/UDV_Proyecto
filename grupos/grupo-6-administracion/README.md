@@ -7,13 +7,13 @@ Módulo `g6_admin`. Este README explica qué existe hasta ahora y cómo probarlo
 
 | Pieza | Ruta | Escenarios QA |
 |---|---|---|
-| Catálogos: listar (con sesión) y agregar (solo administración) | `GET` y `POST` en `/api/v1/academic-units`, `/campuses`, `/courses`, `/periods`, `/modalities` y `/areas` | G6-01, G6-02, G6-03, G6-21 a G6-25 |
+| Catálogos: listar (con sesión), agregar y modificar (solo administración) | `GET` y `POST` en `/api/v1/<catálogo>` y `PATCH` en `/api/v1/<catálogo>/{id}`; los catálogos son `academic-units`, `campuses`, `courses`, `periods`, `modalities` y `areas` | G6-01, G6-02, G6-03, G6-21 a G6-25 |
 | Pantalla de catálogos | `g6_admin/pantallas/catalogos.html` | G6-01, G6-02 |
 | Estado del servicio | `GET /api/v1/health` | G6-34, G6-36 (en lo que toca a esta ruta) |
 
 **Quién puede hacer qué**
 
-| Rol (código del G1) | Consultar catálogos | Agregar registros |
+| Rol (código del G1) | Consultar catálogos | Agregar o modificar registros |
 |---|---|---|
 | Administración (`admin`) | Sí | Sí |
 | Docente (`teacher`) y demás roles | Sí | No: el servidor responde 403 |
@@ -27,7 +27,7 @@ es del G2 y se importa desde `g2_api` (CONTRATO_COMUN §1):
 | Para qué | Qué se importa |
 |---|---|
 | Saber quién inició sesión | `g2_api.middleware.auth_middleware.obtener_usuario_actual` |
-| Permitir agregar solo a administración | `requerir_rol(["admin"])` del mismo archivo |
+| Permitir agregar y modificar solo a administración | `requerir_rol(["admin"])` del mismo archivo |
 | Formato de error (401, 403, 409, 422) | `api_error` y `register_error_handlers` de `g2_api.middleware.error_handler` |
 | Paginación y máximo de `per_page` | `params_paginacion` de `g2_api.utils.paginacion` |
 | Revisar la base en `/api/v1/health` | `probar_conexion` de `g2_api.database` |
@@ -88,7 +88,7 @@ PM en el `main.py` de la raíz. **Pedidos al PM:**
 | `g6_admin/catalogos.py` | Reglas de catálogos: validación, búsqueda, filtro y orden |
 | `g6_admin/salud.py` | Respuesta de `/api/v1/health`, sin exponer detalles internos |
 | `g6_admin/pantallas/catalogos.html` | Pantalla con los estilos de `grupos/udv-styles/udv.css` |
-| `tests/` | 48 pruebas automáticas |
+| `tests/` | 69 pruebas automáticas |
 
 ## Variables de entorno
 
