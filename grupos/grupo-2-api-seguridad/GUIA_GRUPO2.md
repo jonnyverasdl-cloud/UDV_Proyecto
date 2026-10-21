@@ -8,16 +8,27 @@ Coordinador: Daniel (dancobs) · Versión 2 · 10-oct-2026
 
 ## 1. Dónde estamos
 
-| Ya está hecho | Quién |
-|-|-|
-| Migración al repo oficial, rama `grupo-2` | Todos |
-| Login (`POST /api/v1/auth/login`) | Daniel |
-| Listar, crear y actualizar usuarios (`/api/v1/users`) | Randy |
-| Formato de errores (`error_handler.py`) | Edgar |
-| Pantalla de login (`frontend-login/`) | Fulvio |
-| Esqueleto: `main.py`, `config.py`, `database.py`, `models.py`, `requirements.txt` | Robert |
+**Leyenda:** ✅ Hecho y verificable en el repo · 🔵 Implementado, falta validación o retest de QA · ⏳ Pendiente de implementar
 
-**Ojo:** todavía no hay base de datos. Mientras el Grupo 1 no entregue MariaDB, trabajamos con el JSON de prueba (`g2_api/datos_prueba/usuarios_prueba.json`).
+| Estado | Qué | Quién |
+|-|-|-|
+| ✅ | Migración al repo oficial, rama `grupo-2` | Todos |
+| ✅ | Esqueleto: `main.py`, `config.py`, `database.py`, `models.py`, `requirements.txt` | Robert |
+| ✅ | `main.py` incluye los routers `auth`, `/me`, `users`, `roles` y `files` | Robert |
+| 🔵 | Login (`POST /api/v1/auth/login`): consulta la base compartida y devuelve el JWT | Daniel |
+| 🔵 | `POST /auth/logout` y `GET /me` (subidos el 20-oct; falta retest de G2-05 y G2-07) | Daniel |
+| 🔵 | Listar, crear y actualizar usuarios (`/api/v1/users`) y `GET /users/{id}` con 404 | Randy |
+| 🔵 | Formato de errores (`error_handler.py`): ya responde como el contrato común (ver 8.4) | Edgar |
+| 🔵 | Pantalla de login (`frontend-login/`) | Fulvio |
+| 🔵 | `POST /api/v1/files`: valida el tipo real con `puremagic` | Fulvio |
+| ⏳ | Middleware: leer al usuario desde la base, revisar sesión no revocada y rol `admin` (hoy usa la lista JSON) | Randy |
+| ⏳ | `users.py` y `roles.py` pasados a la base | Randy |
+| ⏳ | Archivos: token obligatorio en `POST /files`, `GET /files/{id}` y registro en la tabla `archivo` | Fulvio |
+| ⏳ | Bloqueo por intentos y auditoría: `registro.py` ya existe, pero login y logout todavía no lo llaman | Daniel y Edgar |
+| ⏳ | Paginación en `GET /users` (`paginacion.py` existe, `users.py` no la usa) | Randy |
+| ⏳ | `pytest` completo: hoy 15 pruebas fallan por `error_handler.py` (ver 8.4) | Edgar |
+
+**Ojo:** el PM entregó una base compartida (MySQL en Railway). Los datos de acceso se piden al PM y van **solo en tu `.env`**, nunca en el repo. Lo que se borra ahí lo ven los demás grupos. El script SQL del Grupo 1 todavía no está en el repo. El login y la sesión ya usan la base; `users.py` y el middleware todavía leen el JSON de prueba (`g2_api/datos_prueba/usuarios_prueba.json`), que ya no debe usarse para autenticar.
 
 ---
 
@@ -190,6 +201,62 @@ grupos/grupo-2-api-seguridad/
 Para correr la API: `http://127.0.0.1:8000/api/v1/docs`
 
 ---
+
+## 7. Pendientes con otros grupos
+
+- **Grupo 1:** ¿MariaDB local o servidor compartido? ¿Cuándo sube el script con datos semilla?
+- **Grupos 3 y 5:** ¿necesitan un rol "autoridad" para - **Todos:** el código de rol es `admin` (el del Grupo 1; los demás: `coordinator`, `teacher`, `reviewer`, `authority`, `auditor`). Hay que alinear el código que dice `administrador`.
+
+---
+
+## 8. Pendientes del QA (Update No. 1 · 17-oct)
+
+Allison Espaderos (QA) entregó el primer informe y creó las tareas en el Planner (plan «2. Api y Seguridad - Allison»). El detalle por persona está en `PENDIENTES_QA.md` (misma carpeta). Las tarjetas del Planner muestran fecha **21/10** y dicen que las correcciones deben quedar disponibles para un nuevo retest.
+
+### 8.1 Tareas del Planner
+
+Las tres tareas están «No iniciado», prioridad en el nombre, etiqueta «Grupo 2» y **sin responsable asignado**: son de todo el grupo. El texto de cada punto aparece cortado en las capturas; abajo va lo visible.
+
+| Prioridad | Punto | Escenarios | Quién lo resuelve |
+|-|-|-|-|
+| 🔴 Alta | 1. Autenticación y autorización JWT | G2-06, 08, 09, 10, 37, 38 (la lista se corta en «G2-3…») | Randy (middleware); Daniel (`verificar_token`) |
+| 🔴 Alta | 2. Cierre de sesión: implementar `logout` | G2-05 | Daniel |
+| 🔴 Alta | 3. Control de acceso a recursos | G2-17 | Randy; Fulvio (archivos) |
+| 🟡 Media | 1. Consulta del usuario autenticado: implementar `/me` | G2-07 | Daniel |
+| 🟡 Media | 2. Consulta individual de usuarios | G2-12 (y G2-11) | Randy |
+| 🟡 Media | 3. Manejo de recursos inexistentes | G2-26 | Randy; Fulvio (`/files/{id}`) |
+| 🟡 Media | 4. Documentación OpenAPI/Swagger | G2-33 | Todos; Robert revisa al final |
+| ⚪ Baja | 1. Paginación de usuarios | G2-31 | Randy; Edgar (`paginacion.py`) |
+| ⚪ Baja | 2. Bloqueo por intentos fallidos | G2-34 | Daniel; Edgar (`registro.py`) |
+| ⚪ Baja | 3. Registro de auditoría | G2-36 | Daniel y Randy; Edgar (`registro.py`) |
+
+Notas del QA: en **Alta**, «las correcciones deben estar disponibles para retest y los escenarios afectados deben poder verificarse nuevamente por QA». En **Media**, «las funcionalidades pendientes deben quedar disponibles y documentadas para permitir la ejecución de las pruebas». **Baja** no trae notas. Falta copiar el texto del tablero «Update No. 1 17/10».
+
+### 8.2 Semana 2 (martes 20-oct) con escenarios
+
+| Persona | Tarea | Escenarios QA |
+|-|-|-|
+| Daniel | `POST /auth/logout` revoca el token | G2-05 |
+| Daniel | `GET /me` sin contraseña | G2-07 |
+| Randy | Middleware lee `Authorization: Bearer` desde la **base** (no del JSON) | G2-06, 08, 09, 10, 17, 37, 38 |
+| Edgar | `registro.py` guarda en la tabla `auditoria` (columnas `tabla`, `registro_id`, `ip_origen`) | G2-36 |
+| Fulvio | `POST /files` con token, tipo real y 5 MB | G2-18, 19, 20 |
+| Robert | `main.py` con los routers `roles` y `files` | G2-18 a G2-22 y G2-33 |
+
+### 8.3 Cuando alguien corrija
+
+1. Sube a `grupo-2` con su propia cuenta. 2. Avisa en el grupo. 3. Se le avisa a Allison **en el grupo** (no por privado), para que el PM vea el avance de todos, y ella repite el escenario (retest).
+
+### 8.4 Observaciones de Allison sobre esta guía (21-oct)
+
+Allison revisó `GUIA_GRUPO2.md` y `PENDIENTES_QA.md`. Ella indica que la prioridad principal sigue siendo corregir la autenticación y autorización JWT. Lo que se ajustó:
+
+| Observación de Allison | Qué quedó en la guía |
+|-|-|
+| Diferenciar lo implementado de lo pendiente de validación por QA | La sección 1 ahora marca cada punto como ✅, 🔵 o ⏳. `logout` y `/me` están subidos (Daniel, 20-oct) y quedan en 🔵 hasta el retest. |
+| Actualizar el estado de archivos y de la integración con la base | `POST /files` existe, pero no exige token, no hay `GET /files/{id}` y no registra en la tabla `archivo`. Login y sesión usan la base; `users.py` y el middleware siguen con el JSON. |
+| Inconsistencia entre el formato de errores actual y el contrato común | `error_handler.py` (20-oct) ya responde `{"error": {"code", "message", "details": {}}}`, igual que `CONTRATO_COMUN.md`. G2-30 dio PASS con el formato anterior, así que se repite. |
+| Problema en las pruebas automáticas y en las funciones de auditoría | `pytest` completo: 15 fallan y 14 pasan. En `error_handler.py` (línea 45) `DEFAULT_MESSAGES` quedó dentro de unas comillas `''''...'''` y no existe; Edgar lo corrige. `registro.py` ya usa `tabla`, `registro_id` e `ip_origen`, pero login y logout no lo llaman (G2-36). |
 
 ## 7. Pendientes con otros grupos
 
