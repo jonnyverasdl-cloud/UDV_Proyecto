@@ -81,7 +81,7 @@ python -c "from g2_api.database import probar_conexion; print(probar_conexion())
 | `GUIA_GRUPO2.md` | Quién hace qué cada semana. |
 | `PENDIENTES_QA.md` | Pendientes del QA y quién los corrige. |
 
-### 8 El responsable de cada Archivos
+### 8. El responsable de cada Archivos
  
 | Persona | Cuenta de GitHub | Archivos |
 |-|-|-|
