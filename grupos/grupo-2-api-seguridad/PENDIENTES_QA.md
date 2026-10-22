@@ -61,7 +61,7 @@ El middleware de usuarios y roles todavía lee el encabezado `usuario-actual` y 
 | 3 | `.env.example`, `requirements.txt`, `database.py` con `PyMySQL` y `DATABASE_URL` | `.env.example`, `requirements.txt`, `database.py` | ✅ Ya estaba; se agregó la opción de la base compartida. Falta probar la conexión real con tu `.env`. |
 | 4 | `README.md` con títulos y tablas; `conftest.py` | `README.md`, `tests/conftest.py` | ✅ README rehecho; `conftest.py` con guarda para no tocar la base compartida. ⚠️ `pytest` completo aún se interrumpe por `test_errores.py` (Edgar). |
 | QA | G2-35 sin credenciales | `.gitignore` | PASS. Para mantenerlo: `grupo-2.txt` y `.env` nunca se suben; `semilla_local.py` se saca del repo. |
-| QA | G2-33 documentación | `main.py` (`/api/v1/docs`) | Pendiente: revisar `/api/v1/docs` cuando todos terminen. |
+| QA | G2-33 documentación | `main.py` (`/api/v1/docs`) | ⏳ Pendiente: revisar `/api/v1/docs` cuando todos terminen. |
 
 ## Estado de los escenarios (resumen)
 
