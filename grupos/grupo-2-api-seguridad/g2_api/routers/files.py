@@ -75,7 +75,7 @@ async def verificar_archivo(file: UploadFile = File(...),
     
 
 
-@router.get("/{file_id}")
+@router.get("/{id}")
 async def descargar_archivo(
     file_id: str,
     usuario_actual: dict = Depends(obtener_usuario_actual)
