@@ -56,12 +56,27 @@ El archivo `.env` **nunca se sube** al repositorio. Se copia desde `.env.example
 | MySQL o MariaDB local (XAMPP) | Con el script del Grupo 1 importado. |
 | Base compartida del PM | Integración. Lo que se borra lo ven los demás grupos. |
 
-El esquema lo crea el Grupo 1. Esta API **no crea tablas** en la base compartida.
+El esquema lo crea el Grupo 1 (`01_schema.sql` y `02_seed.sql`). Esta API **no crea tablas** en la base compartida.
+Las fechas se guardan en UTC y cada conexión nueva queda en UTC.
+
 Para comprobar la conexión:
 
 ```
 python -c "from g2_api.database import probar_conexion; print(probar_conexion())"
 ```
+
+### Auditoría: quién hizo el cambio
+
+Los triggers del Grupo 1 guardan el actor desde las variables `@actor_id` y `@ip_origen` de la conexión.
+Antes de crear, cambiar o desactivar algo, el router llama:
+
+```
+from g2_api.database import fijar_actor
+fijar_actor(db, usuario_actual_id, ip)
+```
+
+Hay que llamarla otra vez después de cada `commit`, porque la conexión vuelve al pool y las variables se limpian.
+En `auditoria` solo se escriben a mano los eventos de acceso (login, login fallido y logout).
 
 ## 6. Seguridad
 
@@ -81,8 +96,8 @@ python -c "from g2_api.database import probar_conexion; print(probar_conexion())
 | `GUIA_GRUPO2.md` | Quién hace qué cada semana. |
 | `PENDIENTES_QA.md` | Pendientes del QA y quién los corrige. |
 
-### 8. El responsable de cada Archivos
- 
+## 8. Responsable de cada archivo
+
 | Persona | Cuenta de GitHub | Archivos |
 |-|-|-|
 | Daniel - Persona 1 (coordinador) | `dancobs` | `routers/auth.py`, `seguridad.py`, `tests/test_auth.py`, `GUIA_GRUPO2.md` |
