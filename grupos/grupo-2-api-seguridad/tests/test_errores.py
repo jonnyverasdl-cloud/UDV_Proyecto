@@ -1,5 +1,3 @@
-
-
 from __future__ import annotations
 
 import json
@@ -17,9 +15,12 @@ from g2_api.utils.paginacion import (
 )
 
 
+# --------------------------------------------------------------------------
+#  pruebas
+# --------------------------------------------------------------------------
 
 class _FakeQuery:
-    """ probar `paginar`."""
+    """Sustituto mínimo de sqlalchemy.orm.Query para probar `paginar`."""
 
     def __init__(self, total: int = 250) -> None:
         self._total = total
@@ -89,6 +90,9 @@ def client() -> TestClient:
     return TestClient(_crear_app(), raise_server_exceptions=False)
 
 
+# --------------------------------------------------------------------------
+# Formato común de error
+# --------------------------------------------------------------------------
 
 def _assert_formato(body: dict) -> None:
     assert set(body.keys()) == {"error"}
@@ -147,7 +151,7 @@ def test_error_500_no_filtra_informacion_interna(client):
 # --------------------------------------------------------------------------
 
 def test_422_trae_detalle_por_campo(client):
-    r = client.get("/validar")  
+    r = client.get("/validar")  # faltan correo y edad
     assert r.status_code == 422
     body = r.json()
     _assert_formato(body)
@@ -168,7 +172,7 @@ def test_422_campo_fuera_de_rango(client):
 
 
 # --------------------------------------------------------------------------
-# Paginacion
+# Paginación
 # --------------------------------------------------------------------------
 
 def test_paginacion_estructura_y_tamano(client):
@@ -203,10 +207,11 @@ def test_paginacion_per_page_excede_maximo_da_422(client):
     assert r.json()["error"]["code"] == "VALIDATION_ERROR"
 
 
+# --------------------------------------------------------------------------
 
-from datetime import datetime  
+from datetime import datetime  # noqa: E402
 
-from sqlalchemy import (  
+from sqlalchemy import (  # noqa: E402
     Column,
     DateTime,
     Integer,
@@ -214,23 +219,25 @@ from sqlalchemy import (
     String,
     create_engine,
 )
-from sqlalchemy.orm import declarative_base, sessionmaker  
+from sqlalchemy.orm import declarative_base, sessionmaker  # noqa: E402
 
-from g2_api.utils import registro  
+from g2_api.utils import registro  # noqa: E402
 
 _AuditBase = declarative_base()
 
 
 class _AuditoriaFake(_AuditBase):
+    """Refleja las columnas reales de la tabla `auditoria`."""
+
     __tablename__ = "auditoria"
-    id = Column(Integer, primary_key=True)
-    accion = Column(String(50), nullable=False, index=True)
-    actor_id = Column(Integer, nullable=True)
-    entidad = Column(String(50), nullable=True)
-    entidad_id = Column(String(255), nullable=True, index=True)
-    detalle = Column(JSON, nullable=True)
-    ip = Column(String(45), nullable=True)
-    creado_en = Column(DateTime, nullable=False, index=True)
+    id          = Column(Integer, primary_key=True)
+    tabla       = Column(String(50),  nullable=True)
+    registro_id = Column(String(255), nullable=True, index=True)
+    accion      = Column(String(50),  nullable=False, index=True)
+    actor_id    = Column(Integer, nullable=True)
+    ip_origen   = Column(String(45),  nullable=True)
+    detalle     = Column(JSON, nullable=True)
+    creado_en   = Column(DateTime, nullable=False, index=True)
 
 
 @pytest.fixture()
@@ -239,7 +246,7 @@ def db_mem(monkeypatch):
     _AuditBase.metadata.create_all(engine)
     Session = sessionmaker(bind=engine)
     db = Session()
-
+    # Forzamos a registro.py a usar nuestra Auditoria falsa.
     monkeypatch.setattr(registro, "_modelo_auditoria", lambda: _AuditoriaFake)
     yield db
     db.close()
@@ -247,24 +254,26 @@ def db_mem(monkeypatch):
 
 def test_registrar_accion_guarda_fila(db_mem):
     ok = registro.registrar_accion(
-        db_mem, "LOGIN_OK", actor_id=7, entidad="auth", ip="127.0.0.1"
+        db_mem, "LOGIN_OK",
+        actor_id=7, tabla="auth", ip_origen="127.0.0.1",
     )
     assert ok is True
     fila = db_mem.query(_AuditoriaFake).one()
-    assert fila.accion == "LOGIN_OK"
-    assert fila.actor_id == 7
-    assert fila.entidad == "auth"
-    assert fila.ip == "127.0.0.1"
+    assert fila.accion    == "LOGIN_OK"
+    assert fila.actor_id  == 7
+    assert fila.tabla     == "auth"
+    assert fila.ip_origen == "127.0.0.1"
     assert isinstance(fila.creado_en, datetime)
 
 
 def test_registrar_login_fallido_normaliza_correo(db_mem):
-    ok = registro.registrar_login_fallido(db_mem, "  X@Y.COM ", ip="10.0.0.1")
+    ok = registro.registrar_login_fallido(db_mem, "  X@Y.COM ", ip_origen="10.0.0.1")
     assert ok is True
     fila = db_mem.query(_AuditoriaFake).one()
-    assert fila.accion == "LOGIN_FALLIDO"
-    assert fila.actor_id is None          
-    assert fila.entidad_id == "x@y.com"  
+    assert fila.accion      == "LOGIN_FALLIDO"
+    assert fila.actor_id    is None         
+    assert fila.registro_id == "x@y.com"    
+    assert fila.ip_origen   == "10.0.0.1"
 
 
 def test_contar_intentos_fallidos_por_correo(db_mem):
@@ -272,8 +281,8 @@ def test_contar_intentos_fallidos_por_correo(db_mem):
         registro.registrar_login_fallido(db_mem, "a@b.com")
     registro.registrar_login_fallido(db_mem, "otro@b.com")
 
-    assert registro.contar_intentos_fallidos(db_mem, "a@b.com", 15) == 3
-    assert registro.contar_intentos_fallidos(db_mem, "A@B.COM", 15) == 3
+    assert registro.contar_intentos_fallidos(db_mem, "a@b.com",   15) == 3
+    assert registro.contar_intentos_fallidos(db_mem, "A@B.COM",   15) == 3
     assert registro.contar_intentos_fallidos(db_mem, "otro@b.com", 15) == 1
     assert registro.contar_intentos_fallidos(db_mem, "nadie@b.com", 15) == 0
 
@@ -291,7 +300,7 @@ def test_esta_bloqueado_segun_umbral(db_mem):
 
 
 def test_registro_no_rompe_si_models_no_existe():
-    """registrar_accion ,,,debe devolver False """
+    """registrar_accion debe devolver False (no lanzar) si no hay modelo."""
 
     class _S:
         def add(self, _):
@@ -304,7 +313,6 @@ def test_registro_no_rompe_si_models_no_existe():
             pass
 
     from g2_api.utils import registro as reg
-
 
     import builtins
 
