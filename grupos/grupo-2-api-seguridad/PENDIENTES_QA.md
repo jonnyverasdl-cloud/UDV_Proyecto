@@ -129,17 +129,6 @@ Allison revisa lo que se marque como completado en el Planner. Esa lista puede c
 | ⚪ Baja | 2. Bloqueo de 15 minutos tras cinco intentos | G2-34 | No: pendiente (Daniel y Edgar) |
 | ⚪ Baja | 3. Registro de auditoría de intentos fallidos y acciones sensibles | G2-36 | No: pendiente (`registro.py`, Daniel y Randy) |
 
-## Respuestas de otros grupos y del PM (22-oct)
-
-| Quién | Qué respondió |
-|-|-|
-| Grupo 1 | Script subido a la rama `grupo-1` (`01_schema.sql` y `02_seed.sql`, en ese orden, o `python -m g1_bd crear`). Roles: `admin`, `coordinator`, `teacher`, `reviewer`, `authority`, `auditor`. 21 permisos con semilla de `rol_permiso`. Las columnas no cambian. Después de autenticar: `SET @actor_id = id;` y, si quieren, `SET @ip_origen = 'ip';` |
-| Grupo 3 | Sin respuesta (preguntas: roles por endpoint de `/tasks`, rol «autoridad», `registrar_accion()`, formato de error y paginación) |
-| Grupo 4 | «Cargar evidencia» necesita `.docx`, `.xlsx` y hasta 20 MB. Abierto: quién crea la fila de `entrega`. Descarga solo para el docente destinatario y su revisor. Todavía usan `X-User` y `X-Role`; pasarán a Bearer al integrar el login |
-| Grupo 5 | Sin respuesta (preguntas: dónde guardan los PDF, `hash` y `programa_version_id`, rol que autoriza, autenticación) |
-| Grupo 6 | Sin respuesta (preguntas: acciones de auditoría, filtros de `/users` y `/roles`, variables de entorno, cómo correr las pruebas) |
-| PM | Pruebas automáticas con SQLite o MySQL local; base compartida para integración y QA. G2-04 es 422. Se queda el formato de error de G2. El rol es `admin`. PR el jueves 22 y retest el viernes 23. El `.env` no se sube nunca |
-
 ## Fechas
 
 Semana 2 · martes 20-oct · Semana 3 · martes 27-oct · Semana 4 · martes 03-nov · Semana 5 · martes 10-nov (revisión de los 36 escenarios y PR `grupo-2 → main`, solo Daniel). **PR de correcciones: jueves 22-oct. Retest de QA: viernes 23-oct.**
