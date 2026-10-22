@@ -5,6 +5,15 @@ Lee de las vistas que ya publicó G1: v_inbox, v_panel_tarea, v_historial_tarea,
 más las tablas base (tarea, tarea_destinatario, entrega_borrador, comentario,
 archivo, entrega) para el detalle completo.
 
+VERSIÓN 2 — ajustada al aviso del PM del 14 de octubre:
+- Usa SQLAlchemy con DATABASE_URL (.env), igual que g2_api/database.py —
+  no una conexión manual con pymysql como en la primera versión.
+- SET @actor_id se ejecuta en cada conexión que haga escrituras, para que
+  los triggers de auditoría de G1 registren quién hizo cada cambio (la
+  lectura no lo necesita, pero queda listo para cuando las transiciones
+  empiecen a escribir en la base real).
+
+
 """
 
 from datetime import date, datetime
@@ -72,13 +81,18 @@ def fetch_asignaciones_inbox(usuario_id: Optional[int] = None) -> List[Asignacio
 def fetch_detalle_asignacion(assignment_id: int) -> Optional[dict]:
     sesion = _sesion()
     try:
+        # tarea no se une directo con tipo_tarea — pasa por workflow:
+        # tarea.workflow_id -> workflow.tipo_tarea_id -> tipo_tarea.id
         cabecera = sesion.execute(text("""
             SELECT td.id AS asignacion_id, td.usuario_id, td.estado_codigo,
                    t.id AS tarea_id, t.titulo, t.descripcion, t.prioridad,
-                   t.programa_version_id,
+                   t.programa_version_id, tt.codigo AS tipo_codigo,
+                   tt.requiere_archivo,
                    COALESCE(td.fecha_limite, t.fecha_limite) AS fecha_limite
             FROM tarea_destinatario td
             JOIN tarea t ON t.id = td.tarea_id
+            JOIN workflow w ON w.id = t.workflow_id
+            JOIN tipo_tarea tt ON tt.id = w.tipo_tarea_id
             WHERE td.id = :id
         """), {"id": assignment_id}).mappings().first()
         if cabecera is None:
@@ -119,7 +133,8 @@ def fetch_detalle_asignacion(assignment_id: int) -> Optional[dict]:
         "id": cabecera["asignacion_id"],
         "assignee_id": cabecera["usuario_id"],
         "title": cabecera["titulo"],
-        "task_type": None,
+        "task_type": cabecera["tipo_codigo"],
+        "requiere_archivo": bool(cabecera["requiere_archivo"]),
         "status": cabecera["estado_codigo"],
         "priority": cabecera["prioridad"],
         "due_at": due_at,

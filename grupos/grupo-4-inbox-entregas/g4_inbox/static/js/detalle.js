@@ -55,6 +55,9 @@ function adaptarTarea(api) {
     comentario: (api.comments || []).length ? api.comments[api.comments.length - 1].text : "",
     borrador: api.draft_comment || "",
     archivo: (api.files || []).length ? api.files[api.files.length - 1].name : null,
+    // Por defecto true: si el backend no manda este campo (no debería
+    // pasar), es más seguro seguir pidiendo evidencia que dejar de pedirla.
+    requiereArchivo: api.requiere_archivo !== false,
   };
 }
 
@@ -72,9 +75,19 @@ function mostrarFormularioEntrega(tarea) {
   document.getElementById("formEntrega").style.display = "block";
   document.getElementById("entregaComentario").value = tarea.borrador || "";
   document.getElementById("entregaArchivo").value = "";
-  document.getElementById("archivoInfo").textContent = tarea.archivo
-    ? `📎 Archivo registrado: ${tarea.archivo}`
-    : "Selecciona la evidencia que vas a registrar.";
+
+  // Este tipo de tarea no pide evidencia — se oculta el campo de archivo
+  // en vez de mostrarlo y luego dejar entregar sin usarlo.
+  const campoArchivo = document.getElementById("entregaArchivo");
+  const etiquetaArchivo = document.querySelector('label[for="entregaArchivo"]');
+  campoArchivo.style.display = tarea.requiereArchivo ? "block" : "none";
+  if (etiquetaArchivo) etiquetaArchivo.style.display = tarea.requiereArchivo ? "block" : "none";
+
+  document.getElementById("archivoInfo").textContent = !tarea.requiereArchivo
+    ? "Esta tarea no requiere evidencia adjunta."
+    : tarea.archivo
+      ? `📎 Archivo registrado: ${tarea.archivo}`
+      : "Selecciona la evidencia que vas a registrar.";
   const botones = document.getElementById("entregaBotones");
   botones.innerHTML = "";
   agregarBoton(botones, "Guardar borrador", "btn-udv-outline", () => guardarBorrador(tarea));
@@ -160,7 +173,7 @@ async function confirmarEntrega(tarea) {
   document.getElementById("avisoEntregaError").style.display = "none";
   document.getElementById("avisoEntregaOk").style.display = "none";
 
-  if (!tarea.archivo && !archivoNuevo) {
+  if (tarea.requiereArchivo && !tarea.archivo && !archivoNuevo) {
     mostrarError("Debes seleccionar la evidencia antes de entregar.", "avisoEntregaError");
     return;
   }

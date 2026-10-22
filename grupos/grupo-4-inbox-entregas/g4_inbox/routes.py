@@ -1,13 +1,25 @@
 """
 g4_inbox.routes — El APIRouter real del Grupo 4 (Inbox y entregas docentes)
 
-
+Esto es lo que se monta en la aplicación raíz del proyecto, junto con los
+routers de los demás grupos — por eso NO tiene su propio FastAPI() aquí,
+solo un APIRouter. Quien corre esto de verdad en producción es main.py
+de la raíz (del PM), con: app.include_router(g4_router)
 
 Para correr y probar G4 solo (sin el resto del proyecto), ver main.py de
 esta misma carpeta — ahí sí hay una FastAPI() liviana, nada más que para
 pruebas locales.
 
-
+IMPORTANTE — cosas temporales que hay que reemplazar más adelante:
+1. Base de datos: con G4_USAR_MYSQL=1 lee de MySQL real (database.py);
+   si no, usa datos en memoria (datos_ejemplo.py + DETALLE_EXTRA).
+2. No hay autenticación real todavía integrada aquí — X-User/X-Role
+   siguen simulando lo que GET /me de G2 va a resolver.
+3. El servicio de transiciones de G3 (g3_workflow) todavía no existe.
+   ejecutar_transicion_g3(), más abajo, es un STUB que imita su
+   comportamiento usando la misma tabla de transiciones del contrato —
+   confirmado en la reunión del 16 de octubre: seguimos así hasta que
+   G3 publique su motor real.
 """
 
 import os
@@ -30,6 +42,17 @@ router = APIRouter(prefix="/api/v1", tags=["G4 - Inbox y entregas"])
 # ============================================================================
 # "BASE DE DATOS" EN MEMORIA (reemplaza temporalmente a G1 si USAR_MYSQL=0)
 # ============================================================================
+# Viene de la tabla tipo_tarea de G1 (columna requiere_archivo) — lo mismo
+# que confirmaron en la base real. Lo copiamos aquí para el modo memoria,
+# porque datos_ejemplo.py usa el "nombre" del tipo, no su "codigo".
+REQUIERE_ARCHIVO_POR_TIPO = {
+    "Actualizar programa": False,
+    "Subir ficha o CV": True,
+    "Entregar factura": True,
+    "Confirmar actividad": False,
+    "Cargar evidencia": True,
+}
+
 DETALLE_EXTRA = {
     1: {"instructions": "Completar el formulario del programa por secciones.",
         "program_version_id": 32, "files": [], "comments": [], "draft_comment": None},
@@ -65,6 +88,7 @@ def _construir_db() -> List[dict]:
     base = [a.to_dict() for a in asignaciones_ejemplo()]
     for item in base:
         item.update(DETALLE_EXTRA.get(item["id"], {}))
+        item["requiere_archivo"] = REQUIERE_ARCHIVO_POR_TIPO.get(item["task_type"], True)
         item["history"] = [{"action": "publish", "new_status": "assigned", "actor": "coordinacion"}]
     return base
 
@@ -242,7 +266,10 @@ def iniciar(assignment_id: int, x_role: str = Header(default="docente")):
 @router.post("/assignments/{assignment_id}/submit")
 def entregar(assignment_id: int, x_role: str = Header(default="docente")):
     a = buscar_asignacion(assignment_id)
-    if a and not a.get("files"):
+    # requiere_archivo sale de tipo_tarea de G1 — solo exige evidencia a
+    # los tipos de tarea que de verdad la piden (ej. "Subir ficha o CV"),
+    # no a todos (ej. "Confirmar actividad" nunca necesita adjunto).
+    if a and a.get("requiere_archivo", True) and not a.get("files"):
         raise HTTPException(status_code=422, detail="Falta adjuntar evidencia antes de entregar")
     return _transicionar(assignment_id, "submit", x_role)
 
