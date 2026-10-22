@@ -22,14 +22,18 @@ from g2_api.middleware.auth_middleware import obtener_usuario_actual  # noqa: E4
 from g2_api.middleware.error_handler import register_error_handlers  # noqa: E402
 
 from g6_admin import api  # noqa: E402
+from g6_admin.auditoria import RepositorioAuditoriaEnMemoria, ServicioAuditoria  # noqa: E402
 from g6_admin.catalogos import RepositorioEnMemoria, ServicioCatalogos  # noqa: E402
+from g6_admin.notificaciones import (  # noqa: E402
+    RepositorioNotificacionesEnMemoria, ServicioNotificaciones)
 
 # Usuarios ficticios con los códigos de rol de la tabla `rol` del G1.
 ADMINISTRACION = {"id": 1, "correo": "admin@ejemplo.test", "roles": ["admin"], "activo": True}
 DOCENTE = {"id": 2, "correo": "docente@ejemplo.test", "roles": ["teacher"], "activo": True}
 
 
-def _cliente(servicio: ServicioCatalogos, usuario: dict | None) -> TestClient:
+def _cliente(servicio: ServicioCatalogos, usuario: dict | None,
+             notificaciones: ServicioNotificaciones) -> TestClient:
     app = FastAPI()
     register_error_handlers(app)          # formato de error del G2
     app.include_router(api.router)        # igual que lo monta main.py
@@ -41,25 +45,37 @@ def _cliente(servicio: ServicioCatalogos, usuario: dict | None) -> TestClient:
 
     app.dependency_overrides[obtener_usuario_actual] = usuario_de_prueba
     app.dependency_overrides[api.obtener_servicio] = lambda: servicio
+    app.dependency_overrides[api.obtener_auditoria] = lambda: servicio.auditoria
+    app.dependency_overrides[api.obtener_notificaciones] = lambda: notificaciones
     return TestClient(app)
 
 
 @pytest.fixture
-def servicio() -> ServicioCatalogos:
-    """Catálogos vacíos: cada prueba empieza sin registros."""
-    return ServicioCatalogos(RepositorioEnMemoria())
+def auditoria() -> ServicioAuditoria:
+    return ServicioAuditoria(RepositorioAuditoriaEnMemoria())
 
 
 @pytest.fixture
-def admin(servicio) -> TestClient:
-    return _cliente(servicio, ADMINISTRACION)
+def servicio(auditoria) -> ServicioCatalogos:
+    """Catálogos vacíos: cada prueba empieza sin registros ni auditoría."""
+    return ServicioCatalogos(RepositorioEnMemoria(), auditoria)
 
 
 @pytest.fixture
-def docente(servicio) -> TestClient:
-    return _cliente(servicio, DOCENTE)
+def notificaciones() -> ServicioNotificaciones:
+    return ServicioNotificaciones(RepositorioNotificacionesEnMemoria())
 
 
 @pytest.fixture
-def sin_sesion(servicio) -> TestClient:
-    return _cliente(servicio, None)
+def admin(servicio, notificaciones) -> TestClient:
+    return _cliente(servicio, ADMINISTRACION, notificaciones)
+
+
+@pytest.fixture
+def docente(servicio, notificaciones) -> TestClient:
+    return _cliente(servicio, DOCENTE, notificaciones)
+
+
+@pytest.fixture
+def sin_sesion(servicio, notificaciones) -> TestClient:
+    return _cliente(servicio, None, notificaciones)

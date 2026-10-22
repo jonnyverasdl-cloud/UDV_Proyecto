@@ -13,8 +13,19 @@ def crear(cliente, recurso="campuses", datos=None):
     return cliente.post(f"/api/v1/{recurso}", json=VALIDO if datos is None else datos)
 
 
+def modificar(cliente, registro_id, datos, recurso="campuses"):
+    return cliente.patch(f"/api/v1/{recurso}/{registro_id}", json=datos)
+
+
 def campos_con_error(respuesta) -> set[str]:
-    return {d["field"] for d in respuesta.json()["error"]["details"]}
+    detalles = respuesta.json()["error"]["details"]
+    # El G2 usa dos formas: los errores que arma cada grupo llegan como
+    # {"items": [{"field": ...}]} y los de Pydantic (tipo de dato, campo no
+    # reconocido) como {"campos": [{"campo": ...}]}.
+    if isinstance(detalles, dict):
+        return ({d["field"] for d in detalles.get("items", [])}
+                | {d["campo"] for d in detalles.get("campos", [])})
+    return {d["field"] for d in detalles}
 
 
 # ── G6-01 y G6-21 a G6-25: administración agrega y el registro aparece ────
@@ -75,6 +86,93 @@ def test_sin_sesion_responde_401(sin_sesion, metodo):
         "/api/v1/campuses", **({"json": VALIDO} if metodo == "post" else {}))
     assert respuesta.status_code == 401
     assert respuesta.json()["error"]["code"] == "UNAUTHORIZED"
+
+
+# ── G6-01 a G6-03: modificar un registro (PATCH) ──────────────────────────
+
+@pytest.mark.parametrize("recurso", RECURSOS)
+def test_admin_modifica_registro_y_el_cambio_se_guarda(admin, docente, recurso):
+    creado = crear(admin, recurso).json()
+
+    respuesta = modificar(admin, creado["id"], {"name": " Sede  Norte 2 "}, recurso)
+
+    assert respuesta.status_code == 200
+    modificado = respuesta.json()
+    assert modificado["name"] == "Sede Norte 2"
+    assert modificado["code"] == creado["code"]
+    assert docente.get(f"/api/v1/{recurso}").json()["data"][0]["name"] == "Sede Norte 2"
+
+
+def test_admin_puede_desactivar_y_cambiar_codigo(admin):
+    creado = crear(admin).json()
+    respuesta = modificar(admin, creado["id"], {"code": "norte-2", "is_active": False})
+    assert respuesta.status_code == 200
+    assert (respuesta.json()["code"], respuesta.json()["is_active"]) == ("NORTE-2", False)
+
+
+@pytest.mark.parametrize("recurso", RECURSOS)
+def test_docente_no_puede_modificar(admin, docente, recurso):
+    creado = crear(admin, recurso).json()
+
+    respuesta = modificar(docente, creado["id"], {"name": "Cambio sin permiso"}, recurso)
+
+    assert respuesta.status_code == 403
+    assert respuesta.json()["error"]["code"] == "FORBIDDEN"
+    assert admin.get(f"/api/v1/{recurso}").json()["data"][0]["name"] == VALIDO["name"]
+
+
+def test_docente_recibe_403_al_modificar_antes_que_404_o_422(docente):
+    # Un docente no puede averiguar qué registros existen ni probar datos.
+    assert modificar(docente, 999, {"name": "x"}).status_code == 403
+    assert modificar(docente, 999, {}).status_code == 403
+
+
+def test_sin_sesion_no_puede_modificar(admin, sin_sesion):
+    creado = crear(admin).json()
+    respuesta = modificar(sin_sesion, creado["id"], {"name": "Sin sesión"})
+    assert respuesta.status_code == 401
+    assert respuesta.json()["error"]["code"] == "UNAUTHORIZED"
+
+
+def test_modificar_registro_inexistente_da_404(admin):
+    respuesta = modificar(admin, 999, {"name": "No existe"})
+    assert respuesta.status_code == 404
+    assert respuesta.json()["error"]["code"] == "NOT_FOUND"
+
+
+def test_registro_de_otro_catalogo_da_404(admin):
+    creado = crear(admin, "campuses").json()
+    assert modificar(admin, creado["id"], {"name": "Otra"}, "areas").status_code == 404
+
+
+def test_modificar_sin_campos_da_422(admin):
+    creado = crear(admin).json()
+    respuesta = modificar(admin, creado["id"], {})
+    assert respuesta.status_code == 422
+    assert respuesta.json()["error"]["code"] == "EMPTY_UPDATE"
+
+
+def test_modificar_valida_los_campos_enviados(admin):
+    creado = crear(admin).json()
+    respuesta = modificar(admin, creado["id"], {"code": "A", "name": None})
+    assert respuesta.status_code == 422
+    assert campos_con_error(respuesta) == {"code", "name"}
+    assert admin.get("/api/v1/campuses").json()["data"][0]["code"] == "NORTE"
+
+
+def test_modificar_a_un_codigo_ya_usado_da_409(admin):
+    crear(admin)
+    otro = crear(admin, datos={"code": "SUR", "name": "Sede Sur"}).json()
+
+    respuesta = modificar(admin, otro["id"], {"code": "norte"})
+
+    assert respuesta.status_code == 409
+    assert campos_con_error(respuesta) == {"code"}
+
+
+def test_modificar_conservando_su_propio_codigo(admin):
+    creado = crear(admin).json()
+    assert modificar(admin, creado["id"], {"code": "NORTE", "name": "Norte"}).status_code == 200
 
 
 # ── Validación (422) y conflicto (409) ────────────────────────────────────
@@ -182,3 +280,4 @@ def test_openapi_incluye_las_rutas_de_catalogos_del_contrato(admin):
     rutas = admin.get("/openapi.json").json()["paths"]
     for recurso in RECURSOS:
         assert {"get", "post"} <= set(rutas[f"/api/v1/{recurso}"])
+        assert "patch" in rutas[f"/api/v1/{recurso}/{{registro_id}}"]
