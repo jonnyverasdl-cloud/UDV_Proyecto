@@ -2,6 +2,8 @@ import uuid # <----- Nombre interno aleatorio del archivo
 from fastapi import APIRouter, File, UploadFile, HTTPException, Depends
 import puremagic # <----- Dependencia Para verificar el tipo de archivo
 from g2_api.middleware.auth_middleware import obtener_usuario_actual
+from pathlib import Path
+from fastapi.responses import FileResponse
 
 # Crear un router para manejar las rutas relacionadas con archivos
 router = APIRouter(
@@ -57,7 +59,13 @@ async def verificar_archivo(file: UploadFile = File(...),
         file_id +
         MIMETYPES_PERMITIDOS[tipo_real]
     )
-    
+    UPLOAD_DIR = Path("uploads")
+    UPLOAD_DIR.mkdir(exist_ok=True)
+
+    ruta_archivo = UPLOAD_DIR / nombre_interno
+
+    with open(ruta_archivo, "wb") as archivo:
+        archivo.write(contenido)
     # devolver el identificador único y el nombre interno del archivo
     return {
         "file_id": file_id,
@@ -65,5 +73,32 @@ async def verificar_archivo(file: UploadFile = File(...),
         "usuario": usuario_actual["correo"]
     }
     
-# Se valida el archivo y se genera un identificador único.
-# El almacenamiento físico será responsabilidad del servicio consumidor.
+
+
+@router.get("/{file_id}")
+async def descargar_archivo(
+    file_id: str,
+    usuario_actual: dict = Depends(obtener_usuario_actual)
+):
+
+    carpeta = Path("uploads")
+    
+    if not carpeta.exists():
+        raise HTTPException(
+        status_code=404,
+        detail="No existen archivos almacenados"
+    )
+
+    for archivo in carpeta.iterdir():
+        if archivo.name.startswith(file_id):
+            return FileResponse(
+                path=archivo,
+                filename=archivo.name
+            )
+
+    raise HTTPException(
+        status_code=404,
+        detail="Archivo no encontrado"
+    )
+# El archivo es validado y almacenado localmente
+# usando un nombre interno generado de forma aleatoria.
