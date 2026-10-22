@@ -42,7 +42,6 @@ if _es_mysql:
         except Exception:
             pass  # Si la conexión ya se cerró, el pool la descarta solo.
 
-
 # SessionLocal fabrica sesiones: Una sesión es una "conversación" con la base (consultas y cambios).
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
@@ -58,7 +57,6 @@ def get_db():
     finally:
         db.close()
 
-
 def probar_conexion():
     # Devuelve True si la base responde. Sirve para diagnóstico (no crea ni cambia nada).
     from sqlalchemy import text
@@ -69,7 +67,6 @@ def probar_conexion():
         return True
     except Exception:
         return False
-
 
 def fijar_actor(db, actor_id, ip_origen=None):
     # Le dice a los triggers del Grupo 1 quién hace el cambio: Quedan en auditoria.actor_id y auditoria.ip_origen.
@@ -82,3 +79,4 @@ def fijar_actor(db, actor_id, ip_origen=None):
         text("SET @actor_id = :actor_id, @ip_origen = :ip_origen"),
         {"actor_id": actor_id, "ip_origen": ip_origen},
     )
+    
