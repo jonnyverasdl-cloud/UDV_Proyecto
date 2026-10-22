@@ -17,6 +17,8 @@ from typing import Any
 
 from g2_api.middleware.error_handler import ErrorCode, api_error
 
+from .auditoria import ServicioAuditoria
+
 
 @dataclass(frozen=True)
 class Catalogo:
@@ -184,8 +186,18 @@ def validar_registro(datos: dict[str, Any], *, parcial: bool = False) -> dict[st
 
 
 class ServicioCatalogos:
-    def __init__(self, repositorio: RepositorioEnMemoria) -> None:
+    def __init__(self, repositorio: RepositorioEnMemoria,
+                 auditoria: ServicioAuditoria | None = None) -> None:
         self.repositorio = repositorio
+        self.auditoria = auditoria
+
+    def _auditar(self, autor_id: int | None, accion: str, recurso: str,
+                 registro_id: int, cambios: dict[str, Any]) -> None:
+        # Sin id del usuario no hay a quién atribuir la acción (G6-14).
+        if self.auditoria is not None and autor_id is not None:
+            self.auditoria.registrar(actor_id=autor_id, accion=accion,
+                                     entidad=recurso, entidad_id=registro_id,
+                                     cambios=cambios)
 
     def listar(self, recurso: str, *, q: str | None = None,
                activo: bool | None = None) -> list[dict[str, Any]]:
@@ -216,10 +228,11 @@ class ServicioCatalogos:
                 f"El código {limpio['code']} ya existe en {catalogo.nombre}.",
                 [_error_de_campo("code", "DUPLICATE", "Este código ya está en uso.")],
             ) from None
+        self._auditar(autor_id, "create", recurso, registro.id, limpio)
         return registro.como_dict()
 
-    def modificar(self, recurso: str, registro_id: int,
-                  datos: dict[str, Any]) -> dict[str, Any]:
+    def modificar(self, recurso: str, registro_id: int, datos: dict[str, Any],
+                  autor_id: int | None = None) -> dict[str, Any]:
         """Cambia los campos enviados. El permiso ya lo revisó el middleware del G2."""
         catalogo = CATALOGOS[recurso]
         cambios = validar_registro(datos, parcial=True)
@@ -236,4 +249,5 @@ class ServicioCatalogos:
                 f"El código {cambios['code']} ya existe en {catalogo.nombre}.",
                 [_error_de_campo("code", "DUPLICATE", "Este código ya está en uso.")],
             ) from None
+        self._auditar(autor_id, "update", recurso, registro.id, cambios)
         return registro.como_dict()
