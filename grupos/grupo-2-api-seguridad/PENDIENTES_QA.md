@@ -103,7 +103,7 @@ Antes, `error_handler.py` respondía `{"status", "error", "meta"}` con `details`
 ### Pruebas automáticas y auditoría
 - `pytest` completo (aviso del PM, 22-oct): pasan 28 y fallan 4 (antes fallaban 15). Las 4 son de `registro.py`.
 - En la auditoría, `registro.py` ya usa las columnas reales. Falta conectarlo con login y logout (G2-36). El PM pidió escribir a mano solo login, login fallido y logout; los cambios de datos los registran los triggers de G1 con `@actor_id` (ver `fijar_actor` en `database.py`).
-- La base exige `tabla` y `registro_id` (NOT NULL) y `detalle` como JSON válido. Texto de `accion` por confirmar con G1: su prueba usa `login_failed` y `registro.py` usa `LOGIN_FALLIDO`.
+- La base exige `tabla` y `registro_id` (NOT NULL) y `detalle` como JSON válido (ver `01_schema.sql`).
 
 ### Notas de integración (Robert)
 - Integración con la base: el login y la sesión (`sesion_token`) ya usan la base compartida. `users.py` y `auth_middleware.py` todavía leen la lista JSON; pasan a la base cuando Randy suba su parte. El JSON se deja por ahora, hasta que el PM confirme que se puede quitar.
@@ -129,8 +129,9 @@ Allison revisa lo que se marque como completado en el Planner. Esa lista puede c
 | ⚪ Baja | 2. Bloqueo de 15 minutos tras cinco intentos | G2-34 | No: pendiente (Daniel y Edgar) |
 | ⚪ Baja | 3. Registro de auditoría de intentos fallidos y acciones sensibles | G2-36 | No: pendiente (`registro.py`, Daniel y Randy) |
 
+
 ## Fechas
 
 Semana 2 · martes 20-oct · Semana 3 · martes 27-oct · Semana 4 · martes 03-nov · Semana 5 · martes 10-nov (revisión de los 36 escenarios y PR `grupo-2 → main`, solo Daniel). **PR de correcciones: jueves 22-oct. Retest de QA: viernes 23-oct.**
 
-*Nota: El resumen sale de los PDF del QA (Lista inicial, Updt_1 e Informe no. 1), del Planner de Allison y de los avisos del PM.*
+*Nota: el resumen sale de los PDF del QA (Lista inicial, Updt_1 e Informe no. 1), del Planner de Allison y de los avisos del PM.*
