@@ -1,12 +1,14 @@
 import uuid # <----- Nombre interno aleatorio del archivo
-from fastapi import APIRouter, File, UploadFile, HTTPException
+from fastapi import APIRouter, File, UploadFile, HTTPException, Depends
 import puremagic # <----- Dependencia Para verificar el tipo de archivo
+from g2_api.middleware.auth_middleware import obtener_usuario_actual
 
 # Crear un router para manejar las rutas relacionadas con archivos
 router = APIRouter(
     prefix="/api/v1/files",
     tags=["Files"]
 )
+
 
 MAX_SIZE = 5 * 1024 * 1024  # 5 MB
 
@@ -19,8 +21,9 @@ MIMETYPES_PERMITIDOS = {
 
 # Definir la ruta para verificar el archivo subido
 @router.post("")
-async def verificar_archivo(file: UploadFile = File(...)):
-
+async def verificar_archivo(file: UploadFile = File(...),
+    usuario_actual: dict = Depends(obtener_usuario_actual)
+):
     contenido = await file.read()
 
     if len(contenido) > MAX_SIZE:
@@ -58,7 +61,8 @@ async def verificar_archivo(file: UploadFile = File(...)):
     # devolver el identificador único y el nombre interno del archivo
     return {
         "file_id": file_id,
-        "nombre_interno": nombre_interno
+        "nombre_interno": nombre_interno,
+        "usuario": usuario_actual["correo"]
     }
     
 # Se valida el archivo y se genera un identificador único.
