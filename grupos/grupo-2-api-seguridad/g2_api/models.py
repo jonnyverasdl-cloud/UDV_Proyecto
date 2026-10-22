@@ -16,8 +16,8 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Integer,
+    JSON,
     String,
-    Text,
 )
 from sqlalchemy.orm import relationship
 
@@ -140,5 +140,8 @@ class Auditoria(Base):
     accion = Column(String(20), nullable=False)
     actor_id = Column(Integer, ForeignKey("usuario.id"), nullable=True)
     ip_origen = Column(String(45), nullable=True)
-    detalle = Column(Text, nullable=True) # JSON como texto (LONGTEXT en MySQL).
+    # En MySQL la columna es LONGTEXT con CHECK JSON_VALID: Con el tipo JSON de SQLAlchemy un dict se guarda como JSON válido.
+    # none_as_null=True guarda NULL de verdad cuando no hay detalle (no el texto 'null').
+    detalle = Column(JSON(none_as_null=True), nullable=True)
     creado_en = Column(DateTime, nullable=False, default=ahora_utc)
+    
