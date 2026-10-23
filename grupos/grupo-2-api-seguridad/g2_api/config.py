@@ -14,6 +14,8 @@ ACCESS_TOKEN_EXPIRE_MINUTES= int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "120")
 CORS_ORIGINS = _lista(os.getenv("CORS_ORIGINS", "http://localhost:5500"))
 LOGIN_MAX_INTENTOS = int(os.getenv("LOGIN_MAX_INTENTOS", "5"))
 LOGIN_BLOQUEO_MINUTOS = int(os.getenv("LOGIN_BLOQUEO_MINUTOS", "15"))
+CONTRASENA_MIN = int(os.getenv("CONTRASENA_MIN", "8")) # largo minimo de la contraseña (Persona 1).
+CONTRASENA_MAX = int(os.getenv("CONTRASENA_MAX", "64")) # largo maximo de la contraseña (Persona 1).
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "almacen_archivos") # Carpeta donde files.py guarda los archivos (Persona 4).
 
 if not SECRET_KEY:
