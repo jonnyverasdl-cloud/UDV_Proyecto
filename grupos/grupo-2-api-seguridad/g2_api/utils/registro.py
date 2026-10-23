@@ -1,4 +1,5 @@
 
+
 from __future__ import annotations
 
 import logging
@@ -6,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Mapping
 
 from fastapi import Request
+from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger("g2_api.auditoria")
@@ -26,24 +28,39 @@ FILE_UPLOADED   = "FILE_UPLOADED"
 FILE_DOWNLOADED = "FILE_DOWNLOADED"
 
 
-# ------------------------------------------------------------------
+# --- Helpers ----------------------------------------------------------------
 
 def _modelo_auditoria():
-    """si `models.py` aun no existe, ."""
+    """ si `models.py` aún no está, degradamos sin romper."""
     from g2_api.models import Auditoria  # type: ignore
 
     return Auditoria
 
 
 def _ahora() -> datetime:
+    """(compatible con DATETIME de MySQL y con SQLite)."""
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 def ip_del_request(request: Request | None) -> str | None:
+    """ para routers:"""
     if request is None:
         return None
     cliente = getattr(request, "client", None)
     return getattr(cliente, "host", None) if cliente else None
+
+
+def set_actor_id(db: Session, actor_id: int | None) -> None:
+   
+    try:
+        dialecto = ""
+        bind = getattr(db, "bind", None)
+        if bind is not None and getattr(bind, "dialect", None) is not None:
+            dialecto = bind.dialect.name
+        if dialecto == "mysql":
+            db.execute(text("SET @actor_id = :id"), {"id": int(actor_id or 0)})
+    except Exception:  # noqa: BLE001
+        logger.exception("No se pudo setear @actor_id para triggers del G1")
 
 
 # --- Escritura --------------------------------------------------------------
@@ -53,28 +70,29 @@ def registrar_accion(
     accion: str,
     *,
     tabla: str | None = None,
-    registro_id: str | int | None = None,
+    registro_id: int | None = None,
     actor_id: int | None = None,
     detalle: Mapping[str, Any] | None = None,
     ip_origen: str | None = None,
 ) -> bool:
+    """ True si se guardó, False si falló."""
     try:
         Auditoria = _modelo_auditoria()
         fila = Auditoria(
-            accion     = str(accion).upper(),
-            actor_id   = actor_id,
-            tabla      = tabla,
-            registro_id= str(registro_id) if registro_id is not None else None,
-            detalle    = dict(detalle) if detalle else None,
-            ip_origen  = ip_origen,
-            creado_en  = _ahora(),
+            accion      = str(accion).upper(),
+            actor_id    = actor_id,
+            tabla       = tabla,
+            registro_id = int(registro_id) if registro_id is not None else None,
+            detalle     = dict(detalle) if detalle else None,
+            ip_origen   = ip_origen,
+            creado_en   = _ahora(),
         )
         db.add(fila)
         db.commit()
         return True
     except Exception:  # noqa: BLE001
         db.rollback()
-        logger.exception("No se pudo registrar la accion %s", accion)
+        logger.exception("No se pudo registrar la acción %s", accion)
         return False
 
 
@@ -100,8 +118,6 @@ def registrar_login_fallido(
     db: Session, correo: str, *, ip_origen: str | None = None
 ) -> bool:
     """Registra un intento fallido.
-
-    - `actor_id` se resuelve si el usuario existe; si no, queda NULL.
     """
     correo_norm = (correo or "").strip().lower()
     actor_id: int | None = None
@@ -121,26 +137,34 @@ def registrar_login_fallido(
     return registrar_accion(
         db,
         LOGIN_FALLIDO,
-        actor_id   = actor_id,
-        tabla      = "auth",
-        registro_id= correo_norm,
-        ip_origen  = ip_origen,
+        actor_id    = actor_id,
+        tabla       = "auth",
+        registro_id = actor_id,                    # INT o NULL
+        detalle     = {"correo": correo_norm},     # correo normalizado
+        ip_origen   = ip_origen,
     )
 
 
-# --- Consultas -----------------------------------------
+# --- Consultas  -----------------------------------------
 
 def contar_intentos_fallidos(db: Session, correo: str, minutos: int) -> int:
-    """Cuenta LOGIN_FALLIDO del mismo correo en la ventana de `minutos`."""
+    """Cuenta LOGIN_FALLIDO del mismo correo en la ventana de `minutos`.
+
+    Filtra por `detalle.correo` ).
+    """
     try:
         Auditoria = _modelo_auditoria()
         desde = _ahora() - timedelta(minutes=int(minutos))
+        correo_norm = (correo or "").strip().lower()
+
+        correo_en_detalle = func.json_extract(Auditoria.detalle, "$.correo")
+
         return int(
             db.query(Auditoria)
             .filter(
-                Auditoria.accion      == LOGIN_FALLIDO,
-                Auditoria.registro_id == (correo or "").strip().lower(),
-                Auditoria.creado_en   >= desde,
+                Auditoria.accion == LOGIN_FALLIDO,
+                correo_en_detalle == correo_norm,
+                Auditoria.creado_en >= desde,
             )
             .count()
         )
@@ -156,5 +180,21 @@ def esta_bloqueado(
     max_intentos: int,
     minutos: int,
 ) -> bool:
-    """True si el correo supero `max_intentos` fallos en los ultimos `minutos`."""
+    """True si el correo superó `max_intentos` fallos en los últimos `minutos`."""
     return contar_intentos_fallidos(db, correo, minutos) >= int(max_intentos)
+
+
+def limpiar_intentos(db: Session, correo: str) -> None:
+    """Borra los LOGIN_FALLIDO del correo tras un login exitoso (opcional)."""
+    try:
+        Auditoria = _modelo_auditoria()
+        correo_norm = (correo or "").strip().lower()
+        correo_en_detalle = func.json_extract(Auditoria.detalle, "$.correo")
+        db.query(Auditoria).filter(
+            Auditoria.accion == LOGIN_FALLIDO,
+            correo_en_detalle == correo_norm,
+        ).delete(synchronize_session=False)
+        db.commit()
+    except Exception:  # noqa: BLE001
+        db.rollback()
+        logger.exception("No se pudieron limpiar los intentos fallidos")
