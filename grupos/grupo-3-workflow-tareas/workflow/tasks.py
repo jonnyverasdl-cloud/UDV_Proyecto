@@ -1,3 +1,4 @@
+"""Tipos de tarea, borradores, destinatarios, publicación, cancelación y seguimiento."""
 import json
 from datetime import date
 
@@ -84,7 +85,7 @@ def create_task_type(conn, actor, data):
     if not code or not name:
         raise ValidationFailed("code y name son obligatorios")
     if flow not in FLOWS:
-        raise ValidationFailed("flow inválido", details={"valid": list(FLOWS)})
+        raise ValidationFailed("flow inválido", details={"field": "flow", "valid": list(FLOWS)})
     with transaction(conn):
         if conn.execute("SELECT 1 FROM task_types WHERE code = ?", (code,)).fetchone():
             raise Conflict(f"Ya existe un tipo con code '{code}'")
@@ -106,7 +107,8 @@ def _validate_fields(conn, data):
     if "title" in data and not (data["title"] or "").strip():
         raise ValidationFailed("title no puede estar vacío", details={"field": "title"})
     if "priority" in data and data["priority"] not in PRIORITIES:
-        raise ValidationFailed("priority inválida", details={"valid": list(PRIORITIES)})
+        raise ValidationFailed("priority inválida",
+                               details={"field": "priority", "valid": list(PRIORITIES)})
     if "due_date" in data:
         data["due_date"] = _parse_due_date(data["due_date"])
     if "type_id" in data and conn.execute(

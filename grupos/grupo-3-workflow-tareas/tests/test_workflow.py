@@ -82,6 +82,12 @@ class TransitionTests(Base):
         self.assertEqual(before, self.snapshot())
 
     def test_every_undefined_combination_is_409_and_touches_nothing(self):
+        # Un usuario CON permiso para la acción: el único problema es el estado -> 409.
+        # (Si el usuario no tuviera permiso, respondería 403 antes; ver el test siguiente.)
+        permitted = {"publish": "coord", "start": self.t[0], "submit": self.t[0],
+                     "review": "reviewer", "return": "reviewer", "resubmit": self.t[0],
+                     "approve": "authority", "close": "system", "cancel": "coord"}
+        self.assertEqual(set(permitted), set(ACTIONS))
         for flow, type_code in (("standard", "update_program"), ("short", "confirm_activity")):
             aid = self.assignment_of(self.make_task(type_code, publish=True))
             for state in STATES:
@@ -95,8 +101,55 @@ class TransitionTests(Base):
                                           (state, aid))
                         before = self.snapshot()
                         with self.assertRaises(Conflict):
-                            self.do(aid, action, "authority")
+                            self.do(aid, action, permitted[action])
                         self.assertEqual(before, self.snapshot())
+
+    def test_forbidden_takes_precedence_over_conflict(self):
+        """Sin permiso -> 403 aunque la transición además sea inválida (nunca 409)."""
+        aid = self.assignment_of(self.make_task(publish=True))          # estado: assigned
+        before = self.snapshot()
+        cases = [("approve", self.t[0]),      # docente aprobando (rol no permitido), estado inválido
+                 ("approve", "coord"),        # coordinador aprobando
+                 ("review", "authority"),     # autoridad revisando
+                 ("close", self.t[0]),        # docente cerrando
+                 ("submit", self.t[1]),       # docente que NO es el destinatario, estado inválido
+                 ("review", "reviewer2")]     # revisor que NO es el designado, estado inválido
+        for action, who in cases:
+            with self.subTest(state="assigned", action=action, who=who):
+                with self.assertRaises(Forbidden):
+                    self.do(aid, action, who)
+        self.assertEqual(before, self.snapshot())
+
+        self.do(aid, "start", self.t[0])                                # estado: in_progress
+        with self.assertRaises(Forbidden):
+            self.do(aid, "cancel", "coord2")      # coordinador ajeno: 403, no 409
+        with self.assertRaises(Forbidden):
+            self.do(aid, "approve", self.t[0])
+
+    def test_authorized_user_with_invalid_state_still_gets_409(self):
+        aid = self.assignment_of(self.make_task(publish=True))          # estado: assigned
+        before = self.snapshot()
+        for action, who in (("submit", self.t[0]),       # destinatario correcto, pero falta start
+                            ("review", "reviewer"),      # revisor designado, pero aún no hay entrega
+                            ("approve", "authority"),    # autoridad, pero no está en revisión
+                            ("close", "coord")):         # coordinador dueño, pero no está aprobada
+            with self.subTest(action=action, who=who):
+                with self.assertRaises(Conflict):
+                    self.do(aid, action, who)
+        self.assertEqual(before, self.snapshot())
+
+    def test_action_missing_from_flow_is_409_for_everyone(self):
+        # En el flujo corto no existen start/review/return/resubmit: no hay permisos que evaluar.
+        aid = self.assignment_of(self.make_task("confirm_activity", publish=True))
+        for action in ("start", "review", "return", "resubmit"):
+            for who in (self.t[0], "authority"):
+                with self.subTest(action=action, who=who):
+                    with self.assertRaises(Conflict):
+                        self.do(aid, action, who)
+
+    def test_unknown_assignment_is_404_before_permissions(self):
+        with self.assertRaises(NotFound):
+            self.do(9999, "approve", self.t[0])
 
     def test_non_assignee_cannot_start_or_submit_403(self):
         aid = self.assignment_of(self.make_task(publish=True))

@@ -1,7 +1,19 @@
+"""Servicio de transiciones: el ÚNICO lugar que decide si una acción es válida.
+
+Recibe "esta asignación, esta acción, este usuario" y verifica, en orden:
+    1. la asignación existe                                  -> 404
+    2. el usuario tiene permiso para la acción               -> 403
+         (su rol puede ejecutarla y es el destinatario / revisor / coordinador correcto)
+    3. el estado actual permite la acción (según el flujo)   -> 409
+    4. el comentario obligatorio está presente               -> 422
+Los permisos van ANTES que el estado: quien no puede ejecutar una acción recibe 403 aunque la
+transición además sea inválida (y no se le revela en qué estado está la asignación).
+Todas las verificaciones ocurren ANTES de escribir, así un rechazo no toca la base.
+"""
 from . import events
 from .db import transaction, utcnow
 from .errors import Conflict, Forbidden, NotFound, ValidationFailed
-from .matrix import ACTIONS, FLOWS
+from .matrix import ACTIONS, BY_ACTION, FLOWS
 
 
 def get_actor(conn, actor_id):
@@ -35,6 +47,25 @@ def authorize(rule, actor, task, assignee_id=None):
     elif rule.scope == "task_coordinator":
         if actor["id"] not in (task["created_by"], task["responsible_id"]):
             raise Forbidden("No eres el coordinador autorizado de esta tarea")
+
+
+def authorize_action(flow, action, actor, task, assignee_id=None):
+    """Permisos de una acción SIN mirar el estado actual (así se puede responder 403 antes que 409).
+
+    Una acción puede tener varias reglas en el flujo (una por estado de origen). El usuario
+    pasa si alguna le da permiso; si ninguna lo hace, se propaga el primer 403.
+    Si la acción no existe en el flujo no hay nada que autorizar: lo resuelve get_rule() con 409.
+    """
+    first_error = None
+    for rule in BY_ACTION[flow].get(action, ()):
+        try:
+            authorize(rule, actor, task, assignee_id)
+            return
+        except Forbidden as exc:
+            if first_error is None:
+                first_error = exc
+    if first_error is not None:
+        raise first_error
 
 
 def record_transition(conn, assignment_id, actor_id, action, from_state, to_state,
@@ -72,9 +103,10 @@ def perform(conn, assignment_id, action, actor, comment=None):
         if row is None:
             raise NotFound(f"Asignación {assignment_id} no existe")
 
-        rule = get_rule(row["flow"], row["status"], action)           # 409
-        authorize(rule, actor, row, row["assignee_id"])                # 403
-        if rule.comment_required and not comment:                      # 422
+        authorize_action(row["flow"], action, actor, row, row["assignee_id"])   # 403 (primero)
+        rule = get_rule(row["flow"], row["status"], action)                     # 409
+        authorize(rule, actor, row, row["assignee_id"])   # 403 (la regla exacta; defensivo)
+        if rule.comment_required and not comment:                               # 422
             raise ValidationFailed(f"La acción '{action}' requiere un comentario",
                                    details={"field": "comment"})
 

@@ -1,3 +1,7 @@
+"""Escenario semilla: una tarea individual y una masiva.
+
+Uso:  python -m workflow.seed [ruta.db]      (por defecto workflow.db)
+"""
 import sys
 
 from . import tasks, transitions
@@ -66,6 +70,7 @@ def seed_scenario(conn, ids):
         "type_id": ids["types"]["confirm_activity"], "title": "Confirmar jornada de inducción",
         "due_date": "2026-12-01"})
 
+    # Avance de ejemplo para que el seguimiento no esté vacío.
     first = conn.execute("SELECT id FROM assignments WHERE task_id = ? ORDER BY id LIMIT 2",
                          (t_mass["id"],)).fetchall()
     t1 = transitions.get_actor(conn, ids["teachers"][0])

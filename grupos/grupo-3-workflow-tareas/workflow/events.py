@@ -1,3 +1,14 @@
+"""Eventos para el Grupo 6 (notificaciones).
+
+El Grupo 3 solo los deja disponibles en la tabla `events`, dentro de la misma
+transacción que el cambio de estado. El Grupo 6 los lee con list_events()
+o con GET /api/v1/events?after_id=N.
+
+Tipos emitidos:
+    assignment.status_changed  cada transición (incluye la creación al publicar)
+    task.published             al publicar una tarea
+    task.cancelled             al cancelar una tarea
+"""
 import json
 
 from .db import utcnow

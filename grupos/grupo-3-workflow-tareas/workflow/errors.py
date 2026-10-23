@@ -1,3 +1,6 @@
+"""Errores de dominio. Cada uno lleva el código HTTP que debe responder la API."""
+
+
 class WorkflowError(Exception):
     status_code = 400
     code = "error"
@@ -10,10 +13,9 @@ class WorkflowError(Exception):
             self.code = code
 
     def to_dict(self):
-        body = {"code": self.code, "message": self.message}
-        if self.details is not None:
-            body["details"] = self.details
-        return {"error": body}
+        # Formato del CONTRATO_COMUN: {"error": {"code", "message", "details"}}
+        return {"error": {"code": self.code, "message": self.message,
+                          "details": self.details}}
 
 
 class Unauthorized(WorkflowError):
