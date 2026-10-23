@@ -264,7 +264,7 @@ def publish_task(conn, actor, task_id):
         rule = transitions.get_rule(task["flow"], "draft", "publish")
         transitions.authorize(rule, actor, task)
         if task["status"] != "draft":
-            raise Conflict("La tarea ya fue publicada o cancelada", code="already_published")
+            raise Conflict("La tarea ya fue publicada o cancelada", code="conflict")
         if not task["recipient_rule"]:
             raise ValidationFailed("Configura los destinatarios antes de publicar")
         ids = resolve_recipients(conn, json.loads(task["recipient_rule"]))
@@ -276,7 +276,7 @@ def publish_task(conn, actor, task_id):
             "UPDATE tasks SET status = 'published', published_at = ?, updated_at = ?"
             " WHERE id = ? AND status = 'draft'", (now, now, task_id))
         if cur.rowcount != 1:
-            raise Conflict("La tarea ya fue publicada", code="already_published")
+            raise Conflict("La tarea ya fue publicada", code="conflict")
 
         created = []
         for user_id in ids:
