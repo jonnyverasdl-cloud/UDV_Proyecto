@@ -2,6 +2,7 @@ import uuid # <----- Nombre interno aleatorio del archivo
 from fastapi import APIRouter, File, UploadFile, HTTPException, Depends
 import puremagic # <----- Dependencia Para verificar el tipo de archivo
 from g2_api.middleware.auth_middleware import obtener_usuario_actual
+from g2_api.models import Usuario
 from pathlib import Path
 from fastapi.responses import FileResponse
 
@@ -24,7 +25,7 @@ MIMETYPES_PERMITIDOS = {
 # Definir la ruta para verificar el archivo subido
 @router.post("")
 async def verificar_archivo(file: UploadFile = File(...),
-    usuario_actual: dict = Depends(obtener_usuario_actual)
+    usuario_actual: Usuario = Depends(obtener_usuario_actual)
 ):
     contenido = await file.read()
 
@@ -70,7 +71,7 @@ async def verificar_archivo(file: UploadFile = File(...),
     return {
         "file_id": file_id,
         "nombre_interno": nombre_interno,
-        "usuario": usuario_actual["correo"]
+        "usuario": usuario_actual.correo
     }
     
 
@@ -78,7 +79,7 @@ async def verificar_archivo(file: UploadFile = File(...),
 @router.get("/{id}")
 async def descargar_archivo(
     file_id: str,
-    usuario_actual: dict = Depends(obtener_usuario_actual)
+    usuario_actual: Usuario = Depends(obtener_usuario_actual)
 ):
 
     carpeta = Path("uploads")

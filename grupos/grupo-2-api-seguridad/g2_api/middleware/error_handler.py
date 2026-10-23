@@ -170,7 +170,7 @@ async def _validation_exception_handler(request: Request, exc: RequestValidation
         })
 
     return error_response(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         code=ErrorCode.VALIDATION_ERROR,
         message="Datos de entrada inválidos.",
         details={"campos": campos},

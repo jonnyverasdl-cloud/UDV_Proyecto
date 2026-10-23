@@ -270,7 +270,7 @@ def test_registrar_login_fallido_guarda_correo_en_detalle(db_mem):
     fila = db_mem.query(_AuditoriaFake).one()
     assert fila.accion      == "LOGIN_FALLIDO"
     assert fila.actor_id    is None                    
-    assert fila.registro_id is None                     
+    assert fila.registro_id == 0  # la base no acepta vacio
     assert fila.detalle     == {"correo": "x@y.com"}    
     assert fila.ip_origen   == "10.0.0.1"
 
