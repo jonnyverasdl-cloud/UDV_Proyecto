@@ -1,254 +1,357 @@
 
 document.addEventListener("DOMContentLoaded", async () => {
-  const API = "http://127.0.0.1:8000";
-  const programaId = 1;
+  // Dirección de la API y elementos de la página que usamos más adelante.
+  const API = "http://127.0.0.1:8000/api/v1";
+  const programId = 1;
 
   const $ = (selector) => document.querySelector(selector);
 
-  const rol = $("#rol");
-  const estadoPrograma = $("#estado-programa");
-  const numeroVersion = $("#numero-version");
-  const estadoGuardado = $("#estado-guardado");
+  const role = $("#role");
+  const programStatus = $("#program-status");
+  const versionNumberLabel = $("#version-number");
+  const saveStatus = $("#save-status");
 
-  const docente = $("#docente");
-  const nombreDecanatura = $("#nombre-decanatura");
-  const nombreCoordinador = $("#nombre-coordinador");
+  const instructor = $("#instructor");
+  const deanName = $("#dean-name");
+  const coordinatorName = $("#coordinator-name");
 
-  const guardar = $("#guardar-seccion");
-  const crearVersion = $("#crear-version");
-  const enviarRevision = $("#enviar-revision");
-  const devolver = $("#devolver");
-  const aprobar = $("#aprobar");
-  const autorizar = $("#autorizar");
-  const vistaPreviaPdf = $("#vista-previa-pdf");
-  const imprimirPdf = $("#imprimir-pdf");
-  const cerrarVistaPrevia = $("#cerrar-vista-previa");
-  const documentoPdf = $("#documento-pdf");
-  const cancelar = $("#cancelar-cambios");
+  const saveButton = $("#save-section");
+  const createVersionButton = $("#create-version");
+  const submitForReviewButton = $("#submit-review");
+  const reviewButton = $("#review-program");
+  const returnButton = $("#return-program");
+  const approveButton = $("#approve-program");
+  const authorizeButton = $("#authorize-version");
+  const pdfPreviewButton = $("#pdf-preview");
+  const printPdfButton = $("#print-pdf");
+  const closePreviewButton = $("#close-preview");
+  const pdfDocument = $("#pdf-document");
+  const cancelButton = $("#cancel-changes");
 
-  const enlacesSecciones = document.querySelectorAll(".nav-secciones a");
-  const secciones = document.querySelectorAll(".seccion");
-  const camposPrograma = document.querySelectorAll(
-    ".seccion input, .seccion textarea, .seccion select",
+  const sectionLinks = document.querySelectorAll(".section-nav a");
+  const sections = document.querySelectorAll(".section");
+  const programFields = document.querySelectorAll(
+    ".section input, .section textarea, .section select",
   );
 
-  let programa = null;
-  let versionActual = null;
+  // Aquí guardamos el programa y la versión que se está mostrando.
+  let program = null;
+  let programLoaded = false;
+  let currentVersion = null;
+  let programVersions = [];
   let versionId = null;
-  let estado = "borrador";
-  let version = 1;
-  let guardando = false;
+  let state = "draft";
+  let currentVersionNumber = 1;
+  let isSaving = false;
 
-  const nombresRol = {
+  const roleNames = {
     docente: "Docente",
     "coordinador-academico": "Coordinador académico",
     decanatura: "Decanatura",
   };
 
-  const nombresEstado = {
-    borrador: "BORRADOR",
-    en_revision: "EN REVISIÓN",
-    devuelto: "DEVUELTO",
-    aprobado: "APROBADO",
-    vigente: "VIGENTE",
-    reemplazado: "REEMPLAZADO",
+  const statusNames = {
+    draft: "BORRADOR",
+    submitted: "ENVIADA",
+    under_review: "EN REVISIÓN",
+    returned: "DEVUELTO",
+    approved: "APROBADO",
+    authorized: "AUTORIZADO",
+    superseded: "REEMPLAZADO",
   };
 
-  function usuarioActual() {
-    if (rol.value === "docente") {
-      return docente.value.trim();
-    }
-
-    if (rol.value === "coordinador-academico") {
-      return nombreCoordinador.value.trim();
-    }
-
-    return nombreDecanatura.value.trim();
+  // Elegimos qué versión mostrar según el rol y el paso en que va.
+  /**
+   * Busca la versión más nueva del historial.
+   * Si aún no hay ninguna, devuelve null.
+   */
+  function getLatestVersion() {
+    return programVersions.reduce(
+      (latestVersion, item) =>
+        !latestVersion || item.numero_version > latestVersion.numero_version ? item : latestVersion,
+      null,
+    );
   }
 
-  function mostrarMensaje(mensaje) {
-    estadoGuardado.textContent = mensaje;
+  /** Guarda la versión en la lista local o actualiza sus datos si ya estaba. */
+  function updateProgramVersion(data) {
+    const index = programVersions.findIndex((item) => item.id === data.id);
+    if (index === -1) {
+      programVersions.push(data);
+    } else {
+      programVersions[index] = { ...programVersions[index], ...data };
+    }
   }
 
-  async function solicitar(ruta, opciones = {}) {
-    const respuesta = await fetch(`${API}${ruta}`, {
-      ...opciones,
+  /**
+   * Muestra a cada rol la versión que le toca: la que debe revisar o autorizar,
+   * o la más reciente que todavía se puede editar.
+   */
+  function selectVersionForRole(selectedRole) {
+    const latestVersion = getLatestVersion();
+
+    if (selectedRole === "decanatura" && latestVersion?.estado === "approved") {
+      return latestVersion;
+    }
+
+    if (
+      selectedRole === "coordinador-academico" &&
+      ["submitted", "under_review", "approved"].includes(latestVersion?.estado)
+    ) {
+      return latestVersion;
+    }
+
+    const editableVersions = programVersions
+      .filter((item) => ["draft", "returned"].includes(item.estado))
+      .sort((a, b) => b.numero_version - a.numero_version);
+
+    return (
+      editableVersions[0] ||
+      programVersions.find(
+        (item) =>
+          item.numero_version === program?.version_actual &&
+          item.estado === "authorized",
+      ) ||
+      latestVersion
+    );
+  }
+
+  /** Le cuenta al usuario qué falta hacer con la versión que está viendo. */
+  function getVersionStatusMessage() {
+    const latestVersion = getLatestVersion();
+    if (!latestVersion) return `Rol seleccionado: ${roleNames[role.value]}`;
+
+    if (role.value === "decanatura" && latestVersion.estado === "approved") {
+      return `La versión ${latestVersion.numero_version} está aprobada y pendiente de autorización.`;
+    }
+
+    if (role.value === "coordinador-academico" && latestVersion.estado !== "authorized") {
+      const nextStep = {
+        draft: "el docente debe enviarla a revisión",
+        submitted: "Coordinación académica debe tomar la revisión",
+        under_review: "Coordinación académica debe aprobarla o devolverla",
+        returned: "el docente debe corregirla y enviarla nuevamente",
+        approved: "Decanatura debe autorizarla",
+      }[latestVersion.estado] || "debe completarse su revisión y autorización";
+
+      return `La versión ${latestVersion.numero_version} aún no está vigente: ${nextStep}.`;
+    }
+
+    return `Rol seleccionado: ${roleNames[role.value]}`;
+  }
+
+  // Toma el nombre de la persona que corresponde al rol seleccionado.
+  function currentUser() {
+    if (role.value === "docente") {
+      return instructor.value.trim();
+    }
+
+    if (role.value === "coordinador-academico") {
+      return coordinatorName.value.trim();
+    }
+
+    return deanName.value.trim();
+  }
+
+  /** Muestra un aviso junto al encabezado del programa. */
+  function showMessage(message) {
+    saveStatus.textContent = message;
+  }
+
+  // Envía solicitudes a la API y muestra sus errores de forma entendible.
+  async function request(path, options = {}) {
+    const response = await fetch(`${API}${path}`, {
+      ...options,
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
-        ...opciones.headers,
+        ...options.headers,
       },
     });
 
-    const texto = await respuesta.text();
-    let resultado = {};
+    const text = await response.text();
+    let result = {};
 
-    if (texto) {
+    if (text) {
       try {
-        resultado = JSON.parse(texto);
+        result = JSON.parse(text);
       } catch {
-        resultado = { mensaje: texto };
+        result = { mensaje: text };
       }
     }
 
-    if (!respuesta.ok) {
+    if (!response.ok) {
       throw new Error(
-        resultado.error ||
-          resultado.mensaje ||
-          `Error del servidor: ${respuesta.status}`,
+        result.error?.message ||
+          result.error ||
+          result.mensaje ||
+          `Error del servidor: ${response.status}`,
       );
     }
 
-    return resultado;
+    return result;
   }
 
-  function enviarJSON(ruta, metodo, datos) {
-    return solicitar(ruta, {
-      method: metodo,
-      body: JSON.stringify(datos),
+  /** Envía datos JSON, por ejemplo, al guardar o cambiar el estado. */
+  function sendJson(path, method, data) {
+    return request(path, {
+      method: method,
+      body: JSON.stringify(data),
     });
   }
 
-  function valor(id) {
+  // Leer y cargar lo que la persona escribe en el formulario.
+  /** Lee un campo por su ID; si no existe, deja el valor vacío. */
+  function getValue(id) {
     return document.getElementById(id)?.value ?? "";
   }
 
-  function asignar(id, dato) {
-    const elemento = document.getElementById(id);
+  /**
+   * Pone un dato en el campo correspondiente. En las listas desplegables,
+   * busca tanto por el valor como por el texto que se muestra.
+   */
+  function setValue(id, dataItem) {
+    const element = document.getElementById(id);
 
-    if (!elemento || dato === undefined || dato === null) return;
+    if (!element || dataItem === undefined || dataItem === null) return;
 
-    if (elemento.tagName === "SELECT") {
-      const opcion = [...elemento.options].find(
-        (item) => item.value === String(dato) ||
-          item.textContent.trim() === String(dato),
+    if (element.tagName === "SELECT") {
+      const option = [...element.options].find(
+        (item) => item.value === String(dataItem) ||
+          item.textContent.trim() === String(dataItem),
       );
 
-      if (opcion) elemento.value = opcion.value;
+      if (option) element.value = option.value;
       return;
     }
 
-    elemento.value = dato;
+    element.value = dataItem;
   }
 
-  function contenidoDe(versionDatos, nombre) {
-    return versionDatos?.secciones?.[nombre]?.contenido || {};
+  /** Busca los datos de una sección; si aún no tiene, usa un objeto vacío. */
+  function getSectionContent(versionData, name) {
+    return versionData?.secciones?.[name]?.contenido || {};
   }
 
-  function capturarGeneral() {
+  /** Junta la información general y le pone los nombres que espera la API. */
+  function captureGeneral() {
     return {
-      codigo: valor("codigo"),
-      asignatura: valor("asignatura"),
-      programa: valor("programa"),
-      departamento: valor("departamento"),
-      facultad: valor("facultad"),
-      area_formacion: valor("area-formacion"),
-      pensum: valor("pensum"),
-      ciclo: valor("ciclo"),
-      anio: valor("anio"),
-      nivel: valor("nivel"),
-      modalidad: valor("modalidad"),
-      creditos: valor("creditos"),
-      horas: valor("horas"),
-      sede: valor("sede"),
+      codigo: getValue("course-code"),
+      asignatura: getValue("course"),
+      programa: getValue("program-name"),
+      departamento: getValue("department"),
+      facultad: getValue("faculty"),
+      area_formacion: getValue("training-area"),
+      pensum: getValue("curriculum"),
+      ciclo: getValue("term"),
+      anio: getValue("year"),
+      nivel: getValue("level"),
+      modalidad: getValue("modality"),
+      creditos: getValue("credits"),
+      horas: getValue("hours"),
+      sede: getValue("campus"),
     };
   }
 
-  function capturarPrerrequisitos() {
-    const filas = [...document.querySelectorAll("#prerrequisitos tbody tr")];
+  /** Lee las filas de prerrequisitos y las deja listas para guardar. */
+  function capturePrerequisites() {
+    const rows = [...document.querySelectorAll("#prerequisites tbody tr")];
 
     return {
-      asignaturas: filas.map((fila) => {
-        const controles = fila.querySelectorAll("input");
+      asignaturas: rows.map((row) => {
+        const controls = row.querySelectorAll("input");
 
         return {
-          asignatura: controles[0]?.value || "",
-          codigo: controles[1]?.value || "",
-          orden: controles[2]?.value || "",
+          asignatura: controls[0]?.value || "",
+          codigo: controls[1]?.value || "",
+          orden: controls[2]?.value || "",
         };
       }),
     };
   }
 
-  function capturarSecciones() {
+  // Convierte los campos visibles del formulario al formato que espera la API.
+  function captureSections() {
     return {
       responsables: {
-        docente: docente.value,
-        decanatura: nombreDecanatura.value,
-        coordinador: nombreCoordinador.value,
+        docente: instructor.value,
+        decanatura: deanName.value,
+        coordinador: coordinatorName.value,
       },
 
-      general: capturarGeneral(),
+      general: captureGeneral(),
 
-      prerrequisitos: capturarPrerrequisitos(),
+      prerrequisitos: capturePrerequisites(),
 
       descripcion: {
-        texto: valor("descripcion-texto"),
+        texto: getValue("description-text"),
       },
 
       competencias: {
-        general: valor("competencia-general"),
-        especificas: valor("competencias-especificas"),
+        general: getValue("general-competency"),
+        especificas: getValue("specific-competencies"),
       },
 
       perfil: {
-        codigo: valor("perfil-codigo"),
-        contribucion: valor("perfil-contribucion"),
+        codigo: getValue("profile-code"),
+        contribucion: getValue("profile-contribution"),
       },
 
       metodologia: {
-        texto: valor("metodologia-texto"),
+        texto: getValue("methodology-text"),
       },
 
       contenidos: {
-        texto: valor("contenidos-texto"),
+        texto: getValue("contents-text"),
       },
 
       bibliografia: {
-        texto: valor("bibliografia-texto"),
+        texto: getValue("bibliography-text"),
       },
 
       evaluacion: {
-        parcial: valor("evaluacion-parcial"),
-        final: valor("evaluacion-final"),
-        proyecto: valor("evaluacion-proyecto"),
+        parcial: getValue("midterm-assessment"),
+        final: getValue("final-assessment"),
+        proyecto: getValue("project-assessment"),
       },
     };
   }
 
-  function cargarSecciones(datosVersion) {
-    const general = contenidoDe(datosVersion, "general");
-    const responsables = contenidoDe(datosVersion, "responsables");
-    const prerrequisitos = contenidoDe(datosVersion, "prerrequisitos");
-    const descripcion = contenidoDe(datosVersion, "descripcion");
-    const competencias = contenidoDe(datosVersion, "competencias");
-    const perfil = contenidoDe(datosVersion, "perfil");
-    const metodologia = contenidoDe(datosVersion, "metodologia");
-    const contenidos = contenidoDe(datosVersion, "contenidos");
-    const bibliografia = contenidoDe(datosVersion, "bibliografia");
-    const evaluacion = contenidoDe(datosVersion, "evaluacion");
+  // Rellena el formulario con la versión y usa el programa como respaldo inicial.
+  function loadSections(versionData) {
+    const general = getSectionContent(versionData, "general");
+    const responsibleSection = getSectionContent(versionData, "responsables");
+    const prerequisites = getSectionContent(versionData, "prerrequisitos");
+    const description = getSectionContent(versionData, "descripcion");
+    const competencies = getSectionContent(versionData, "competencias");
+    const profile = getSectionContent(versionData, "perfil");
+    const methodology = getSectionContent(versionData, "metodologia");
+    const contentSection = getSectionContent(versionData, "contenidos");
+    const bibliography = getSectionContent(versionData, "bibliografia");
+    const evaluation = getSectionContent(versionData, "evaluacion");
 
     // Los datos del programa sirven como valores iniciales.
-    asignar("codigo", programa?.codigo || "PW-001");
-    asignar("asignatura", programa?.asignatura || "Programación Web");
-    asignar(
-      "programa",
-      programa?.programa_academico || "Ingeniería en Sistemas",
+    setValue("course-code", program?.codigo || "PW-001");
+    setValue("course", program?.asignatura || "Programación Web");
+    setValue(
+      "program-name",
+      program?.programa_academico || "Ingeniería en Sistemas",
     );
-    asignar("departamento", programa?.departamento || "Tecnología");
-    asignar("facultad", programa?.facultad || "Ingeniería");
-    asignar("area-formacion", programa?.area_formacion || "");
-    asignar("pensum", programa?.pensum || "");
-    asignar("ciclo", programa?.ciclo_academico || "Segundo ciclo");
-    asignar("anio", programa?.anio || 2026);
-    asignar("nivel", programa?.nivel_academico || "Licenciatura");
-    asignar("modalidad", programa?.modalidad || "Presencial");
-    asignar("creditos", programa?.creditos ?? 4);
-    asignar("horas", programa?.horas_semanales ?? 64);
-    asignar("sede", programa?.sede || "Campus Central");
+    setValue("department", program?.departamento || "Tecnología");
+    setValue("faculty", program?.facultad || "Ingeniería");
+    setValue("training-area", program?.area_formacion || "");
+    setValue("curriculum", program?.pensum || "");
+    setValue("term", program?.ciclo_academico || "Segundo ciclo");
+    setValue("year", program?.anio || 2026);
+    setValue("level", program?.nivel_academico || "Licenciatura");
+    setValue("modality", program?.modalidad || "Presencial");
+    setValue("credits", program?.creditos ?? 4);
+    setValue("hours", program?.horas_semanales ?? 64);
+    setValue("campus", program?.sede || "Campus Central");
 
     // Los valores guardados en la sección tienen prioridad.
-    Object.entries(general).forEach(([campo, dato]) => {
-      const equivalencias = {
+    Object.entries(general).forEach(([field, dataItem]) => {
+      const fieldMappings = {
         programa: "programa",
         ciclo: "ciclo",
         anio: "anio",
@@ -256,606 +359,710 @@ document.addEventListener("DOMContentLoaded", async () => {
         horas: "horas",
       };
 
-      asignar(equivalencias[campo] || campo, dato);
+      setValue(fieldMappings[field] || field, dataItem);
     });
 
-    asignar(
-      "docente",
-      responsables.docente || programa?.profesor || "",
+    setValue(
+      "instructor",
+      responsibleSection.docente || program?.profesor || "",
     );
-    asignar("nombre-decanatura", responsables.decanatura ?? "");
-    asignar("nombre-coordinador", responsables.coordinador ?? "");
+    setValue("dean-name", responsibleSection.decanatura ?? "");
+    setValue("coordinator-name", responsibleSection.coordinador ?? "");
 
-    asignar("descripcion-texto", descripcion.texto ?? "");
-    asignar("competencia-general", competencias.general ?? "");
-    asignar("competencias-especificas", competencias.especificas ?? "");
-    asignar("perfil-codigo", perfil.codigo ?? "");
-    asignar("perfil-contribucion", perfil.contribucion ?? "");
-    asignar("metodologia-texto", metodologia.texto ?? "");
-    asignar("contenidos-texto", contenidos.texto ?? "");
-    asignar("bibliografia-texto", bibliografia.texto ?? "");
-    asignar("evaluacion-parcial", evaluacion.parcial ?? "");
-    asignar("evaluacion-final", evaluacion.final ?? "");
-    asignar("evaluacion-proyecto", evaluacion.proyecto ?? "");
+    setValue("description-text", description.texto ?? "");
+    setValue("general-competency", competencies.general ?? "");
+    setValue("specific-competencies", competencies.especificas ?? "");
+    setValue("profile-code", profile.codigo ?? "");
+    setValue("profile-contribution", profile.contribucion ?? "");
+    setValue("methodology-text", methodology.texto ?? "");
+    setValue("contents-text", contentSection.texto ?? "");
+    setValue("bibliography-text", bibliography.texto ?? "");
+    setValue("midterm-assessment", evaluation.parcial ?? "");
+    setValue("final-assessment", evaluation.final ?? "");
+    setValue("project-assessment", evaluation.proyecto ?? "");
 
-    if (Array.isArray(prerrequisitos.asignaturas)) {
-      cargarFilasPrerrequisitos(prerrequisitos.asignaturas);
+    if (Array.isArray(prerequisites.asignaturas)) {
+      loadPrerequisiteRows(prerequisites.asignaturas);
     }
   }
 
-  function cargarFilasPrerrequisitos(filas) {
-    const cuerpo = $("#prerrequisitos tbody");
-    cuerpo.replaceChildren();
+  /** Reconstruye la tabla de prerrequisitos con los registros recibidos del servidor. */
+  function loadPrerequisiteRows(rows) {
+    const bodyElement = $("#prerequisites tbody");
+    bodyElement.replaceChildren();
 
-    filas.forEach((dato) => {
-      const fila = document.createElement("tr");
+    rows.forEach((dataItem) => {
+      const row = document.createElement("tr");
 
       [
-        ["text", dato.asignatura],
-        ["text", dato.codigo],
-        ["number", dato.orden],
-      ].forEach(([tipo, contenido]) => {
-        const celda = document.createElement("td");
+        ["text", dataItem.asignatura],
+        ["text", dataItem.codigo],
+        ["number", dataItem.orden],
+      ].forEach(([type, content]) => {
+        const cell = document.createElement("td");
         const input = document.createElement("input");
 
-        input.type = tipo;
-        input.value = contenido ?? "";
-        celda.append(input);
-        fila.append(celda);
+        input.type = type;
+        input.value = content ?? "";
+        cell.append(input);
+        row.append(cell);
       });
 
-      cuerpo.append(fila);
+      bodyElement.append(row);
     });
   }
 
-  async function cargarPrograma(id) {
-    const resultado = await solicitar(`/course-programs/${id}`);
+  // Cargar una versión, guardar cambios y actualizar el estado en pantalla.
+  // Selecciona primero una versión editable; si no existe, muestra la vigente más reciente.
+  async function loadProgram(id) {
+    const result = await request(`/course-programs/${id}`);
 
-    programa = resultado.programa || resultado;
-    const versiones = resultado.versiones || [];
+    program = result.programa || result;
+    programVersions = result.versiones || [];
 
-    if (!programa) {
+    if (!program) {
       throw new Error("No se encontró el programa solicitado.");
     }
 
-    // Priorizar un borrador o una versión devuelta para continuar editando.
-    const editables = versiones.filter((item) =>
-      ["borrador", "devuelto"].includes(item.estado),
-    );
+    const selectedVersion = selectVersionForRole(role.value);
 
-    const seleccionada =
-      editables.sort(
-        (a, b) =>
-          (b.numero_version || 0) - (a.numero_version || 0),
-      )[0] ||
-      versiones.find(
-        (item) =>
-          item.numero_version === programa.version_actual &&
-          item.estado === "vigente",
-      ) ||
-      versiones.sort(
-        (a, b) =>
-          (b.numero_version || 0) - (a.numero_version || 0),
-      )[0];
-
-    if (seleccionada) {
-      await cargarVersion(seleccionada.id);
+    if (selectedVersion) {
+      await loadVersion(selectedVersion.id);
     } else {
       throw new Error("El programa todavía no tiene versiones.");
     }
   }
 
-  async function cargarVersion(id) {
-    const datos = await solicitar(`/program-versions/${id}`);
+  // Sincroniza la versión seleccionada y refresca tanto el formulario como sus permisos.
+  async function loadVersion(id) {
+    const data = await request(`/program-versions/${id}`);
 
-    versionActual = datos;
-    versionId = datos.id ?? id;
-    version = datos.numero_version ?? 1;
-    estado = datos.estado || "borrador";
+    updateProgramVersion(data);
+    currentVersion = data;
+    versionId = data.id ?? id;
+    currentVersionNumber = data.numero_version ?? 1;
+    state = data.estado || "draft";
+    programLoaded = true;
 
-    cargarSecciones(datos);
-    actualizarEstado();
+    loadSections(data);
+    updateStatus();
   }
 
-  async function guardarEnServidor() {
+  // Persiste cada sección por separado para no reemplazar datos de otras secciones.
+  async function saveOnServer() {
     if (!versionId) {
       throw new Error("No hay una versión seleccionada para guardar.");
     }
 
-    const seccionesCapturadas = capturarSecciones();
+    const capturedSections = captureSections();
 
-    for (const [nombre, contenido] of Object.entries(seccionesCapturadas)) {
-      await enviarJSON(
-        `/program-versions/${versionId}/sections/${nombre}`,
+    for (const [name, content] of Object.entries(capturedSections)) {
+      await sendJson(
+        `/program-versions/${versionId}/sections/${name}`,
         "PUT",
         {
-          usuario: usuarioActual(),
-          rol: rol.value,
-          contenido,
+          contenido: content,
         },
       );
     }
 
-    versionActual = await solicitar(`/program-versions/${versionId}`);
-    estado = versionActual.estado || estado;
+    currentVersion = await request(`/program-versions/${versionId}`);
+    state = currentVersion.estado || state;
 
-    actualizarEstado();
-    mostrarMensaje("Borrador guardado en el servidor.");
+    updateStatus();
+    showMessage("Borrador guardado en el servidor.");
   }
 
-  async function ejecutarAccion(accion, mensaje, datos = {}) {
+  // Envía una transición del flujo y recarga el estado confirmado por el servidor.
+  async function executeAction(action, message, data = {}) {
     if (!versionId) {
       throw new Error("No hay una versión seleccionada.");
     }
 
-    await enviarJSON(`/program-versions/${versionId}/${accion}`, "POST", {
-      usuario: usuarioActual(),
-      rol: rol.value,
-      ...datos,
+    const result = await sendJson(`/program-versions/${versionId}/${action}`, "POST", {
+      ...data,
     });
 
-    await cargarVersion(versionId);
-    mostrarMensaje(mensaje);
+    if (result.programa) program = result.programa;
+    if (result.version) updateProgramVersion(result.version);
+
+    await loadVersion(versionId);
+    showMessage(message);
   }
 
+  // Cambiar de sección y responder a los botones del flujo.
   // Navegación entre secciones.
-  enlacesSecciones.forEach((enlace) => {
-    enlace.addEventListener("click", (evento) => {
-      evento.preventDefault();
+  sectionLinks.forEach((link) => {
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
 
-      const id = enlace.getAttribute("href").substring(1);
+      const id = link.getAttribute("href").substring(1);
 
-      enlacesSecciones.forEach((item) => item.classList.remove("activa"));
-      secciones.forEach((item) => item.classList.remove("activa"));
+      sectionLinks.forEach((item) => item.classList.remove("active"));
+      sections.forEach((item) => item.classList.remove("active"));
 
-      enlace.classList.add("activa");
-      document.getElementById(id)?.classList.add("activa");
+      link.classList.add("active");
+      document.getElementById(id)?.classList.add("active");
     });
   });
 
-  rol.addEventListener("change", () => {
-    actualizarEstado();
-    mostrarMensaje("Rol seleccionado: " + nombresRol[rol.value]);
+  role.addEventListener("change", async () => {
+    const selectedVersion = selectVersionForRole(role.value);
+    if (selectedVersion && selectedVersion.id !== versionId) {
+      await withLoading(async () => {
+        await loadVersion(selectedVersion.id);
+        showMessage(getVersionStatusMessage());
+      });
+      return;
+    }
+
+    updateStatus();
+    showMessage(getVersionStatusMessage());
   });
 
   // Guardar todas las secciones de la versión.
-  guardar.addEventListener("click", async () => {
-    if (rol.value !== "docente") {
+  saveButton.addEventListener("click", async () => {
+    if (role.value !== "docente") {
       alert("Solo el docente puede guardar el borrador.");
       return;
     }
 
-    if (!["borrador", "devuelto"].includes(estado)) {
+    if (!["draft", "returned"].includes(state)) {
       alert("El programa no se puede modificar en este estado.");
       return;
     }
 
-    await conCarga(async () => {
-      await guardarEnServidor();
+    await withLoading(async () => {
+      await saveOnServer();
     });
   });
 
-  enviarRevision.addEventListener("click", async () => {
-    if (rol.value !== "docente") {
+  // Antes de enviar, guarda los campos actuales para que la revisión use lo más reciente.
+  submitForReviewButton.addEventListener("click", async () => {
+    if (role.value !== "docente") {
       alert("Solo el docente puede enviar el programa a revisión.");
       return;
     }
 
-    if (!docente.value.trim()) {
+    if (!instructor.value.trim()) {
       alert("Escribe el nombre del docente antes de enviar a revisión.");
       return;
     }
 
-    if (!["borrador", "devuelto"].includes(estado)) {
+    if (!["draft", "returned"].includes(state)) {
       alert("Solo puedes enviar un borrador o un programa devuelto.");
       return;
     }
 
-    await conCarga(async () => {
-      await guardarEnServidor();
+    await withLoading(async () => {
+      await saveOnServer();
 
-      await ejecutarAccion("submit", "Programa enviado a revisión.");
+      await executeAction("submit", "Programa enviado a revisión.");
     });
   });
 
-  devolver.addEventListener("click", async () => {
-    if (rol.value !== "coordinador-academico") {
+  reviewButton.addEventListener("click", async () => {
+    if (role.value !== "coordinador-academico" || state !== "submitted") {
+      alert("Solo Coordinación académica puede tomar una versión enviada.");
+      return;
+    }
+    await withLoading(() => executeAction("review", "Revisión iniciada."));
+  });
+
+  returnButton.addEventListener("click", async () => {
+    if (role.value !== "coordinador-academico") {
       alert("Solo Coordinación académica puede devolver el programa.");
       return;
     }
 
-    if (estado !== "en_revision") {
+    if (state !== "under_review") {
       alert("El programa debe estar en revisión.");
       return;
     }
 
-    if (!nombreCoordinador.value.trim()) {
+    if (!coordinatorName.value.trim()) {
       alert("Escribe el nombre del coordinador académico.");
       return;
     }
 
-    const observacion = prompt("Indica por qué se devuelve el programa.");
-    if (observacion === null) return;
-    if (!observacion.trim()) {
+    const observation = prompt("Indica por qué se devuelve el programa.");
+    if (observation === null) return;
+    if (!observation.trim()) {
       alert("Debes indicar una observación para devolver el programa.");
       return;
     }
 
-    await conCarga(() =>
-      ejecutarAccion("return", "Programa devuelto al docente.", {
-        observacion: observacion.trim(),
+    await withLoading(() =>
+      executeAction("return", "Programa devuelto al docente.", {
+        observacion: observation.trim(),
       }),
     );
   });
 
-  aprobar.addEventListener("click", async () => {
-    if (rol.value !== "coordinador-academico") {
+  approveButton.addEventListener("click", async () => {
+    if (role.value !== "coordinador-academico") {
       alert("Solo Coordinación académica puede aprobar el programa.");
       return;
     }
 
-    if (estado !== "en_revision") {
+    if (state !== "under_review") {
       alert("El programa debe estar en revisión.");
       return;
     }
 
-    if (!nombreCoordinador.value.trim()) {
+    if (!coordinatorName.value.trim()) {
       alert("Escribe el nombre del coordinador académico.");
       return;
     }
 
-    await conCarga(() =>
-      ejecutarAccion("approve", "Programa aprobado."),
+    await withLoading(() =>
+      executeAction("approve", "Programa aprobado."),
     );
   });
 
-  autorizar.addEventListener("click", async () => {
-    if (rol.value !== "decanatura") {
+  authorizeButton.addEventListener("click", async () => {
+    if (role.value !== "decanatura") {
       alert("Solo Decanatura puede autorizar una versión.");
       return;
     }
 
-    if (estado !== "aprobado") {
+    if (state !== "approved") {
       alert("El programa debe estar aprobado antes de autorizarlo.");
       return;
     }
 
-    if (!nombreDecanatura.value.trim()) {
+    if (!deanName.value.trim()) {
       alert("Escribe el nombre de la Decanatura.");
       return;
     }
 
-    await conCarga(() =>
-      ejecutarAccion("authorize", "Versión autorizada."),
+    await withLoading(() =>
+      executeAction("authorize", "Versión autorizada."),
     );
   });
 
-  crearVersion.addEventListener("click", async () => {
-    if (rol.value !== "coordinador-academico") {
+  createVersionButton.addEventListener("click", async () => {
+    if (role.value !== "coordinador-academico") {
       alert("Solo Coordinación académica puede crear una versión.");
       return;
     }
 
-    if (estado !== "vigente") {
+    if (state !== "authorized") {
       alert("Debes partir de una versión autorizada.");
       return;
     }
 
-    if (!nombreCoordinador.value.trim()) {
+    if (!coordinatorName.value.trim()) {
       alert("Escribe el nombre del coordinador académico.");
       return;
     }
 
-    await conCarga(async () => {
-      const nueva = await enviarJSON(
-        `/course-programs/${programaId}/versions`,
+    await withLoading(async () => {
+      const newVersion = await sendJson(
+        `/course-programs/${programId}/versions`,
         "POST",
         {
-          usuario: usuarioActual(),
-          rol: rol.value,
           clonar: true,
+          periodo_id: currentVersion.periodo_id,
         },
       );
 
-      if (!nueva.id) {
+      if (!newVersion.id) {
         throw new Error("El servidor no devolvió el ID de la nueva versión.");
       }
 
-      await cargarVersion(nueva.id);
-      mostrarMensaje(`Se creó la versión ${version} como borrador.`);
+      updateProgramVersion(newVersion);
+      await loadVersion(newVersion.id);
+      showMessage(`Se creó la versión ${currentVersionNumber} como borrador.`);
     });
   });
 
   // Cancelar: volver a cargar la versión desde el servidor.
-  cancelar.addEventListener("click", async () => {
+  cancelButton.addEventListener("click", async () => {
     if (!confirm("¿Deseas descartar los cambios que no has guardado?")) return;
 
-    await conCarga(async () => {
-      await cargarVersion(versionId);
-      mostrarMensaje("Se cargaron nuevamente los últimos datos guardados.");
+    await withLoading(async () => {
+      await loadVersion(versionId);
+      showMessage("Se cargaron nuevamente los últimos datos guardados.");
     });
   });
 
-  async function conCarga(funcion) {
-    if (guardando) return;
+  // Mientras se guarda, evitamos que se inicien otras acciones al mismo tiempo.
+  async function withLoading(callback) {
+    if (isSaving) return;
 
-    guardando = true;
-    actualizarInterfaz();
-    mostrarMensaje("Procesando...");
+    isSaving = true;
+    updateInterface();
+    showMessage("Procesando...");
 
     try {
-      await funcion();
+      await callback();
     } catch (error) {
       console.error(error);
-      mostrarMensaje("Error: " + error.message);
+      showMessage("Error: " + error.message);
       alert("No se pudo completar la acción.\n\n" + error.message);
     } finally {
-      guardando = false;
-      actualizarEstado();
+      isSaving = false;
+      updateStatus();
     }
   }
 
-  function actualizarEstado() {
-    estadoPrograma.className = "udv-badge";
-    estadoPrograma.textContent = nombresEstado[estado] || estado.toUpperCase();
+  /** Actualiza el estado, el número de versión y los controles disponibles. */
+  function updateStatus() {
+    programStatus.className = "udv-badge";
+    programStatus.textContent = statusNames[state] || state.toUpperCase();
 
-    const clases = {
-      borrador: "badge-draft",
-      en_revision: "badge-under-review",
-      devuelto: "badge-returned",
-      aprobado: "badge-approved",
-      vigente: "badge-authorized",
-      reemplazado: "badge-superseded",
+    const classes = {
+      draft: "badge-draft",
+      submitted: "badge-under-review",
+      under_review: "badge-under-review",
+      returned: "badge-returned",
+      approved: "badge-approved",
+      authorized: "badge-authorized",
+      superseded: "badge-superseded",
     };
 
-    estadoPrograma.classList.add(clases[estado] || "badge-draft");
-    numeroVersion.textContent = "Versión " + version;
+    programStatus.classList.add(classes[state] || "badge-draft");
+    versionNumberLabel.textContent = "Versión " + currentVersionNumber;
 
-    actualizarInterfaz();
-    actualizarEdicionResponsables();
+    updateInterface();
+    updateResponsibleEditing();
   }
 
-  function actualizarEdicionResponsables() {
-    const puedeEditar =
-      rol.value === "docente" &&
-      ["borrador", "devuelto"].includes(estado);
+  // Cada persona puede editar solo cuando le toca hacerlo.
+  function updateResponsibleEditing() {
+    const canEdit =
+      role.value === "docente" &&
+      ["draft", "returned"].includes(state);
 
-    camposPrograma.forEach((control) => {
+    programFields.forEach((control) => {
       if (control instanceof HTMLSelectElement) {
-        control.disabled = !puedeEditar;
+        control.disabled = !canEdit;
       } else if (
         control instanceof HTMLInputElement ||
         control instanceof HTMLTextAreaElement
       ) {
-        control.readOnly = !puedeEditar;
+        control.readOnly = !canEdit;
       }
     });
 
-    docente.readOnly = !puedeEditar;
+    instructor.readOnly = !canEdit;
 
-    nombreDecanatura.readOnly = !(
-      rol.value === "decanatura" && estado === "aprobado"
+    deanName.readOnly = !(
+      role.value === "decanatura" && state === "approved"
     );
 
-    nombreCoordinador.readOnly = !(
-      rol.value === "coordinador-academico" &&
-      ["en_revision", "vigente"].includes(estado)
+    coordinatorName.readOnly = !(
+      role.value === "coordinador-academico" &&
+      ["under_review", "authorized"].includes(state)
     );
   }
 
-  function actualizarInterfaz() {
-    const botones = [
-      guardar,
-      crearVersion,
-      enviarRevision,
-      devolver,
-      aprobar,
-      autorizar,
-      cancelar,
+  // Mostramos los botones que corresponden al rol y al estado actuales.
+  function updateInterface() {
+    const buttons = [
+      saveButton,
+      createVersionButton,
+      submitForReviewButton,
+      reviewButton,
+      returnButton,
+      approveButton,
+      authorizeButton,
+      pdfPreviewButton,
+      cancelButton,
+      printPdfButton,
+      closePreviewButton,
     ];
 
-    botones.forEach((boton) => {
-      boton.style.display = "none";
-      boton.disabled = guardando;
+    buttons.forEach((button) => {
+      button.hidden = true;
+      button.disabled = isSaving;
     });
-    vistaPreviaPdf.style.display = "inline-block";
-    imprimirPdf.style.display = "none";
-    cerrarVistaPrevia.style.display = "none";
-    imprimirPdf.hidden = true;
-    cerrarVistaPrevia.hidden = true;
 
-    if (document.body.classList.contains("vista-previa-pdf")) {
-      vistaPreviaPdf.style.display = "none";
-      imprimirPdf.style.display = "inline-block";
-      cerrarVistaPrevia.style.display = "inline-block";
-      imprimirPdf.hidden = false;
-      cerrarVistaPrevia.hidden = false;
+    if (!programLoaded) return;
+
+    if (document.body.classList.contains("pdf-preview-mode")) {
+      printPdfButton.hidden = false;
+      closePreviewButton.hidden = false;
       return;
     }
 
-    if (rol.value === "docente" && ["borrador", "devuelto"].includes(estado)) {
-      guardar.style.display = "inline-block";
-      enviarRevision.style.display = "inline-block";
-      cancelar.style.display = "inline-block";
+    pdfPreviewButton.hidden = !["authorized", "superseded"].includes(state);
+
+    if (role.value === "docente" && ["draft", "returned"].includes(state)) {
+      saveButton.hidden = false;
+      submitForReviewButton.hidden = false;
+      cancelButton.hidden = false;
     }
 
-    if (rol.value === "decanatura" && estado === "aprobado") {
-      autorizar.style.display = "inline-block";
+    if (role.value === "decanatura" && state === "approved") {
+      authorizeButton.hidden = false;
     }
 
-    if (rol.value === "coordinador-academico") {
-      if (estado === "en_revision") {
-        devolver.style.display = "inline-block";
-        aprobar.style.display = "inline-block";
+    if (role.value === "coordinador-academico") {
+      if (state === "submitted") {
+        reviewButton.hidden = false;
       }
 
-      if (estado === "vigente") {
-        crearVersion.style.display = "inline-block";
+      if (state === "under_review") {
+        returnButton.hidden = false;
+        approveButton.hidden = false;
+      }
+
+      if (state === "authorized") {
+        const latestVersion = getLatestVersion();
+        const canCreateVersion =
+          latestVersion?.id === currentVersion?.id &&
+          latestVersion.estado === "authorized" &&
+          program?.version_actual === currentVersion?.numero_version;
+
+        if (canCreateVersion) {
+          createVersionButton.hidden = false;
+        }
       }
     }
 
-    [vistaPreviaPdf, imprimirPdf, cerrarVistaPrevia].forEach((boton) => {
-      boton.disabled = guardando;
+    [pdfPreviewButton, printPdfButton, closePreviewButton].forEach((button) => {
+      button.disabled = isSaving;
     });
   }
 
-  // Vista previa de impresión: no sustituye todavía un PDF generado por el backend.
-  function crearElemento(etiqueta, clase, texto) {
-    const elemento = document.createElement(etiqueta);
-    if (clase) elemento.className = clase;
-    if (texto !== undefined) elemento.textContent = texto;
-    return elemento;
+  // Armar una versión del programa lista para imprimir o guardar como PDF.
+  /** Crea una pieza del documento y le pone el texto y estilo que necesite. */
+  function createElement(tagName, className, text) {
+    const element = document.createElement(tagName);
+    if (className) element.className = className;
+    if (text !== undefined) element.textContent = text;
+    return element;
   }
 
-  function construirDocumentoPdf() {
-    documentoPdf.replaceChildren();
+  /** Lee lo que se eligió en una lista o se escribió en otro campo. */
+  function getControlText(control) {
+    if (control instanceof HTMLSelectElement) {
+      return control.selectedOptions[0]?.textContent.trim() || "";
+    }
+    return control.value.trim();
+  }
 
-    const encabezado = crearElemento("header", "pdf-encabezado");
-    const institucion = crearElemento("div", "pdf-institucion");
-    institucion.append(
-      crearElemento("h2", "", "UNIVERSIDAD DA VINCI DE GUATEMALA"),
-      crearElemento("p", "", valor("facultad") || "Facultad académica"),
-    );
+  /** Pasa un campo del formulario al documento que se va a imprimir. */
+  function addPdfField(destination, field) {
+    const control = field.querySelector("input, textarea, select");
+    if (!control) return;
 
-    const metadatos = crearElemento("div", "pdf-metadatos");
-    metadatos.append(
-      crearElemento("p", "", `Versión: ${version}`),
-      crearElemento("p", "", `Fecha: ${new Date().toLocaleDateString("es-GT")}`),
-      crearElemento("p", "", `Estado: ${estadoPrograma.textContent.trim()}`),
-    );
+    const tagName = field.querySelector("label")?.textContent
+      .replace(/\s+/g, " ")
+      .trim();
+    const dataItem = getControlText(control);
+    const container = createElement("div", "pdf-field");
+    if (field.classList.contains("full")) {
+      container.classList.add("pdf-field-full");
+    }
 
-    encabezado.append(institucion, metadatos);
-
-    documentoPdf.append(
-      encabezado,
-      crearElemento("h1", "pdf-titulo", "PROGRAMA DE CURSO"),
-      crearElemento("p", "pdf-asignatura", valor("asignatura")),
-      crearElemento(
-        "p",
-        "pdf-leyenda",
-        estado === "vigente"
-          ? "Documento autorizado"
-          : "Documento de prueba - sin autorización vigente",
+    container.append(
+      createElement("span", "pdf-label", tagName || "Dato"),
+      createElement(
+        "span",
+        dataItem ? "pdf-value" : "pdf-value pdf-value-empty",
+        dataItem || "No especificado",
       ),
     );
-
-    secciones.forEach((seccion) => {
-      const copia = seccion.cloneNode(true);
-      copia.classList.remove("activa");
-      copia.classList.add("pdf-seccion");
-      copia.removeAttribute("id");
-
-      copia.querySelectorAll("[id]").forEach((elemento) =>
-        elemento.removeAttribute("id"),
-      );
-
-      copia.querySelectorAll("label[for]").forEach((etiqueta) =>
-        etiqueta.removeAttribute("for"),
-      );
-
-      copia.querySelectorAll("input, textarea, select").forEach((control) => {
-        const dato =
-          control instanceof HTMLSelectElement
-            ? control.selectedOptions[0]?.textContent.trim() || ""
-            : control.value;
-
-        control.replaceWith(crearElemento("span", "pdf-valor", dato));
-      });
-
-      documentoPdf.append(copia);
-    });
-
-    const autorizacion = crearElemento("section", "pdf-seccion");
-    autorizacion.append(crearElemento("h3", "", "Autorización"));
-
-    const tabla = crearElemento("table", "pdf-tabla-autorizacion");
-    const cuerpo = crearElemento("tbody");
-
-    [
-      ["Elaborado por", docente.value.trim()],
-      ["Facultad", valor("facultad")],
-      ["Decanatura", nombreDecanatura.value.trim()],
-      ["Coordinador académico", nombreCoordinador.value.trim()],
-      ["Fecha", new Date().toLocaleDateString("es-GT")],
-    ].forEach(([campo, dato]) => {
-      const fila = crearElemento("tr");
-      fila.append(
-        crearElemento("th", "", campo),
-        crearElemento("td", "", dato),
-      );
-      cuerpo.append(fila);
-    });
-
-    tabla.append(cuerpo);
-    autorizacion.append(tabla);
-    documentoPdf.append(autorizacion);
-
-    const firmas = crearElemento("footer", "pdf-firmas");
-
-    ["Elaborado por", "Decanatura", "Coordinador académico"].forEach((cargo) => {
-      const firma = crearElemento("div", "pdf-firma");
-      firma.append(
-        crearElemento("div", "pdf-linea-firma"),
-        crearElemento("span", "", cargo),
-      );
-      firmas.append(firma);
-    });
-
-    documentoPdf.append(firmas);
+    destination.append(container);
   }
 
-  vistaPreviaPdf.addEventListener("click", () => {
-    construirDocumentoPdf();
-    documentoPdf.hidden = false;
-    document.body.classList.add("vista-previa-pdf");
-    actualizarInterfaz();
-    mostrarMensaje("Vista previa lista para imprimir.");
-  });
+  /** Copia una tabla y cambia sus campos editables por texto para imprimir. */
+  function addPdfTable(destination, originalTable) {
+    const container = createElement("div", "pdf-table-container");
+    const table = originalTable.cloneNode(true);
+    table.className = "pdf-table";
+    table.removeAttribute("id");
+    table.querySelectorAll("[id]").forEach((element) =>
+      element.removeAttribute("id"),
+    );
 
-  imprimirPdf.addEventListener("click", () =>
-    conCarga(async () => {
-      const respuesta = await fetch(
-        `${API}/program-versions/${versionId}/pdf`,
+    table.querySelectorAll("input, textarea, select").forEach((control) => {
+      control.replaceWith(
+        createElement("span", "pdf-value", getControlText(control) || "—"),
       );
+    });
 
-      if (!respuesta.ok) {
-        const resultado = await respuesta.json().catch(() => ({}));
+    container.append(table);
+    destination.append(container);
+  }
+
+  /** Arma el documento de impresión con la información que aparece en pantalla. */
+  function buildPdfDocument() {
+    pdfDocument.replaceChildren();
+
+    const headerElement = createElement("header", "pdf-header");
+    const logo = createElement("img", "pdf-logo");
+    logo.src = "assets/udv-logo.jpg";
+    logo.alt = "Escudo de la Universidad Da Vinci de Guatemala";
+
+    const institution = createElement("div", "pdf-institution");
+    institution.append(
+      createElement("p", "pdf-overline", "Universidad"),
+      createElement("h2", "", "Da Vinci de Guatemala"),
+      createElement("p", "pdf-faculty", getValue("faculty") || "Facultad académica"),
+    );
+
+    const metadata = createElement("div", "pdf-metadata");
+    [
+      ["Versión", String(currentVersionNumber)],
+      ["Emisión", new Date().toLocaleDateString("es-GT")],
+      ["Estado", programStatus.textContent.trim()],
+    ].forEach(([tagName, dataItem]) => {
+      const metadataItem = createElement("div", "pdf-metadata-item");
+      metadataItem.append(
+        createElement("span", "pdf-metadata-label", tagName),
+        createElement("strong", "pdf-metadata-value", dataItem),
+      );
+      metadata.append(metadataItem);
+    });
+
+    headerElement.append(logo, institution, metadata);
+
+    const title = createElement("div", "pdf-title");
+    title.append(
+      createElement("p", "pdf-title-label", "Documento académico"),
+      createElement("h1", "", "Programa de curso"),
+      createElement("p", "pdf-course", getValue("course")),
+    );
+    pdfDocument.append(headerElement, title);
+
+    sections.forEach((section, index) => {
+      const sectionTitle = section.querySelector("h3")?.textContent.trim();
+      if (!sectionTitle) return;
+
+      const pdfSection = createElement("section", "pdf-section");
+      pdfSection.dataset.section = section.id;
+
+      const sectionHeader = createElement("div", "pdf-section-header");
+      sectionHeader.append(
+        createElement("span", "pdf-section-number", String(index + 1).padStart(2, "0")),
+        createElement("h2", "", sectionTitle),
+      );
+      pdfSection.append(sectionHeader);
+
+      Array.from(section.children).forEach((element) => {
+        if (element.matches("h3")) return;
+        if (element.matches("p")) {
+          pdfSection.append(
+            createElement("p", "pdf-description", element.textContent.trim()),
+          );
+          return;
+        }
+        if (element.matches(".form")) {
+          const fields = createElement("div", "pdf-fields");
+          element.querySelectorAll(".field").forEach((field) =>
+            addPdfField(fields, field),
+          );
+          if (fields.childElementCount) pdfSection.append(fields);
+          return;
+        }
+        if (element.matches(".field")) {
+          const fields = createElement("div", "pdf-fields");
+          addPdfField(fields, element);
+          if (fields.childElementCount) pdfSection.append(fields);
+          return;
+        }
+        if (element.matches(".table-container")) {
+          const table = element.querySelector("table");
+          if (table) addPdfTable(pdfSection, table);
+        }
+      });
+
+      pdfDocument.append(pdfSection);
+    });
+
+    const authorization = createElement("section", "pdf-section");
+    authorization.classList.add("pdf-authorization");
+    const authorizationHeader = createElement("div", "pdf-section-header");
+    authorizationHeader.append(
+      createElement(
+        "span",
+        "pdf-section-number",
+        String(sections.length + 1).padStart(2, "0"),
+      ),
+      createElement("h2", "", "Firmas de autorización"),
+    );
+    authorization.append(authorizationHeader);
+
+    const date = createElement(
+      "p",
+      "pdf-authorization-date",
+      `Facultad de ${getValue("faculty") || "—"} · ${new Date().toLocaleDateString("es-GT")}`,
+    );
+    authorization.append(date);
+
+    const signatures = createElement("div", "pdf-signatures");
+    [
+      ["Elaborado por", instructor.value.trim()],
+      ["Decanatura", deanName.value.trim()],
+      ["Coordinación académica", coordinatorName.value.trim()],
+    ].forEach(([roleTitle, name]) => {
+      const signature = createElement("div", "pdf-signature");
+      signature.append(
+        createElement("div", "pdf-signature-line"),
+        createElement("span", "pdf-signature-name", name || " "),
+        createElement("span", "pdf-signature-role", roleTitle),
+      );
+      signatures.append(signature);
+    });
+
+    authorization.append(signatures);
+    pdfDocument.append(authorization);
+  }
+
+  // Descargar el PDF autorizado o abrir la vista para imprimir.
+  pdfPreviewButton.addEventListener("click", async () => {
+    if (!["authorized", "superseded"].includes(state)) {
+      showMessage("El PDF solo está disponible para versiones autorizadas.");
+      return;
+    }
+
+    await withLoading(async () => {
+      const response = await fetch(`${API}/program-versions/${versionId}/pdf`, {
+        credentials: "include",
+      });
+      if (!response.ok) {
+        let error = {};
+        try {
+          error = await response.json();
+        } catch {
+          error = {};
+        }
         throw new Error(
-          resultado.error || `No se pudo generar el PDF (${respuesta.status}).`,
+          error.error?.message || `No se pudo generar el PDF: ${response.status}`,
         );
       }
 
-      const archivo = await respuesta.blob();
-      if (archivo.type !== "application/pdf") {
-        throw new Error("El servidor no devolvió un documento PDF.");
-      }
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `programa-${program.id}-version-${currentVersionNumber}.pdf`;
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showMessage("PDF autorizado descargado.");
+    });
+  });
 
-      const url = URL.createObjectURL(archivo);
-      const enlace = document.createElement("a");
-      enlace.href = url;
-      enlace.download = `programa-${programaId}-version-${version}.pdf`;
-      document.body.append(enlace);
-      enlace.click();
-      enlace.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      mostrarMensaje("PDF descargado.");
-    }),
-  );
+  // Abre el diálogo de impresión con el formato que aparece en la vista previa.
+  printPdfButton.addEventListener("click", () => window.print());
 
-  cerrarVistaPrevia.addEventListener("click", () => {
-    document.body.classList.remove("vista-previa-pdf");
-    documentoPdf.hidden = true;
-    actualizarInterfaz();
-    mostrarMensaje("Vista previa cerrada.");
+  closePreviewButton.addEventListener("click", () => {
+    document.body.classList.remove("pdf-preview-mode");
+    pdfDocument.hidden = true;
+    updateInterface();
+    showMessage("Vista previa cerrada.");
   });
 
   try {
-    mostrarMensaje("Conectando con la API...");
-    await cargarPrograma(programaId);
-    mostrarMensaje("Programa cargado desde el servidor.");
+    showMessage("Conectando con la API...");
+    await loadProgram(programId);
+    showMessage("Programa cargado desde el servidor.");
   } catch (error) {
     console.error(error);
-    mostrarMensaje("No se pudo cargar el programa: " + error.message);
+    showMessage("No se pudo cargar el programa: " + error.message);
     alert(
       "No se pudo cargar el programa desde la API.\n\n" +
         error.message +
