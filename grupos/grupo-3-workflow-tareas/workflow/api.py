@@ -155,11 +155,7 @@ def get_task_assignments(task_id: int, status: Optional[str] = None,
 
 
 # ------------------------------------------------------------ assignments
-@router.get("/assignments/inbox", tags=["assignments"])
-def get_inbox(status: Optional[str] = None, page: int = Query(1),
-              page_size: int = Query(20), conn=Depends(get_conn),
-              user=Depends(current_user)):
-    return tasks.inbox(conn, user, status, page, page_size)
+
 
 
 @router.get("/assignments/{assignment_id}/history", tags=["assignments"])

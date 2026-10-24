@@ -168,10 +168,7 @@ class ApiTests(unittest.TestCase):
                           422, "validation_error")
         self.assert_error(c.get(f"{P}/ruta-que-no-existe", headers=coord), 404, "not_found")
 
-    def test_draft_not_in_inbox(self):
-        self.new_task_with_recipients()                       # sigue en borrador
-        inbox = self.client.get(f"{P}/assignments/inbox", headers=self.h(self.ids["teachers"][0]))
-        self.assertEqual(inbox.json()["total"], 0)
+    
 
 
 if __name__ == "__main__":
