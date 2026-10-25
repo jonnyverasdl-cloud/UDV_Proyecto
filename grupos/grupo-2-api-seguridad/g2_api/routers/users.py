@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from g2_api.database import get_db
 from typing import Optional
 import bcrypt
@@ -10,6 +10,7 @@ from g2_api.middleware.auth_middleware import requerir_rol
 from g2_api.models import Rol, Usuario, UsuarioRol
 from g2_api.routers.auth import obtener_usuario_actual
 from g2_api.database import fijar_actor
+from g2_api.utils.paginacion import params_paginacion, Paginacion, paginar
 
 router = APIRouter(prefix="/api/v1/users", tags=["Users"])
 
@@ -72,14 +73,16 @@ def _correo_repetido():
     
 
 @router.get("", dependencies=[Depends(requerir_rol(["admin"]))]) #Endpoint para buscar usuarios 
-def listar_usuarios(db: Session = Depends(get_db)):
-    usuarios_todos = (
+def listar_usuarios(paginacion: Paginacion =Depends(params_paginacion), db: Session = Depends(get_db)):
+    
+    consultas = (
         db.query(Usuario)
+        .options(selectinload(Usuario.roles))
         .filter(Usuario.eliminado_en.is_(None))
         .order_by(Usuario.id)
-        .all()
     )
-    return [diccionario(u) for u in usuarios_todos]
+    
+    return paginar(consultas, paginacion.page, paginacion.per_page, diccionario)
 
 
 @router.get("/{usuario_id}", dependencies=[Depends(requerir_rol(["admin"]))])
