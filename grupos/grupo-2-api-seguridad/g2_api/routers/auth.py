@@ -2,19 +2,20 @@
 # login: entra y recibe un token
 # logout: cierra la sesion
 # me: muestra quien soy, mis roles y permisos
+# bloqueo: despues de 5 intentos fallidos la cuenta se bloquea 15 minutos
 
 import json
 import os
-from datetime import datetime, timezone
+import math
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel
-from sqlalchemy import text
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from g2_api import config
-from g2_api.database import get_db
+from g2_api.database import fijar_actor, get_db
 from g2_api.models import SesionToken, Usuario
 from g2_api.seguridad import crear_token, hash_token, verificar_contrasena, verificar_token
 from g2_api.utils.registro import LOGIN_OK, LOGOUT, registrar_accion, registrar_login_fallido
@@ -36,10 +37,10 @@ def _ahora_utc():
 
 # ---------- LOGIN ----------
 
-# datos que recibe el login
+# datos que recibe el login (vacios o fuera de largo dan 422)
 class LoginRequest(BaseModel):
-    correo: str
-    password: str
+    correo: str = Field(min_length=1, max_length=254)
+    password: str = Field(min_length=config.CONTRASENA_MIN, max_length=config.CONTRASENA_MAX)
 
 
 # mismo mensaje para correo o contraseña mal
@@ -49,11 +50,21 @@ CREDENCIALES_INVALIDAS = "Correo o contraseña incorrectos"
 RESPUESTA_401 = {401: {"description": "Token faltante, invalido, vencido o sesion cerrada"}}
 
 
+# arma el error 429 con los minutos que faltan
+def _cuenta_bloqueada(bloqueado_hasta: datetime, ahora: datetime):
+    minutos = max(1, math.ceil((bloqueado_hasta - ahora).total_seconds() / 60))
+    return HTTPException(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        detail=f"Cuenta bloqueada por intentos fallidos. Intenta de nuevo en {minutos} minutos.",
+    )
+
+
 @router.post(
     "/login",
     responses={
         401: {"description": "Correo o contraseña incorrectos"},
-        422: {"description": "Falta el correo o la contraseña"},
+        422: {"description": "Correo vacio o contraseña fuera del largo permitido"},
+        429: {"description": "Cuenta bloqueada por intentos fallidos"},
     },
 )
 def login(datos: LoginRequest, request: Request, db: Session = Depends(get_db)):
@@ -64,14 +75,31 @@ def login(datos: LoginRequest, request: Request, db: Session = Depends(get_db)):
         .first()
     )
 
-    # si no existe, esta inactivo o la contraseña esta mal: guarda el intento y da 401
     ip = request.client.host if request.client else None
-    if (
-        usuario is None
-        or not usuario.activo
-        or not verificar_contrasena(datos.password, usuario.hash_contrasena)
-    ):
+    ahora = _ahora_utc()
+
+    # si no existe o esta inactivo: guarda el intento y da 401
+    if usuario is None or not usuario.activo:
         registrar_login_fallido(db, datos.correo, ip_origen=ip)
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=CREDENCIALES_INVALIDAS)
+
+    # si esta bloqueado: da 429 aunque la contraseña este bien
+    if usuario.bloqueado_hasta and usuario.bloqueado_hasta > ahora:
+        registrar_login_fallido(db, datos.correo, ip_origen=ip)
+        raise _cuenta_bloqueada(usuario.bloqueado_hasta, ahora)
+
+    # si la contraseña esta mal: suma un intento y, al llegar al limite, bloquea
+    if not verificar_contrasena(datos.password, usuario.hash_contrasena):
+        fijar_actor(db, usuario.id, ip)
+        usuario.intentos_fallidos = (usuario.intentos_fallidos or 0) + 1
+        bloquear = usuario.intentos_fallidos >= config.LOGIN_MAX_INTENTOS
+        if bloquear:
+            usuario.bloqueado_hasta = ahora + timedelta(minutes=config.LOGIN_BLOQUEO_MINUTOS)
+            usuario.intentos_fallidos = 0
+        db.commit()
+        registrar_login_fallido(db, datos.correo, ip_origen=ip)
+        if bloquear:
+            raise _cuenta_bloqueada(usuario.bloqueado_hasta, ahora)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=CREDENCIALES_INVALIDAS)
 
     # crea el token
@@ -88,7 +116,11 @@ def login(datos: LoginRequest, request: Request, db: Session = Depends(get_db)):
             user_agent=(request.headers.get("user-agent") or "")[:300] or None,
         )
     )
-    usuario.ultimo_acceso_en = _ahora_utc()
+    # login correcto: reinicia el contador y quita el bloqueo
+    fijar_actor(db, usuario.id, ip)
+    usuario.intentos_fallidos = 0
+    usuario.bloqueado_hasta = None
+    usuario.ultimo_acceso_en = ahora
     db.commit()
 
     # guarda el login en auditoria
@@ -164,10 +196,8 @@ def obtener_usuario_actual(
 ) -> Usuario:
     usuario = db.get(Usuario, sesion.usuario_id)
 
-    # le dice a MySQL quien hace el cambio (lo pide el Grupo 1)
-    if db.get_bind().dialect.name == "mysql":
-        db.execute(text("SET @actor_id = :id"), {"id": usuario.id})
-        db.execute(text("SET @ip_origen = :ip"), {"ip": request.client.host if request.client else None})
+    # le dice a MySQL quien hace el cambio (funcion de Robert en database.py)
+    fijar_actor(db, usuario.id, request.client.host if request.client else None)
 
     return usuario
 

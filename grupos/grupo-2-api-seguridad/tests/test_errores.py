@@ -15,12 +15,10 @@ from g2_api.utils.paginacion import (
 )
 
 
-# --------------------------------------------------------------------------
-#  pruebas
-# --------------------------------------------------------------------------
+
 
 class _FakeQuery:
-    """Sustituto mínimo de sqlalchemy.orm.Query para probar `paginar`."""
+    """probar `paginar`."""
 
     def __init__(self, total: int = 250) -> None:
         self._total = total
@@ -207,7 +205,6 @@ def test_paginacion_per_page_excede_maximo_da_422(client):
     assert r.json()["error"]["code"] == "VALIDATION_ERROR"
 
 
-# --------------------------------------------------------------------------
 
 from datetime import datetime  # noqa: E402
 
@@ -227,17 +224,17 @@ _AuditBase = declarative_base()
 
 
 class _AuditoriaFake(_AuditBase):
-    """Refleja las columnas reales de la tabla `auditoria`."""
+    """Refleja las columnas reales de la tabla `auditoria` (contrato §1)."""
 
     __tablename__ = "auditoria"
-    id          = Column(Integer, primary_key=True)
+    id          = Column(Integer, primary_key=True, autoincrement=True)
     tabla       = Column(String(50),  nullable=True)
-    registro_id = Column(String(255), nullable=True, index=True)
+    registro_id = Column(Integer,     nullable=True, index=True)   
     accion      = Column(String(50),  nullable=False, index=True)
-    actor_id    = Column(Integer, nullable=True)
+    actor_id    = Column(Integer,     nullable=True)
     ip_origen   = Column(String(45),  nullable=True)
-    detalle     = Column(JSON, nullable=True)
-    creado_en   = Column(DateTime, nullable=False, index=True)
+    detalle     = Column(JSON,        nullable=True)
+    creado_en   = Column(DateTime,    nullable=False, index=True)
 
 
 @pytest.fixture()
@@ -246,7 +243,6 @@ def db_mem(monkeypatch):
     _AuditBase.metadata.create_all(engine)
     Session = sessionmaker(bind=engine)
     db = Session()
-    # Forzamos a registro.py a usar nuestra Auditoria falsa.
     monkeypatch.setattr(registro, "_modelo_auditoria", lambda: _AuditoriaFake)
     yield db
     db.close()
@@ -259,20 +255,23 @@ def test_registrar_accion_guarda_fila(db_mem):
     )
     assert ok is True
     fila = db_mem.query(_AuditoriaFake).one()
-    assert fila.accion    == "LOGIN_OK"
-    assert fila.actor_id  == 7
-    assert fila.tabla     == "auth"
-    assert fila.ip_origen == "127.0.0.1"
+    assert fila.accion      == "LOGIN_OK"
+    assert fila.actor_id    == 7
+    assert fila.tabla       == "auth"
+    assert fila.ip_origen   == "127.0.0.1"
+    assert fila.registro_id is None
     assert isinstance(fila.creado_en, datetime)
 
 
-def test_registrar_login_fallido_normaliza_correo(db_mem):
+def test_registrar_login_fallido_guarda_correo_en_detalle(db_mem):
+    """El correo va en `detalle.correo`, NO en `registro_id` (contrato §1)."""
     ok = registro.registrar_login_fallido(db_mem, "  X@Y.COM ", ip_origen="10.0.0.1")
     assert ok is True
     fila = db_mem.query(_AuditoriaFake).one()
     assert fila.accion      == "LOGIN_FALLIDO"
-    assert fila.actor_id    is None         
-    assert fila.registro_id == "x@y.com"    
+    assert fila.actor_id    is None                    
+    assert fila.registro_id == 0  # la base no acepta vacio
+    assert fila.detalle     == {"correo": "x@y.com"}    
     assert fila.ip_origen   == "10.0.0.1"
 
 
@@ -299,8 +298,27 @@ def test_esta_bloqueado_segun_umbral(db_mem):
     ) is False
 
 
+def test_limpiar_intentos_borra_fallos_del_correo(db_mem):
+    for _ in range(3):
+        registro.registrar_login_fallido(db_mem, "a@b.com")
+    registro.registrar_login_fallido(db_mem, "otro@b.com")
+
+    registro.limpiar_intentos(db_mem, "A@B.COM")
+
+    assert registro.contar_intentos_fallidos(db_mem, "a@b.com",   15) == 0
+    assert registro.contar_intentos_fallidos(db_mem, "otro@b.com", 15) == 1
+
+
+def test_set_actor_id_no_rompe_en_sqlite(db_mem):
+    """En SQLite es solo se verifica que no lance ni cambie nada."""
+    registro.set_actor_id(db_mem, 42)
+    registro.set_actor_id(db_mem, None)
+
+    assert db_mem.query(_AuditoriaFake).count() == 0
+
+
 def test_registro_no_rompe_si_models_no_existe():
-    """registrar_accion debe devolver False (no lanzar) si no hay modelo."""
+    """registrar_accion debe devolver False ."""
 
     class _S:
         def add(self, _):

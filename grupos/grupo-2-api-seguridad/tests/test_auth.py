@@ -1,7 +1,10 @@
-# Pruebas de autenticación (Persona 1: Daniel): login, logout, /me y auditoría.
+# Pruebas de autenticación (Persona 1: Daniel): login, logout, /me, auditoría y bloqueo.
 # Corren contra una base SQLite temporal (tests/conftest.py), nunca contra MySQL.
 # Correr: pytest tests/test_auth.py -v
 
+from datetime import datetime, timedelta, timezone
+
+from g2_api import config
 from g2_api.models import Auditoria, Permiso, Rol, RolPermiso, SesionToken, Usuario, UsuarioRol
 from g2_api.seguridad import hash_token, hashear_contrasena, verificar_token
 
@@ -168,7 +171,7 @@ def test_login_correcto_queda_en_auditoria(client, db):
 def test_login_fallido_queda_en_auditoria(client, db):
     _crear_admin(db)
     client.post(URL, json={"correo": CORREO, "password": "otra-clave"})
-    client.post(URL, json={"correo": "nadie@demo.udv.edu.gt", "password": "x"})
+    client.post(URL, json={"correo": "nadie@demo.udv.edu.gt", "password": "otra-clave"})
 
     assert _acciones(db) == ["LOGIN_FALLIDO", "LOGIN_FALLIDO"]
 
@@ -178,3 +181,66 @@ def test_logout_queda_en_auditoria(client, db):
     client.post(URL_LOGOUT, headers=_bearer(_token(client)))
 
     assert _acciones(db) == ["LOGIN_OK", "LOGOUT"]
+
+
+# ---------- LARGO DE LA CONTRASEÑA Y CAMPOS VACIOS (G2-04) ----------
+
+def test_password_corta_422(client, db):
+    _crear_admin(db)
+    r = client.post(URL, json={"correo": CORREO, "password": "a" * (config.CONTRASENA_MIN - 1)})
+    assert r.status_code == 422
+
+
+def test_password_larga_422(client, db):
+    _crear_admin(db)
+    r = client.post(URL, json={"correo": CORREO, "password": "a" * (config.CONTRASENA_MAX + 1)})
+    assert r.status_code == 422
+
+
+def test_correo_vacio_422(client, db):
+    r = client.post(URL, json={"correo": "", "password": CLAVE})
+    assert r.status_code == 422
+
+
+# ---------- BLOQUEO POR INTENTOS FALLIDOS (G2-34) ----------
+
+def _usuario(db):
+    db.expire_all()
+    return db.get(Usuario, 1)
+
+
+def test_bloqueo_despues_de_los_intentos_permitidos(client, db):
+    _crear_admin(db)
+    mala = {"correo": CORREO, "password": "otra-clave"}
+
+    # los primeros intentos dan 401
+    for _ in range(config.LOGIN_MAX_INTENTOS - 1):
+        assert client.post(URL, json=mala).status_code == 401
+
+    # el ultimo intento bloquea la cuenta
+    assert client.post(URL, json=mala).status_code == 429
+    assert _usuario(db).bloqueado_hasta is not None
+
+    # bloqueada: ni con la contraseña correcta entra
+    assert client.post(URL, json={"correo": CORREO, "password": CLAVE}).status_code == 429
+
+
+def test_bloqueo_vencido_deja_entrar(client, db):
+    _crear_admin(db)
+    usuario = _usuario(db)
+    usuario.bloqueado_hasta = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=1)
+    db.commit()
+
+    r = client.post(URL, json={"correo": CORREO, "password": CLAVE})
+    assert r.status_code == 200
+    assert _usuario(db).bloqueado_hasta is None
+
+
+def test_login_correcto_reinicia_el_contador(client, db):
+    _crear_admin(db)
+    client.post(URL, json={"correo": CORREO, "password": "otra-clave"})
+    client.post(URL, json={"correo": CORREO, "password": "otra-clave"})
+    assert _usuario(db).intentos_fallidos == 2
+
+    assert client.post(URL, json={"correo": CORREO, "password": CLAVE}).status_code == 200
+    assert _usuario(db).intentos_fallidos == 0

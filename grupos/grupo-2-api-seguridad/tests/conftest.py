@@ -4,7 +4,7 @@ import tempfile
 
 _tmp = tempfile.mkdtemp()
 os.environ["DATABASE_URL"] = f"sqlite:///{_tmp}/test.db"
-os.environ["SECRET_KEY"] = "clave-solo-para-pruebas"
+os.environ["SECRET_KEY"] = "clave-solo-para-pruebas-con-32-caracteres-o-mas"
 os.environ["CORS_ORIGINS"] = "http://localhost:5500"
 
 import pytest # noqa: E402

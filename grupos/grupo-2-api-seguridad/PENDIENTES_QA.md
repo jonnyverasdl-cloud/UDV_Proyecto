@@ -1,4 +1,4 @@
-# Pendientes del QA — Grupo 2 (Update No. 1 · 17-oct-2026 · estado al 22-oct-2026)
+# Pendientes del QA — Grupo 2 (Update No. 1 · 17-oct-2026 · estado al 23-oct-2026)
 
 Resumen del informe de Allison Espaderos (QA) y quién corrige cada cosa. Cada quien toca **solo sus archivos**. Los números G2-xx son los escenarios del plan de QA.
 
@@ -10,49 +10,52 @@ El middleware de usuarios y roles todavía lee el encabezado `usuario-actual` y 
 
 **Cómo leer los estados:** ✅ Cumple (PASS de QA) · 🔵 Implementado, pendiente de validación o retest de QA · 🟡 En proceso · ⏳ Pendiente de implementar.
 
-## Estado al 22-oct
+## Estado al 23-oct
 
-- **Aviso del PM (22-oct):** G2 arregló el manejador de errores y los 401, 403 y 404 ya responden bien. Daniel agregó `obtener_usuario_actual()` desde la base, con `@actor_id` para la auditoría. Ahora pasan 28 pruebas y fallan 4 (antes fallaban 15).
-- **Antes del PR del jueves 22** falta: `registro.py` (Edgar, 4 pruebas fallan: los parámetros no coinciden con las pruebas y el conteo de intentos fallidos da 0), `auth_middleware.py` (Randy, todavía lee el JSON; debe usar `obtener_usuario_actual()` de `auth.py`) y `users.py` y `roles.py` (Randy, cambiar `administrador` por `admin`). **Retest de QA: viernes 23**, cuando suban el PR.
-- **Randy** ya lee el token Bearer y agregó `GET /users/{id}` con 404, pero sigue buscando al usuario en la lista JSON y no en la base. Con eso, un token del login real todavía no entra a `/users`. Falta: leer desde la base, revisar que la sesión no esté revocada y usar el rol `admin`.
-- **Robert** (cuenta `Davids107`): subió el import de `files` en `main.py` y las dependencias `puremagic` y `email-validator` (20-oct). El 22-oct dejó listas la conexión a la base y `models.py` (semana 3) y el `README.md` (semana 4).
-- **Daniel** subió `POST /auth/logout` y `GET /me` en `auth.py` (20-oct). Quedan 🔵 implementados, pendientes de validación de QA; el aviso del 22-oct suma `obtener_usuario_actual()` desde la base.
-- **Edgar** actualizó `error_handler.py` y `registro.py` (20-oct). El formato de error ya sigue el contrato común y `registro.py` usa las columnas reales de `auditoria`, pero todavía no pasa sus pruebas.
-- **Siguen pendientes:** bloqueo, auditoría (que login y logout llamen a `registro.py`), paginación y que `pytest` completo pase.
+- **Actualización 23-oct (tarde, commit 7750106):** `pytest` completo en **40 de 40**. Hecho: bloqueo de 5 intentos por 15 minutos (G2-34), contraseña de 8 a 64 y `""` da 422 (G2-04), login fallido con correo inexistente queda en auditoría (G2-36) y `POST /files` ya no da 500 con token (G2-18).
+- **Aviso del PM (22-oct):** G2 arregló el manejador de errores y los 401, 403 y 404 ya responden bien. Daniel agregó `obtener_usuario_actual()` desde la base, con `@actor_id` para la auditoría. El PM contó 28 pruebas que pasan y 4 que fallan (en la mañana fallaban 15).
+- **Retest de QA: viernes 23-oct**, después del PR del jueves. Prioridad: G2-10 (suplantación por header), G2-04 (422), G2-07 (`/me`) y login con las cuentas `qa.*`.
+- **Lo que se pidió antes del PR del jueves y cómo está en `grupo-2` (revisado el 23-oct):**
+  1. `registro.py` (Edgar): de 4 pruebas fallando quedó 1. `pytest` completo: **33 pasan y 1 falla** (`test_login_fallido_queda_en_auditoria`). Falla porque, cuando el correo no existe o viene vacío, el login fallido intenta guardar `registro_id` en NULL y la base lo rechaza (NOT NULL), así que ese intento no queda registrado.
+  2. `auth_middleware.py` (Randy): ya no lee el JSON. Usa `obtener_usuario_actual()` de `auth.py` (commit del 22-oct). Sin token da 401, con el header `usuario-actual` también da 401 y sin rol da 403.
+  3. `users.py` y `roles.py` (Randy): ya usan el rol `admin` y leen de la base. `GET /users/{id}` da 404 si no existe.
+- **Daniel** (`auth.py`): login, logout y `/me` funcionan con la base. El token cerrado con logout ya no entra (401). El login con campos ausentes da 422, pero con cadenas vacías (`""`) todavía da 401: falta `min_length=1` en los campos del login (G2-04).
+- **Robert** (cuenta `Davids107`): `main.py`, `database.py` (UTC y `fijar_actor`), `models.py`, `.env.example` y `README.md` quedaron listos el 20 y 22-oct.
+- **Siguen pendientes:** paginación en `GET /users`, contraseña de 8 a 64 al crear usuarios, documentación OpenAPI (401 y 409 en `POST /users`), `test_users.py` (Randy) y `GET /files/{id}`, tabla `archivo` y `test_files.py` (Fulvio).
 
 ## Por persona
 
 ### Daniel · Persona 1 · Autenticación
 | Escenario | Prioridad | Qué falta | Archivo | Estado |
 |-|-|-|-|-|
-| G2-05 | Alta | El QA no lo encontró. Ya está subido (20-oct): `POST /auth/logout` pone `revocado_en` en `sesion_token`. Falta que el middleware de Randy rechace el token revocado. | `routers/auth.py` | 🔵 Implementado, pendiente de validación QA |
-| G2-07 | Media | El QA recibió 404. Ya está subido (20-oct): `GET /me` con `me_router`. Falta retest con JWT válido, sin token y con token inválido. | `routers/auth.py` | 🔵 Implementado, pendiente de validación QA |
-| G2-34 | Baja | El login no usa el contador ni el bloqueo (5 fallos = 15 min). | `routers/auth.py` | ⏳ Pendiente |
-| G2-36 | Baja | El login no llama a `registrar_accion()` ni `registrar_login_fallido()`. | `routers/auth.py` | ⏳ Pendiente |
-| G2-04 | Media | Con campos vacíos devuelve 401; el QA esperaba 422. El PM confirmó (22-oct): **422** con detalle por campo; el 401 queda solo para credenciales incorrectas. | `routers/auth.py` | 🔵 Confirmado 422; verificar también con campos vacíos (`""`) |
-| G2-33 | Media | Documentar 401 en el login (`responses=`). | `routers/auth.py` | ⏳ Pendiente |
+| G2-05 | Alta | El QA no lo encontró. Ya está subido (20-oct): `POST /auth/logout` pone `revocado_en` en `sesion_token` y el token revocado ya da 401. | `routers/auth.py` | 🔵 Listo para retest |
+| G2-07 | Media | El QA recibió 404. Ya está subido (20-oct): `GET /me` con `me_router`. Responde 200 con JWT válido y 401 sin token o con token inválido. | `routers/auth.py` | 🔵 Listo para retest |
+| G2-34 | Baja | El login no usa el contador ni el bloqueo (5 fallos = 15 min). `registro.py` ya trae `esta_bloqueado()`, falta llamarlo. | `routers/auth.py` | ✅ Hecho (23-oct): 5 fallos = 429 por 15 minutos, con `intentos_fallidos` y `bloqueado_hasta`. Listo para retest |
+| G2-36 | Baja | Login correcto, login fallido y logout ya llaman a `registro.py`. Falta que el login fallido con correo inexistente o vacío se guarde (`registro_id` no puede ir NULL). | `routers/auth.py`, `utils/registro.py` | ✅ Hecho (23-oct): con correo inexistente guarda `registro_id = 0`. Listo para retest |
+| G2-04 | Media | Con campos vacíos devuelve 401; el QA esperaba 422. El PM confirmó (22-oct): **422** con detalle por campo; el 401 queda solo para credenciales incorrectas. Hoy da 422 si el campo falta, pero 401 si viene como `""`. | `routers/auth.py` | ✅ Hecho (23-oct): `""` da 422 y la contraseña debe tener de 8 a 64. Listo para retest |
+| G2-33 | Media | Documentar 401 en el login (`responses=`). | `routers/auth.py` | 🔵 Login documenta 401 y 422; logout y `/me` documentan 401 |
 
 ### Randy · Persona 2 · Usuarios y roles
 | Escenario | Prioridad | Qué falta | Archivo | Estado |
 |-|-|-|-|-|
-| G2-10, 06, 08, 09, 17, 37, 38 | Alta | Leer `Authorization: Bearer` con `verificar_token()` de Daniel y dejar de usar `usuario-actual`. Sin token = 401; sin permiso = 403. | `middleware/auth_middleware.py`, `routers/users.py`, `routers/roles.py` | ⏳ Todavía lee el JSON (PM, 22-oct): debe usar `obtener_usuario_actual()` de `auth.py` |
-| G2-11, 12, 26 | Media | `GET /users/{id}` no existe (da 405); debe dar 404 si no existe. | `routers/users.py` | 🟡 Parcial |
-| G2-31 | Baja | La lista de usuarios no pagina; usar `paginacion.py` de Edgar. | `routers/users.py` | ⏳ Pendiente |
+| G2-10, 06, 08, 09, 17, 37, 38 | Alta | Leer `Authorization: Bearer` con `verificar_token()` de Daniel y dejar de usar `usuario-actual`. Sin token = 401; sin permiso = 403. | `middleware/auth_middleware.py`, `routers/users.py`, `routers/roles.py` | 🔵 Hecho (22-oct): usa `obtener_usuario_actual()` desde la base; sin token 401, `usuario-actual` ya no sirve y sin rol 403. Falta retest de QA |
+| G2-11, 12, 26 | Media | `GET /users/{id}` no existía (daba 405); debe dar 404 si no existe. | `routers/users.py` | 🔵 Lee de la base y da 404; falta retest |
+| G2-31 | Baja | La lista de usuarios no pagina; `GET /users` devuelve todos y no usa `paginacion.py` de Edgar. | `routers/users.py` | ⏳ Pendiente |
 | G2-33 | Media | Documentar 401 y 409 en `POST /users`; el ejemplo del 201 es un string. | `routers/users.py` | ⏳ Pendiente |
-| Roles | Media | El código del rol es `admin` en la lista pero `requerir_rol(["administrador"])` en el POST. El PM confirmó `admin` (22-oct): cambiarlo en `users.py` y `roles.py`. Además `"coordinador "` tiene un espacio al final (el código de G1 es `coordinator`). | `routers/users.py`, `routers/roles.py` | ⏳ Pendiente antes del PR |
+| Roles | Media | El código del rol es `admin` en la lista pero `requerir_rol(["administrador"])` en el POST. El PM confirmó `admin` (22-oct): cambiarlo en `users.py` y `roles.py`. | `routers/users.py`, `routers/roles.py` | ✅ Hecho: ambos usan `admin` |
 
 ### Edgar · Persona 3 · Errores, paginación y registro
 | Escenario | Prioridad | Qué falta | Archivo | Estado |
 |-|-|-|-|-|
-| Pruebas | Alta | `error_handler.py` ya quedó arreglado: los 401, 403 y 404 responden bien (PM, 22-oct) y pasan 28 pruebas. Fallan 4, las de `registro.py`: los parámetros no coinciden con los de las pruebas y el conteo de intentos fallidos da 0. Corre `pytest` otra vez después de corregir. | `utils/registro.py`, `tests/test_errores.py` | ⏳ Pendiente antes del PR |
-| G2-36 | Baja | `registro.py` ya usa `tabla`, `registro_id` e `ip_origen` (20-oct). Falta que login y logout lo llamen; coordinar con Daniel y Randy. En los registros de `pytest` aparece «No se pudo registrar la accion»: la causa es que `tabla` y `registro_id` no pueden ir vacíos en la base (NOT NULL) y que `detalle` debe ser JSON válido (ya lo cubre `models.py`). El PM pidió escribir a mano solo login, login fallido y logout. | `utils/registro.py` | 🔵 Implementado, falta conectarlo |
+| Pruebas | Alta | `error_handler.py` ya quedó arreglado: los 401, 403 y 404 responden bien (PM, 22-oct) y pasan 28 pruebas. Con los cambios del 23-oct pasan 33 y falla 1: el login fallido con correo inexistente no se guarda porque `registro_id` queda NULL. Corre `pytest` otra vez después de corregir. | `utils/registro.py`, `tests/test_errores.py` | ✅ `pytest` 40 de 40 (23-oct). Queda quitar las funciones que ya no se usan |
+| G2-36 | Baja | `registro.py` ya usa `tabla`, `registro_id` e `ip_origen` (20-oct). Login, login fallido y logout ya lo llaman. En los registros de `pytest` aparece «No se pudo registrar la accion»: la causa es que `tabla` y `registro_id` no pueden ir vacíos en la base (NOT NULL) y que `detalle` debe ser JSON válido (ya lo cubre `models.py`). El PM pidió escribir a mano solo login, login fallido y logout. | `utils/registro.py` | ✅ Hecho (23-oct): el correo inexistente ya se guarda |
 | G2-30 | Media | Dio PASS con el formato anterior. El manejador ahora responde `{"error": {...}}` como el contrato común: repetir 401, 403, 404, 409 y 422. El PM pidió `details` como lista de objetos (`field`, `code`, `message`); hoy es un diccionario: confirmar cuál queda. | `middleware/error_handler.py` | 🔵 Pendiente de retest QA |
 
 ### Fulvio · Persona 4 · Archivos y frontend
 | Escenario | Prioridad | Qué falta | Archivo | Estado |
 |-|-|-|-|-|
 | G2-18 a G2-22 | Alta | Ya existe `POST /files` y valida el tipo real con `puremagic` (🔵 pendiente de validación QA). Falta `GET /files/{id}` con token (G2-21), registrar el archivo en la tabla `archivo`, evitar rutas manipuladas (G2-22) y probar G2-19 y G2-20 con el QA. | `routers/files.py` | 🟡 En proceso |
-| G2-18 | Media | `POST /files` aún no exige token (se activa cuando Randy termine el middleware). | `routers/files.py` | ⏳ Pendiente |
+| G2-18 | Media | `POST /files` ya exige token, pero con un token válido responde 500 (`usuario_actual["correo"]` y el usuario ya no es un diccionario). | `routers/files.py` | 🔵 Corregido (23-oct): `usuario_actual.correo`. Listo para retest |
 | Pruebas | Media | Falta `tests/test_files.py`. | `tests/test_files.py` | ⏳ Pendiente |
 
 ### Robert · Persona 5 · Base del proyecto e integración
@@ -67,7 +70,7 @@ El middleware de usuarios y roles todavía lee el encabezado `usuario-actual` y 
 | 3 | G2-32 | Fechas en UTC: cada conexión nueva a MySQL usa `time_zone = '+00:00'` | `database.py` | 🔵 Hecho el 22-oct |
 | 4 | G2-33 | `README.md` con títulos y tablas; revisar `/api/v1/docs` cuando todos terminen | `README.md`, `main.py` | 🔵 README corregido el 22-oct. Falta la revisión final de OpenAPI |
 | 4 | G2-35 | El README explica `.env`, la base compartida y la auditoría, sin ningún dato real | `README.md` | 🔵 Hecho el 22-oct |
-| 4 | Pruebas | `pytest` corre para todos con SQLite temporal | `tests/conftest.py` | ✅ Sin cambios. En mi prueba local pasan 32. El PM reporta 28 y 4 fallan por `registro.py` (Edgar) |
+| 4 | Pruebas | `pytest` corre para todos con SQLite temporal | `tests/conftest.py` | ✅ Sin cambios. Revisado el 23-oct: pasan 40 de 40 |
 | QA | G2-35 | Que el repositorio no tenga contraseñas ni variables sensibles | `.gitignore` | PASS de QA. Para mantenerlo: `grupo-2.txt` y `.env` nunca se suben, y `.env.example` solo lleva el formato |
 
 ## Estado de los escenarios (resumen del informe de QA del 17-oct; el retest es el viernes 23)
@@ -101,33 +104,33 @@ El middleware de usuarios y roles todavía lee el encabezado `usuario-actual` y 
 Antes, `error_handler.py` respondía `{"status", "error", "meta"}` con `details` como lista, y el CONTRATO_COMUN pide `{"error": {"code", "message", "details": {}}}`. Con el cambio del 20-oct el manejador ya responde en el formato del contrato (`details` como diccionario), así que la decisión con el PM queda en cambiar el manejador, no el contrato. Como el PASS de G2-30 fue con el formato anterior, hay que repetirlo. Respuesta posterior del PM: se queda el formato actual de G2 (`error.code`, `error.message` y `error.details`, más `status` y `meta`), con `details` como lista de objetos por campo (`field`, `code`, `message`), y él actualiza el `CONTRATO_COMUN`. El código de hoy devuelve `details` como diccionario; hay que confirmar con el PM cuál queda antes del retest.
 
 ### Pruebas automáticas y auditoría
-- `pytest` completo (aviso del PM, 22-oct): pasan 28 y fallan 4 (antes fallaban 15). Las 4 son de `registro.py`.
-- En la auditoría, `registro.py` ya usa las columnas reales. Falta conectarlo con login y logout (G2-36). El PM pidió escribir a mano solo login, login fallido y logout; los cambios de datos los registran los triggers de G1 con `@actor_id` (ver `fijar_actor` en `database.py`).
+- `pytest` completo: el 22-oct (aviso del PM) pasaban 28 y fallaban 4 (antes 15). Revisado el 23-oct: pasan 33 y falla 1, la de `registro.py` con el correo inexistente.
+- En la auditoría, `registro.py` ya usa las columnas reales. Login, login fallido y logout ya lo llaman; falta el caso del correo inexistente (G2-36). El PM pidió escribir a mano solo login, login fallido y logout; los cambios de datos los registran los triggers de G1 con `@actor_id` (ver `fijar_actor` en `database.py`).
 - La base exige `tabla` y `registro_id` (NOT NULL) y `detalle` como JSON válido (ver `01_schema.sql`).
 
 ### Notas de integración (Robert)
-- Integración con la base: el login y la sesión (`sesion_token`) ya usan la base compartida. `users.py` y `auth_middleware.py` todavía leen la lista JSON; pasan a la base cuando Randy suba su parte. El JSON se deja por ahora, hasta que el PM confirme que se puede quitar.
+- Integración con la base: el login y la sesión (`sesion_token`) ya usan la base compartida. `users.py` y `auth_middleware.py` ya leen de la base (22-oct). El JSON ya no autentica a nadie y se deja por ahora, hasta que el PM confirme que se puede quitar.
 - `models.py` coincide con el diagrama del Grupo 1 (G2_Autenticacion.pdf): usuario, rol, permiso, usuario_rol, rol_permiso, sesion_token, archivo y auditoría.
 - El Grupo 1 ya subió su script SQL a la rama `grupo-1` (`01_schema.sql` y `02_seed.sql`, en `grupos/grupo-1-base-de-datos/Docs/sql/`) y `models.py` se revisó contra él: coinciden las tablas y columnas de seguridad. Falta probar la conexión real con tu `.env`.
 - `semilla_local.py` ya no aparece en el repo (copia del 22-oct) y está en el `.gitignore`. Si lo tienes en tu carpeta local, no lo agregues con `git add`.
 
 
-## Planner: qué se puede marcar (22-oct)
+## Planner: qué se puede marcar (23-oct)
 
 Allison revisa lo que se marque como completado en el Planner. Esa lista puede cambiar entre el jueves y el viernes. Marca solo lo que ya esté subido a `grupo-2` y probado.
 
 | Prioridad | Punto | Escenarios | ¿Se puede marcar? |
 |-|-|-|-|
-| 🔴 Alta | 1. Autenticación y autorización JWT en los endpoints protegidos, sin `usuario-actual`, con 401 y 403 | G2-06, 08, 09, 10, 37, 38 | No todavía: falta `auth_middleware.py` (Randy) |
-| 🔴 Alta | 2. Logout y tokens revocados que no se puedan usar | G2-05 | Parcial: el logout está subido; falta que el middleware rechace el token revocado |
-| 🔴 Alta | 3. Control de acceso por usuario y rol | G2-17 | No todavía: depende del middleware y de `users.py` |
-| 🟡 Media | 1. `/me` con identidad y roles | G2-07 | Sí, para retest |
-| 🟡 Media | 2. `GET /users/{id}` con 404 | G2-12 (y G2-11) | Parcial: el 404 responde bien; falta que lea de la base |
-| 🟡 Media | 3. Recursos inexistentes con la respuesta HTTP apropiada | G2-26 | Sí, para retest (PM: el 404 ya responde bien) |
-| 🟡 Media | 4. OpenAPI/Swagger con 401, 409 y demás códigos | G2-33 | No: pendiente |
-| ⚪ Baja | 1. Paginación de usuarios | G2-31 | No: pendiente (Randy) |
-| ⚪ Baja | 2. Bloqueo de 15 minutos tras cinco intentos | G2-34 | No: pendiente (Daniel y Edgar) |
-| ⚪ Baja | 3. Registro de auditoría de intentos fallidos y acciones sensibles | G2-36 | No: pendiente (`registro.py`, Daniel y Randy) |
+| 🔴 Alta | 1. Autenticación y autorización JWT: integrar la validación JWT en los endpoints protegidos, eliminar la dependencia del encabezado `usuario-actual` y verificar respuestas HTTP 401 y 403 según corresponda | G2-06, 08, 09, 10, 37, 38 | Sí, para retest: el middleware usa el JWT y la base; sin token 401 y sin rol 403 |
+| 🔴 Alta | 2. Cierre de sesión: implementar el endpoint de logout y asegurar que los tokens revocados no puedan seguir utilizándose | G2-05 | Sí, para retest: el token revocado ya da 401 |
+| 🔴 Alta | 3. Control de acceso a recursos: verificar las restricciones de acceso por usuario y rol para evitar consultas o modificaciones no autorizadas | G2-17 | Parcial: usuarios y roles sí; archivos no (`POST /files` responde 500) |
+| 🟡 Media | 1. Consulta del usuario autenticado: implementar el endpoint `/me` para recuperar la identidad y los roles del usuario autenticado | G2-07 | Sí, para retest |
+| 🟡 Media | 2. Consulta individual de usuarios: revisar la disponibilidad del endpoint GET por ID y devolver HTTP 404 cuando el usuario no exista | G2-12 (y G2-11) | Sí, para retest: lee de la base y da 404 |
+| 🟡 Media | 3. Manejo de recursos inexistentes: revisar las rutas requeridas para garantizar respuestas HTTP apropiadas cuando un recurso no exista | G2-26 | Parcial: usuarios sí; `GET /files/{id}` todavía no |
+| 🟡 Media | 4. Documentación OpenAPI/Swagger: actualizar la documentación de los endpoints, sus esquemas y las respuestas HTTP 401, 409 y demás códigos aplicables | G2-33 | No: pendiente |
+| ⚪ Baja | 1. Paginación de usuarios: revisar la implementación de paginación en el listado de usuarios | G2-31 | No: pendiente (Randy) |
+| ⚪ Baja | 2. Bloqueo por intentos fallidos: integrar el bloqueo de 15 minutos después de cinco intentos fallidos de autenticación | G2-34 | Sí, para retest (23-oct) |
+| ⚪ Baja | 3. Registro de auditoría: integrar las funciones de auditoría con las operaciones correspondientes, incluyendo intentos fallidos de autenticación y acciones sensibles | G2-36 | Sí, para retest (23-oct) |
 
 
 ## Fechas
