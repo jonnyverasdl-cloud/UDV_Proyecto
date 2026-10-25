@@ -156,3 +156,4 @@ def actualizar_o_desactivar_usuario(usuario_id: int, datos: UsuarioUpdate, db: S
     db.refresh(u)
     return diccionario(u)
         
+        

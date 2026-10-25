@@ -1,7 +1,4 @@
-# Pruebas de usuarios y permisos (Persona 2: Randy): users.py y auth_middleware.py.
-# Corren contra la base SQLite temporal de tests/conftest.py, nunca contra MySQL.
-# Usan las fixtures `client` y `db` de conftest.py (la base se limpia en cada prueba).
-# Correr: python -m pytest tests/test_users.py -v
+
 
 import uuid
 
@@ -424,3 +421,4 @@ def test_usuario_desactivado_pierde_el_acceso(client, headers_admin):
     assert login.status_code == 401
     
     assert client.get(URL, headers=headers_usuario).status_code == 401
+    
