@@ -55,6 +55,7 @@ El archivo `.env` **nunca se sube** al repositorio. Se copia desde `.env.example
 | Opción | Cuándo usarla |
 |-|-|
 | SQLite (`sqlite:///./dev.db`) | Pruebas locales sin instalar nada. |
+| MySQL de Docker | Desde la raíz del repo: `docker compose up -d db` (puerto local 3307). |
 | MySQL o MariaDB local (XAMPP) | Con el script del Grupo 1 importado. |
 | Base compartida del PM | Integración. Lo que se borra lo ven los demás grupos. |
 
