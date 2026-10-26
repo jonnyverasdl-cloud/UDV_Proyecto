@@ -47,7 +47,6 @@ El archivo `.env` **nunca se sube** al repositorio. Se copia desde `.env.example
 | `LOGIN_MAX_INTENTOS` | Intentos fallidos antes del bloqueo (5 intentos). |
 | `LOGIN_BLOQUEO_MINUTOS` | Minutos de bloqueo (15 minutos). |
 | `CONTRASENA_MIN` / `CONTRASENA_MAX` | Largo de la contraseña (de 8 a 64 caracteres). |
-| `PER_PAGE_MAX` | Máximo de registros por página en los listados (100). |
 | `UPLOAD_DIR` | Carpeta donde se guardan los archivos subidos. |
 
 ## 5. Base de datos
