@@ -1,34 +1,36 @@
 """
-g4_inbox.routes — El APIRouter real del Grupo 4 (Inbox y entregas docentes)
+g4_inbox.routes — El APIRouter real del Grupo 4 (solo bandeja/inbox y detalle)
 
-Esto es lo que se monta en la aplicación raíz del proyecto, junto con los
-routers de los demás grupos — por eso NO tiene su propio FastAPI() aquí,
-solo un APIRouter. Quien corre esto de verdad en producción es main.py
-de la raíz (del PM), con: app.include_router(g4_router)
+Esto es lo único que se monta en la aplicación raíz del proyecto. Las 6
+acciones de transición (start, submit, review...) YA NO viven aquí desde
+el 21/10 — pasaron a ser de G3 (ver acciones.py para la versión que G4
+sigue usando solo en pruebas locales).
 
-Para correr y probar G4 solo (sin el resto del proyecto), ver main.py de
-esta misma carpeta — ahí sí hay una FastAPI() liviana, nada más que para
-pruebas locales.
+Para correr y probar G4 solo, ver main.py de esta misma carpeta.
 
-IMPORTANTE — cosas temporales que hay que reemplazar más adelante:
+IMPORTANTE:
 1. Base de datos: con G4_USAR_MYSQL=1 lee de MySQL real (database.py);
    si no, usa datos en memoria (datos_ejemplo.py + DETALLE_EXTRA).
-2. No hay autenticación real todavía integrada aquí — X-User/X-Role
-   siguen simulando lo que GET /me de G2 va a resolver.
-3. El servicio de transiciones de G3 (g3_workflow) todavía no existe.
-   ejecutar_transicion_g3(), más abajo, es un STUB que imita su
-   comportamiento usando la misma tabla de transiciones del contrato —
-   confirmado en la reunión del 16 de octubre: seguimos así hasta que
-   G3 publique su motor real.
+2. Autenticación REAL, desde el 24/10 — ya no se simula con X-User. Se
+   usa obtener_usuario_actual de g2_api, que exige un token Bearer
+   válido y devuelve el Usuario real de la base. Esto es una dependencia
+   dura: g4_inbox YA NO CORRE sin que g2_api esté disponible en el
+   PYTHONPATH (antes el import de G2 era opcional; para autenticación,
+   que sea opcional sería un hueco de seguridad — GET /inbox nunca debe
+   poder responder sin un token válido).
 """
 
 import os
 from datetime import date
 from typing import List, Optional
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from g2_api.routers.auth import obtener_usuario_actual
+from g2_api.models import Usuario
+
+from .acciones import acciones_permitidas
 from .datos_ejemplo import asignaciones_ejemplo
 from .inbox import Asignacion, ErrorValidacion, listar_inbox, resumen_inbox
 
@@ -42,9 +44,6 @@ router = APIRouter(prefix="/api/v1", tags=["G4 - Inbox y entregas"])
 # ============================================================================
 # "BASE DE DATOS" EN MEMORIA (reemplaza temporalmente a G1 si USAR_MYSQL=0)
 # ============================================================================
-# Viene de la tabla tipo_tarea de G1 (columna requiere_archivo) — lo mismo
-# que confirmaron en la base real. Lo copiamos aquí para el modo memoria,
-# porque datos_ejemplo.py usa el "nombre" del tipo, no su "codigo".
 REQUIERE_ARCHIVO_POR_TIPO = {
     "Actualizar programa": False,
     "Subir ficha o CV": True,
@@ -119,40 +118,6 @@ def _asignaciones_para_inbox() -> List[Asignacion]:
 
 
 # ============================================================================
-# STUB DEL SERVICIO DE TRANSICIONES DE G3 (g3_workflow)
-# ============================================================================
-TABLA_TRANSICIONES = {
-    ("assigned", "start"):       {"nuevo_estado": "in_progress", "actor": "docente"},
-    ("in_progress", "submit"):   {"nuevo_estado": "submitted",   "actor": "docente"},
-    ("returned", "resubmit"):    {"nuevo_estado": "submitted",   "actor": "docente"},
-    ("submitted", "review"):     {"nuevo_estado": "under_review", "actor": "revisor"},
-    ("under_review", "return"):  {"nuevo_estado": "returned",    "actor": "revisor"},
-    ("under_review", "approve"): {"nuevo_estado": "approved",    "actor": "revisor"},
-}
-
-
-def ejecutar_transicion_g3(asignacion: dict, accion: str, rol_usuario: str,
-                            comentario: Optional[str] = None) -> dict:
-    clave = (asignacion["status"], accion)
-    regla = TABLA_TRANSICIONES.get(clave)
-    if regla is None:
-        raise HTTPException(status_code=409, detail="Transición no permitida desde este estado")
-    if regla["actor"] != rol_usuario:
-        raise HTTPException(status_code=403, detail=f"Esta acción le corresponde al rol '{regla['actor']}'")
-    if accion == "return" and not comentario:
-        raise HTTPException(status_code=422, detail="La observación es obligatoria para devolver")
-    asignacion["status"] = regla["nuevo_estado"]
-    if comentario:
-        asignacion["comments"].append({"author": rol_usuario, "text": comentario})
-    asignacion["history"].append({"action": accion, "new_status": regla["nuevo_estado"], "actor": rol_usuario})
-    return asignacion
-
-
-def acciones_permitidas(asignacion: dict) -> List[str]:
-    return [accion for (estado, accion) in TABLA_TRANSICIONES if estado == asignacion["status"]]
-
-
-# ============================================================================
 # MODELOS DE ENTRADA
 # ============================================================================
 class BorradorIn(BaseModel):
@@ -168,33 +133,30 @@ class ArchivoIn(BaseModel):
     name: str
 
 
-class DevolucionIn(BaseModel):
-    comment: str
-
-
 # ============================================================================
-# 1-2. INBOX — rutas relativas: el prefix="/api/v1" del router ya las arma completas
+# 1-2. INBOX — ahora exige token real y filtra por el usuario del token,
+# nunca por un header que cualquiera podía escribir.
 # ============================================================================
 @router.get("/inbox")
-def inbox(q: str = "", status: Optional[str] = None, page: int = 1,
-          per_page: int = 20, x_user: int = Header(default=1)):
+def inbox(q: str = "", status: Optional[str] = None, page: int = 1, per_page: int = 20,
+           usuario: Usuario = Depends(obtener_usuario_actual)):
     try:
-        return listar_inbox(_asignaciones_para_inbox(), x_user,
+        return listar_inbox(_asignaciones_para_inbox(), usuario.id,
                              q=q, status=status, page=page, per_page=per_page)
     except ErrorValidacion as e:
         raise HTTPException(status_code=422, detail=e.details)
 
 
 @router.get("/inbox/summary")
-def inbox_summary(x_user: int = Header(default=1)):
-    return resumen_inbox(_asignaciones_para_inbox(), x_user)
+def inbox_summary(usuario: Usuario = Depends(obtener_usuario_actual)):
+    return resumen_inbox(_asignaciones_para_inbox(), usuario.id)
 
 
 # ============================================================================
 # 3. DETALLE
 # ============================================================================
 @router.get("/assignments/{assignment_id}")
-def detalle_asignacion(assignment_id: int):
+def detalle_asignacion(assignment_id: int, usuario: Usuario = Depends(obtener_usuario_actual)):
     a = buscar_asignacion(assignment_id)
     if not a:
         raise HTTPException(status_code=404, detail="Asignación no encontrada")
@@ -205,7 +167,8 @@ def detalle_asignacion(assignment_id: int):
 # 4. BORRADOR
 # ============================================================================
 @router.put("/assignments/{assignment_id}/submission-draft")
-def guardar_borrador(assignment_id: int, borrador: BorradorIn):
+def guardar_borrador(assignment_id: int, borrador: BorradorIn,
+                      usuario: Usuario = Depends(obtener_usuario_actual)):
     a = buscar_asignacion(assignment_id)
     if not a:
         raise HTTPException(status_code=404, detail="Asignación no encontrada")
@@ -217,7 +180,7 @@ def guardar_borrador(assignment_id: int, borrador: BorradorIn):
 # 5-6. COMENTARIOS
 # ============================================================================
 @router.get("/assignments/{assignment_id}/comments")
-def listar_comentarios(assignment_id: int):
+def listar_comentarios(assignment_id: int, usuario: Usuario = Depends(obtener_usuario_actual)):
     a = buscar_asignacion(assignment_id)
     if not a:
         raise HTTPException(status_code=404, detail="Asignación no encontrada")
@@ -226,11 +189,11 @@ def listar_comentarios(assignment_id: int):
 
 @router.post("/assignments/{assignment_id}/comments")
 def crear_comentario(assignment_id: int, comentario: ComentarioIn,
-                      x_user: int = Header(default=1)):
+                      usuario: Usuario = Depends(obtener_usuario_actual)):
     a = buscar_asignacion(assignment_id)
     if not a:
         raise HTTPException(status_code=404, detail="Asignación no encontrada")
-    nuevo = {"author": str(x_user), "text": comentario.text}
+    nuevo = {"author": str(usuario.id), "text": comentario.text}
     a["comments"].append(nuevo)
     return nuevo
 
@@ -239,56 +202,10 @@ def crear_comentario(assignment_id: int, comentario: ComentarioIn,
 # 7. VINCULAR ARCHIVO
 # ============================================================================
 @router.post("/assignments/{assignment_id}/files")
-def vincular_archivo(assignment_id: int, archivo: ArchivoIn):
+def vincular_archivo(assignment_id: int, archivo: ArchivoIn,
+                      usuario: Usuario = Depends(obtener_usuario_actual)):
     a = buscar_asignacion(assignment_id)
     if not a:
         raise HTTPException(status_code=404, detail="Asignación no encontrada")
     a["files"].append({"file_id": archivo.file_id, "name": archivo.name})
     return {"status": "archivo vinculado", "files": a["files"]}
-
-
-# ============================================================================
-# 8-13. TRANSICIONES
-# ============================================================================
-def _transicionar(assignment_id: int, accion: str, rol_usuario: str,
-                   comentario: Optional[str] = None) -> dict:
-    a = buscar_asignacion(assignment_id)
-    if not a:
-        raise HTTPException(status_code=404, detail="Asignación no encontrada")
-    return ejecutar_transicion_g3(a, accion, rol_usuario, comentario)
-
-
-@router.post("/assignments/{assignment_id}/start")
-def iniciar(assignment_id: int, x_role: str = Header(default="docente")):
-    return _transicionar(assignment_id, "start", x_role)
-
-
-@router.post("/assignments/{assignment_id}/submit")
-def entregar(assignment_id: int, x_role: str = Header(default="docente")):
-    a = buscar_asignacion(assignment_id)
-    # requiere_archivo sale de tipo_tarea de G1 — solo exige evidencia a
-    # los tipos de tarea que de verdad la piden (ej. "Subir ficha o CV"),
-    # no a todos (ej. "Confirmar actividad" nunca necesita adjunto).
-    if a and a.get("requiere_archivo", True) and not a.get("files"):
-        raise HTTPException(status_code=422, detail="Falta adjuntar evidencia antes de entregar")
-    return _transicionar(assignment_id, "submit", x_role)
-
-
-@router.post("/assignments/{assignment_id}/resubmit")
-def reenviar(assignment_id: int, x_role: str = Header(default="docente")):
-    return _transicionar(assignment_id, "resubmit", x_role)
-
-
-@router.post("/assignments/{assignment_id}/review")
-def tomar_revision(assignment_id: int, x_role: str = Header(default="revisor")):
-    return _transicionar(assignment_id, "review", x_role)
-
-
-@router.post("/assignments/{assignment_id}/return")
-def devolver(assignment_id: int, cuerpo: DevolucionIn, x_role: str = Header(default="revisor")):
-    return _transicionar(assignment_id, "return", x_role, cuerpo.comment)
-
-
-@router.post("/assignments/{assignment_id}/approve")
-def aprobar(assignment_id: int, x_role: str = Header(default="revisor")):
-    return _transicionar(assignment_id, "approve", x_role)

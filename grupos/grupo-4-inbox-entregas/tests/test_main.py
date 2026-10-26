@@ -1,23 +1,76 @@
 """
-Pruebas automáticas de main.py — los 11 endpoints que no son del inbox
-(detalle, borrador, comentarios, archivos, y las 6 transiciones).
+Pruebas automáticas de routes.py y acciones.py.
 
-
+Desde el 24/10, el inbox exige un Usuario real (vía obtener_usuario_actual
+de G2), no un header X-User. En vez de armar un login completo para cada
+prueba, usamos app.dependency_overrides — el mecanismo oficial de FastAPI
+para reemplazar una dependencia durante pruebas, sin tocar el código real.
 """
 import pytest
 from fastapi.testclient import TestClient
 
 import g4_inbox.routes as modulo_routes
 from g4_inbox.main import app
+from g2_api.routers.auth import obtener_usuario_actual
+
+
+class UsuarioFalso:
+    """No es el Usuario real de G2 (ese viene de la base) — solo necesita
+    tener un atributo .id, que es lo único que nuestro código usa."""
+    def __init__(self, id):
+        self.id = id
+
+
+def autenticar_como(id_usuario):
+    """Reemplaza, solo durante la prueba, 'quién es el usuario actual'."""
+    app.dependency_overrides[obtener_usuario_actual] = lambda: UsuarioFalso(id_usuario)
+
 
 cliente = TestClient(app)
 
 
 @pytest.fixture(autouse=True)
-def reiniciar_base_de_datos():
-    """Cada prueba empieza con los datos originales, sin lo que dejaron las anteriores."""
+def preparar_cada_prueba():
+    """Reinicia los datos Y deja autenticado como el usuario 1 por defecto,
+    para que las pruebas que no les importa el usuario no tengan que
+    llamar autenticar_como() cada vez."""
     modulo_routes.DB[:] = modulo_routes._construir_db()
+    autenticar_como(1)
     yield
+    app.dependency_overrides.clear()
+
+
+# ============================================================================
+# SEGURIDAD — lo que exactamente reportó la prueba de integración del PM
+# ============================================================================
+def test_inbox_sin_token_da_401():
+    """Sin override de autenticación, debe exigir el token real de verdad."""
+    app.dependency_overrides.clear()  # quita el override, para simular "sin login"
+    respuesta = cliente.get("/api/v1/inbox")
+    assert respuesta.status_code == 401
+
+
+def test_inbox_filtra_por_el_usuario_autenticado_no_por_header():
+    """Aunque alguien mande X-User a mano, debe ignorarlo — el usuario
+    real sale del token (acá, del override), no del header."""
+    autenticar_como(1)
+    respuesta_1 = cliente.get("/api/v1/inbox", headers={"X-User": "2"})  # X-User ya no existe
+    datos_1 = respuesta_1.json()
+
+    autenticar_como(2)
+    respuesta_2 = cliente.get("/api/v1/inbox")
+    datos_2 = respuesta_2.json()
+
+    # Si el header X-User todavía mandara, ambas respuestas serían iguales
+    assert datos_1 != datos_2
+
+
+def test_acciones_no_estan_en_el_router_principal():
+    """Las 6 transiciones no deben existir en routes.router — ese es
+    justo el router que SÍ se monta en la raíz del proyecto."""
+    rutas_del_router_principal = {r.path for r in modulo_routes.router.routes}
+    assert "/api/v1/assignments/{assignment_id}/start" not in rutas_del_router_principal
+    assert "/api/v1/assignments/{assignment_id}/approve" not in rutas_del_router_principal
 
 
 # ============================================================================
@@ -36,6 +89,12 @@ def test_detalle_de_tarea_inexistente_devuelve_404():
     assert respuesta.status_code == 404
 
 
+def test_detalle_sin_token_da_401():
+    app.dependency_overrides.clear()
+    respuesta = cliente.get("/api/v1/assignments/1")
+    assert respuesta.status_code == 401
+
+
 # ============================================================================
 # BORRADOR
 # ============================================================================
@@ -48,7 +107,7 @@ def test_guardar_borrador_no_cambia_el_estado():
     despues = cliente.get("/api/v1/assignments/2").json()["status"]
     assert respuesta.status_code == 200
     assert respuesta.json()["draft_comment"] == "borrador de prueba"
-    assert antes == despues  # guardar borrador NUNCA cambia el estado
+    assert antes == despues
 
 
 def test_guardar_borrador_en_tarea_inexistente_devuelve_404():
@@ -70,7 +129,7 @@ def test_crear_y_listar_comentario():
 
 def test_comentario_sin_texto_es_rechazado():
     respuesta = cliente.post("/api/v1/assignments/1/comments", json={})
-    assert respuesta.status_code == 422  # "text" es obligatorio
+    assert respuesta.status_code == 422
 
 
 # ============================================================================
@@ -86,12 +145,12 @@ def test_vincular_archivo():
 
 
 # ============================================================================
-# TRANSICIONES — probamos el ciclo completo, en orden, con una tarea fija
+# TRANSICIONES — siguen probándose, pero ahora contra acciones_router,
+# montado solo en main.py (pruebas locales), no en routes.router.
 # ============================================================================
 @pytest.fixture
 def tarea_assigned():
-    """Busca una tarea que esté en 'assigned' para empezar el ciclo limpio."""
-    inbox = cliente.get("/api/v1/inbox", headers={"X-User": "1"}).json()["data"]
+    inbox = cliente.get("/api/v1/inbox").json()["data"]
     for t in inbox:
         if t["status"] == "assigned":
             return t["id"]
@@ -107,7 +166,6 @@ def test_iniciar_tarea_assigned_pasa_a_in_progress(tarea_assigned):
 
 
 def test_transicion_invalida_devuelve_409(tarea_assigned):
-    # "approve" nunca es válido desde "assigned"
     respuesta = cliente.post(
         f"/api/v1/assignments/{tarea_assigned}/approve", headers={"X-Role": "revisor"}
     )
@@ -115,7 +173,6 @@ def test_transicion_invalida_devuelve_409(tarea_assigned):
 
 
 def test_transicion_con_rol_incorrecto_devuelve_403(tarea_assigned):
-    # "start" es del docente, no del revisor
     respuesta = cliente.post(
         f"/api/v1/assignments/{tarea_assigned}/start", headers={"X-Role": "revisor"}
     )
