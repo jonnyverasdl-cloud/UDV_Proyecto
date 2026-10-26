@@ -1,0 +1,41 @@
+# Casos de Prueba - QA Grupo 5 (Programas de Curso y PDF)
+
+**Objetivo:** Validar la integridad lógica, las transiciones de estado y la generación de documentos del módulo de programas, de acuerdo con el CONTRATO.md oficial.
+
+### 1. Flujos Base (Transiciones Válidas)
+
+**Caso 01: Creación de programa y versión inicial**
+* **Acción:** `POST /api/v1/course-programs` seguido de `POST /api/v1/course-programs/{id}/versions`.
+* **Resultado Esperado:** Código HTTP `201`. El sistema asigna automáticamente el estado inicial `draft` a la versión.
+
+**Caso 02: Flujo completo de autorización**
+* **Acción:** Ejecutar secuencialmente sobre una versión en `draft`: `submit` -> `review` -> `approve` -> `authorize`.
+* **Resultado Esperado:** Códigos HTTP `200`. La versión alcanza el estado `authorized` y se consolida como la única vigente.
+
+**Caso 03: Generación de documento oficial**
+* **Acción:** `GET /api/v1/program-versions/{id}/pdf` sobre una versión en estado `authorized`.
+* **Resultado Esperado:** Código HTTP `200`. El sistema descarga el PDF institucional reflejando la fecha y aprobación de origen.
+
+### 2. Flujos Alternativos y Devoluciones
+
+**Caso 04: Ciclo de corrección y retorno**
+* **Acción:** Transición de `under_review` a `returned` enviando un `POST /api/v1/program-versions/{id}/return` con observaciones. Edición (`PUT`) y nuevo envío (`submit`).
+* **Resultado Esperado:** La versión pasa a `returned` conservando los comentarios. Tras la edición, regresa correctamente a `submitted`.
+
+### 3. Reglas Duras y Auditoría de Errores
+
+**Caso 05: Protección de inmutabilidad**
+* **Acción:** Enviar un `PUT /api/v1/program-versions/{id}` para modificar contenido de una versión en estado `submitted`, `under_review` o `authorized`.
+* **Resultado Esperado:** Código HTTP `409` o `403`. El sistema rechaza la petición protegiendo los datos enviados o vigentes.
+
+**Caso 06: Validación matemática de evaluación**
+* **Acción:** Enviar a `PUT /api/v1/program-versions/{id}/sections/evaluacion` un arreglo de zonas cuya ponderación sume 90% o 110%.
+* **Resultado Esperado:** Código HTTP `422 Validation Error`. El sistema rechaza la petición validando el tope exacto del 100%.
+
+**Caso 07: Salto de estados**
+* **Acción:** Intentar ejecutar `POST /api/v1/program-versions/{id}/approve` sobre una versión que se encuentra en `draft` o `submitted`.
+* **Resultado Esperado:** Código HTTP `409 Conflict`. El sistema bloquea la acción por no estar en la tabla de transiciones válidas.
+
+**Caso 08: Bloqueo de PDF prematuro**
+* **Acción:** Solicitar `GET /api/v1/program-versions/{id}/pdf` de una versión que apenas está en estado `draft` o `under_review`.
+* **Resultado Esperado:** Rechazo de la solicitud (HTTP `403` o `409`), asegurando que solo los programas autorizados generen el documento final.
