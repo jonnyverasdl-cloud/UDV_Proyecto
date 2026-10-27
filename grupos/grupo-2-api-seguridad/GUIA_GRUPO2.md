@@ -1,12 +1,14 @@
 # Guía del Grupo 2: API y Seguridad
 
-Coordinador: Daniel (dancobs) · Versión 2 · 10-oct-2026 · Estado actualizado al 23-oct-2026
+Coordinador: Daniel (dancobs) · Versión 2 · 10-oct-2026 · Estado actualizado al 27-oct-2026
 
 **Cómo usar esta guía:** busca tu nombre en la sección 2 y mira la semana actual. Ahí está lo que te toca y la fecha de entrega.
 
 ---
 
-## 1. Dónde estamos (estado al 23-oct)
+## 1. Dónde estamos (estado al 27-oct)
+
+**Retest No. 2 de QA (23 y 24-oct):** 34 PASS, 2 FAIL (G2-21 archivos y G2-31 paginación), 1 PARCIAL (G2-33 OpenAPI) y 1 PASS histórico con retest pendiente (G2-32). Lo que falta se explica en la sección 9. `pytest` en `grupo-2`: **93 pasan y 1 xfail**.
 
 **Hoy, viernes 23-oct, QA (Allison) repite las pruebas** sobre lo que se subió a `grupo-2` para el PR del jueves. Revisado el 23-oct contra la rama `grupo-2`: `pytest` completo pasa **33** y falla **1**.
 
@@ -29,8 +31,8 @@ Coordinador: Daniel (dancobs) · Versión 2 · 10-oct-2026 · Estado actualizado
 | 🟡 | `registro.py`: de 4 pruebas fallando quedó 1 (`test_login_fallido_queda_en_auditoria`). Con un correo inexistente o vacío, `registro_id` queda NULL y la base lo rechaza | Edgar |
 | 🟡 | Archivos: `POST /files` ya exige token, pero con un token válido responde **500** (`usuario_actual["correo"]`: el usuario ya no es un diccionario). `GET /files/{id}` da **422** porque la ruta dice `{id}` y la función espera `file_id`. Faltan: registrar en la tabla `archivo`, dejar descargar solo al autor o a un admin y `tests/test_files.py` | Fulvio |
 | ⏳ | Bloqueo por intentos (5 fallos = 15 minutos): el login no llama a `esta_bloqueado()` y siempre da 401 | Daniel |
-| ⏳ | Paginación en `GET /users` (`paginacion.py` existe, `users.py` no la usa) | Randy |
-| ⏳ | Documentación OpenAPI: `POST /users` solo documenta 201 y 422 (faltan 401, 403 y 409); `GET /users` solo 200; `files` solo 200 y 422 | Randy y Fulvio |
+| 🔵 | Paginación en `GET /users` (`page`, `per_page`, `total`, `data`): ya la usa `users.py` (24-oct) y tiene pruebas. Falta retest de QA (G2-31) | Randy |
+| 🔵 | Documentación OpenAPI: `main.py` completa 401, 403, 404, 409 y 422 con el formato común y ejemplos reales (objetos, no `string`). Falta retest de QA (G2-33) | Robert |
 | 🟡 | `pytest` completo: **33 pasan y 1 falla** (la de `registro.py`). El 22-oct el PM contó 28 y 4 fallas | Edgar |
 
 **Ojo:** el PM entregó una base compartida (MySQL en Railway). Los datos de acceso se piden al PM y van **solo en tu `.env`**, nunca en el repo ni en `.env.example`. Lo que se borra ahí lo ven los demás grupos. El Grupo 1 ya subió su script SQL a la rama `grupo-1` (`grupos/grupo-1-base-de-datos/Docs/sql/`: `01_schema.sql` y `02_seed.sql`) y se puede montar la base local con `python -m g1_bd crear`. Login, sesión, middleware, `users.py` y `roles.py` ya usan la base. El JSON de prueba (`g2_api/datos_prueba/usuarios_prueba.json`) ya no autentica a nadie, pero `auth.py` todavía lo carga al arrancar sin usarlo; se quita cuando el PM confirme que se puede borrar.
@@ -154,6 +156,7 @@ Cada tarea dice: **archivo → qué haces** y, en *cursiva*, con quién se conec
 - `models.py` → `auditoria.detalle` guarda JSON válido (el Grupo 1 lo exige con `JSON_VALID`).
   *Depende del script del Grupo 1 (ya subido a `grupo-1`). Daniel y Randy llaman a `fijar_actor`; Edgar usa `registrar_accion`.*
 - Probar la conexión real con tu `.env` y avisar al grupo si algo falla.
+- (27-oct) `main.py` completa OpenAPI (401, 403, 404, 409, 422 y ejemplos) y `tests/test_openapi.py` lo verifica (G2-33).
 
 **Semana 4 · martes 03-nov** (adelantada: hecha el 22-oct)
 - `README.md` → títulos y tablas corregidos y nueva sección «Auditoría: quién hizo el cambio».
@@ -340,3 +343,23 @@ En la sección 2 solo Daniel tiene tarea esta semana. Para que cada quien sepa q
 | Robert | Revisión final de OpenAPI (`/api/v1/docs` contra lo que responde la API) y del README; confirmar que no hay claves en el repo | G2-33, 35 |
 
 *Nota: las fechas de las semanas 3, 4 y 5 son martes 27-oct, 03-nov y 10-nov (las de la sección 2).*
+
+---
+
+## 9. Retest No. 2 de QA (23 y 24-oct) y qué falta
+
+Resultado: 34 PASS, 2 FAIL, 1 PARCIAL, 1 PASS histórico con retest pendiente. Los mensajes del PM (24-oct) y de Allison coinciden con esto. Cada quien toca solo sus archivos.
+
+| Prioridad | Escenario | Qué pasa | Quién | Archivo | Estado al 27-oct |
+|-|-|-|-|-|-|
+| 🔴 Crítica | G2-21 | Un docente descarga el archivo de un admin (HTTP 200, posible IDOR). El PM pide 403 o 404. | Fulvio | `routers/files.py` | ⏳ Pendiente. Hoy `GET /files/{id}` solo exige token. Falta guardar `autor_id` en la tabla `archivo` y dejar descargar solo al autor o a un admin |
+| 🔴 Alta | G2-36 | Allison dio PASS, pero el PM dice que el login con correo inexistente no queda en auditoría. Además el PM vio el login fallido guardado **dos veces** (`auth.py` y `registro.py`). | Daniel y Edgar | `routers/auth.py`, `utils/registro.py` | ⏳ Dejar un solo registro y repetir G2-36 en la versión que va a `main` |
+| 🟡 Media | G2-33 | Faltaban 409, 403, ejemplos con objetos y el 422 real. | Robert | `main.py` | 🔵 Hecho (27-oct). Falta retest. Swagger de `files` usa `file_id` en query en vez de `{id}`: lo corrige Fulvio al arreglar la ruta |
+| ⚪ Baja | G2-31 | `GET /users` devolvía un arreglo sin paginar. | Randy | `routers/users.py` | 🔵 Ya pagina (24-oct) con pruebas. Falta retest |
+| ⚪ Baja | G2-32 | Las respuestas de usuarios ya no traen `creado_en` ni `actualizado_en`. | Randy, con el PM | `routers/users.py` | ⏳ Preguntar al PM si se quitaron a propósito. Si deben salir, en ISO 8601 y UTC |
+| ⚪ Baja | G2-34 | Bloqueo de 15 min. | Daniel | `routers/auth.py` | ✅ PASS |
+| Limpieza | PM | `auth.py` todavía carga `usuarios_prueba.json` y nadie lo usa. | Daniel | `routers/auth.py` | ⏳ Quitar la carga y la carpeta `datos_prueba/` |
+
+**Sobre el PR a `main`:** el PM pidió abrirlo cuanto antes, porque G3, G4 y G6 necesitan el login en `main`. Antes: hacer merge de `main` en `grupo-2` (G1 ya está ahí) y correr `pytest`. El PR lo abre solo Daniel.
+
+**Semana 4 de Robert:** ya está hecha (`README.md`, `tests/conftest.py`, `tests/test_openapi.py`). No hay nada más que adelantar fuera de sus archivos.
