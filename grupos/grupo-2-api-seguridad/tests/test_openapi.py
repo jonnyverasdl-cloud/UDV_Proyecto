@@ -33,3 +33,4 @@ def test_422_usa_el_formato_comun_de_errores():
 def test_rutas_con_id_documentan_404():
     assert "404" in _resp("/api/v1/users/{usuario_id}", "get")
     assert "404" in _resp("/api/v1/files/{id}", "get")
+    
