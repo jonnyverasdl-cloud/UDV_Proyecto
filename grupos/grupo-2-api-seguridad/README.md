@@ -24,6 +24,7 @@ python -m uvicorn g2_api.main:app --reload
 
 - Interfaz de la documentación: `http://127.0.0.1:8000/api/v1/docs`
 - Documento OpenAPI: `http://127.0.0.1:8000/api/v1/openapi.json`
+- `main.py` completa la documentación con los errores comunes (401, 403, 404, 409 y 422) y ejemplos reales; `tests/test_openapi.py` lo verifica.
 
 ## 3. Probar
 
@@ -59,6 +60,8 @@ El archivo `.env` **nunca se sube** al repositorio. Se copia desde `.env.example
 | Base compartida del PM | Integración. Lo que se borra lo ven los demás grupos. |
 
 El esquema lo crea el Grupo 1 (`01_schema.sql` y `02_seed.sql`). Esta API **no crea tablas** en la base compartida.
+
+La versión 1.2.0 de la base (G1) agrega el catálogo `prioridad_tarea` y una llave foránea en `tarea.prioridad`. No afecta a este módulo (`models.py` no usa `tarea`). Si tu base **local** es 1.1.0, aplica `migracion_1.2.0.sql` (en `grupos/grupo-1-base-de-datos/Docs/sql/`) con `mysql -u root db_udv < migracion_1.2.0.sql`; para comprobar la versión: `SELECT * FROM schema_migracion;`. En la base compartida **no se corre**: la actualiza el PM o el Grupo 1.
 Las fechas se guardan en UTC y cada conexión nueva queda en UTC.
 
 Para comprobar la conexión:
@@ -106,5 +109,5 @@ En `auditoria` solo se escriben a mano los eventos de acceso (login, login falli
 | Randy - Persona 2 | `rtorresixcoy375` | `routers/users.py`, `routers/roles.py`, `middleware/auth_middleware.py`, `tests/test_users.py` |
 | Edgar - Persona 3 | `zeusgeo99-code` | `middleware/error_handler.py`, `utils/paginacion.py`, `utils/registro.py`, `tests/test_errores.py` |
 | Fulvio - Persona 4 | `Ful55` | `routers/files.py`, `frontend-login/`, `tests/test_files.py` (por crear) |
-| Robert - Persona 5 | `Davids107` | `main.py`, `config.py`, `database.py`, `models.py`, `requirements.txt`, `.env.example`, `.gitignore`, `README.md`, `tests/conftest.py` |
+| Robert - Persona 5 | `Davids107` | `main.py`, `config.py`, `database.py`, `models.py`, `requirements.txt`, `.env.example`, `.gitignore`, `README.md`, `tests/conftest.py`, `tests/test_openapi.py` |
 | PM | — | `CONTRATO.md`, `CONTRATO_COMUN.md`, los `.docx` de requerimientos y la raíz del repo |
