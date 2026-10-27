@@ -1,4 +1,4 @@
--- 02_seed.sql | Grupo 1 - Base de datos | Workflow docente UDV | version 1.1.0
+-- 02_seed.sql | Grupo 1 - Base de datos | Workflow docente UDV | version 1.2.0
 -- Datos semilla: catalogos, roles, permisos, workflow, usuarios demo, tareas y un programa de ejemplo.
 -- Ejecutar despues de 01_schema.sql. Usuarios demo: contrasena Demo2026!
 
@@ -62,6 +62,9 @@ insert into estado_tarea (codigo, nombre, es_final, orden) values
 ('draft', 'Borrador', 0, 1),('assigned','Asignada',0,2),('in_progress','En progreso',0,3),
 ('submitted', 'Entregada', 0, 4),('under_review','En revisión',0,5),('returned','Devuelta',0,6),
 ('approved', 'Aprobada', 0, 7),('closed','Cerrada',1,8),('cancelled','Cancelada',1,9);
+
+insert into prioridad_tarea (codigo, nombre, orden) values
+('low', 'Baja', 1), ('medium', 'Media', 2), ('high', 'Alta', 3), ('urgent', 'Urgente', 4);
 
 -- Seguridad: roles de la matriz del proyecto
 

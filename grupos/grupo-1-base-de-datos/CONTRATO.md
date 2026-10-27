@@ -11,10 +11,11 @@
 
 | Rol | Nombre | Usuario GitHub |
 |---|---|---|
-| Coordinador (abre los PRs) | | |
-| Dev | | |
-| Dev | | |
-| Dev | | |
+| Coordinador (abre los PRs) | Anthony | toni2000fb-lab |
+| Dev | | AnG3I-universidad |
+| Dev | | Ancel2002 |
+| Dev | | Alejandrobarrera03 |
+| Dev | | ppetet1501 |
 
 ## 2. Alcance del módulo
 

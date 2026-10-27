@@ -1,4 +1,4 @@
-# descripciones.py | Textos del diccionario de datos de db_udv (version 1.1.0).
+# descripciones.py | Textos del diccionario de datos de db_udv (version 1.2.0).
 # Si se agrega una tabla o columna, se describe aqui y se vuelve a correr generar_diccionario.py.
 # TABLAS: nombre -> (bloque, recurso API segun los CONTRATO.md de cada grupo, descripcion)
 BLOQUES = ["Académico", "Seguridad", "Workflow", "Tareas", "Programas", "Contenido", "Colaboración", "Aprobación y auditoría", "Administración", "Vistas"]
@@ -23,6 +23,7 @@ TABLAS = {
  "sesion_token": ("Seguridad", "/auth (login, refresh, logout)", "Sesiones y tokens emitidos. Solo se guarda el hash del token, nunca el token en claro."),
  # Workflow
  "estado_tarea": ("Workflow", "/task-states", "Catálogo de los 9 estados de una tarea o asignación (CONTRATO_COMUN §2)."),
+ "prioridad_tarea": ("Workflow", "/tasks (campo priority)", "Catálogo de prioridades de una tarea: low, medium, high y urgent. tarea.prioridad apunta aquí con llave foránea; agregar una prioridad es insertar una fila."),
  "tipo_tarea": ("Workflow", "/task-types", "Tipos de solicitud (actualizar programa, subir CV, factura...). Define cómo se entrega y si exige archivo."),
  "tipo_tarea_campo": ("Workflow", "/task-types/{id}/fields", "Campos del formulario de cada tipo de tarea (ej. número, fecha y monto de una factura). Un tipo nuevo no cambia el esquema."),
  "workflow": ("Workflow", "/workflows", "Máquina de estados de un tipo de tarea."),
@@ -129,6 +130,8 @@ COLUMNAS = {
                   "emitido_en": "Cuándo se emitió.", "expira_en": "Cuándo deja de ser válido.", "revocado_en": "Si tiene fecha, el token fue revocado (logout).",
                   "ip_origen": "IP desde la que se pidió.", "user_agent": "Navegador o cliente que lo pidió."},
  "estado_tarea": {"codigo": "Código en inglés: draft, assigned, in_progress, submitted, under_review, returned, approved, closed, cancelled.", "orden": "Orden para mostrar los estados."},
+ "prioridad_tarea": {"codigo": "Código en inglés que usa la API: low, medium, high o urgent.", "nombre": "Nombre visible en español (Baja, Media, Alta, Urgente).",
+                     "orden": "Orden de menor a mayor prioridad; no se repite.", "activo": "1 = se ofrece al crear tareas."},
  "tipo_tarea": {"codigo": "Código del tipo, ej. SUBIR_CV.", "modalidad_entrega": "Cómo se entrega: texto, archivo, ambos, formulario o programa.",
                 "requiere_archivo": "1 = no se acepta la entrega sin adjunto.", "extensiones": "Extensiones permitidas, ej. pdf,docx.", "tamano_max_mb": "Tamaño máximo por archivo en MB."},
  "tipo_tarea_campo": {"tipo_tarea_id": "Tipo de tarea al que pertenece el campo.", "codigo": "Nombre técnico del campo, ej. monto.", "etiqueta": "Texto que ve el docente.",
@@ -139,7 +142,7 @@ COLUMNAS = {
                       "origen_clave": "Columna calculada para que la transición inicial no se duplique (los NULL no chocan en un UNIQUE)."},
  "workflow_detalle_rol": {"workflow_detalle_id": "Transición.", "rol_id": "Rol que puede ejecutarla."},
  "tarea": {"workflow_id": "Workflow que siguen sus asignaciones; de él sale el tipo de tarea (workflow.tipo_tarea_id).", "estado_codigo": "Estado de la tarea; draft = no visible en inbox.",
-           "titulo": "Título que ve el docente.", "descripcion": "Instrucciones de la solicitud.", "prioridad": "low, medium o high.",
+           "titulo": "Título que ve el docente.", "descripcion": "Instrucciones de la solicitud.", "prioridad": "Código del catálogo prioridad_tarea (low, medium, high o urgent).",
            "creado_por": "Coordinador que creó la tarea.", "revisor_id": "Revisor por defecto de las entregas.",
            "alcance": "A quién se publica: individual, rol, sede, unidad, todos, curso o seleccion.",
            "rol_destino_id": "Rol destinatario (alcance rol).", "sede_destino_id": "Sede destinataria (alcance sede).", "unidad_destino_id": "Unidad destinataria (alcance unidad).",
@@ -216,4 +219,5 @@ VISTAS_COL = {
  "evento_id": "Id del evento.", "modalidad": "Nombre de la modalidad.", "area": "Nombre del área.", "sede": "Nombre de la sede.",
  "autorizado_por": "Nombre de quien autorizó.",
  "fecha_limite": "Plazo de entrega (en el inbox ya incluye la prórroga individual).",
+ "prioridad_nombre": "Nombre visible de la prioridad (prioridad_tarea.nombre).",
 }
