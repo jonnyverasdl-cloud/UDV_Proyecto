@@ -1,8 +1,23 @@
-# Pendientes del QA — Grupo 2 (Update No. 1 · 17-oct-2026 · estado al 23-oct-2026)
+## Pendientes del QA — Grupo 2 (Update No. 1 · 17-oct-2026 · estado al 23-oct-2026)
 
 Resumen del informe de Allison Espaderos (QA) y quién corrige cada cosa. Cada quien toca **solo sus archivos**. Los números G2-xx son los escenarios del plan de QA.
 
 Prioridad: **Alta** → **Media** → **Baja**. El Planner de Allison tiene tres tareas (Alta, Media y Baja) con puntos por escenario; están sin responsable y con fecha 21/10. El detalle está en `GUIA_GRUPO2.md`, sección 8.
+
+## Retest No. 2 (23 y 24-oct) · estado al 27-oct
+
+34 PASS, 2 FAIL, 1 PARCIAL y 1 PASS histórico con retest pendiente. `pytest` en `grupo-2`: 93 pasan y 1 xfail.
+
+| Escenario | Resultado de QA | Quién | Archivo | Estado al 27-oct |
+|-|-|-|-|-|
+| G2-21 | FAIL (crítico): un docente descarga el archivo de un admin | Fulvio | `routers/files.py` | ⏳ Falta validar al dueño (`autor_id`) o admin y responder 403 o 404 |
+| G2-31 | FAIL: `GET /users` sin paginación | Randy | `routers/users.py` | 🔵 Ya pagina desde el 24-oct. Falta retest |
+| G2-33 | PARCIAL: faltaban 409, 403 y ejemplos reales | Robert | `main.py` | 🔵 Hecho el 27-oct y probado en `tests/test_openapi.py`. Falta retest |
+| G2-32 | PASS histórico, retest pendiente: ya no salen `creado_en` ni `actualizado_en` | Randy y PM | `routers/users.py` | ⏳ Confirmar con el PM si fue a propósito |
+| G2-36 | PASS de QA, pero el PM reporta que el correo inexistente no queda registrado, y que el login fallido se guarda dos veces | Daniel y Edgar | `routers/auth.py`, `utils/registro.py` | ⏳ Dejar un solo registro y repetir en la versión de `main` |
+| Limpieza | Aviso del PM | Daniel | `routers/auth.py` | ⏳ Quitar la carga de `usuarios_prueba.json` |
+
+Antes de abrir el PR a `main` (solo Daniel): merge de `main` en `grupo-2` y `pytest` completo.
 
 ## Lo más urgente (crítico)
 
