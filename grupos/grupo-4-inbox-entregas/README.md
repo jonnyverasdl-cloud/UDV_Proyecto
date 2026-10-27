@@ -1,64 +1,68 @@
-# g4_inbox — versión final integrada (inbox + detalle/entrega/revisión)
+# Grupo 4 - Inbox y entregas
 
-
+Este es el módulo del inbox, el detalle de las asignaciones, la entrega
+y la revisión. Lo armamos entre Isai (inbox), Elmer (detalle/entrega/
+revisión) y yo (backend e integración).
 
 ## Cómo correrlo
 
-Debe quedar en `grupos/grupo-4-inbox-entregas/` dentro del repo (para que
-`grupos/udv-styles/udv.css` se encuentre con la ruta relativa).
-
 ```
-cd grupos/grupo-4-inbox-entregas
+cd grupo-4-inbox-entregas
 pip install -r requirements.txt
+set PYTHONPATH=<ruta a tu copia de grupo-2-api-seguridad>;.
+set SECRET_KEY=lo-que-sea-para-pruebas
 uvicorn g4_inbox.main:app --reload --app-dir .
 ```
 
-Abrir `http://127.0.0.1:8000/static/inbox.html` y navegar desde ahí —
-ya no hace falta abrir nada más por separado.
-
-## Ya probado
-
-- Los 4 archivos estáticos nuevos cargan con 200.
-- El clic en una tarjeta navega correctamente a `detalle.html`.
-- El ciclo completo (iniciar → guardar borrador → vincular archivo →
-  entregar → tomar para revisar → aprobar/devolver) funciona de punta a
-  punta contra el backend real.
-- Las 53 pruebas automáticas de `inbox.py` (de Isai) siguen pasando.
+Abre `http://127.0.0.1:8000/api/v1/docs`. Para probar cualquier cosa
+primero hay que hacer login (`POST /api/v1/auth/login`) 
 
 
+Y para ver las pantallas: `http://127.0.0.1:8000/static/inbox.html`.
+Si se ve sin estilos, agrega `G4_STANDALONE_DEV=1` al correr el
+servidor (eso trae el CSS institucional solo para pruebas locales, en
+producción lo sirve la app principal).
 
-## Actualización 16 de octubre — APIRouter + error común de G2
+## Cómo está armado
 
-- `routes.py` es ahora el `APIRouter` real que la raíz del proyecto monta
-  (`app.include_router(g4_router)`) — ya no tenemos nuestra propia
-  `FastAPI()` para producción.
-- `main.py` quedó como una app liviana, solo para correr y probar G4 por
-  su cuenta: `uvicorn g4_inbox.main:app --reload --app-dir .`
-- Ya usamos `register_error_handlers` de G2 — probado con el import
-  cruzado real (`from g2_api.middleware.error_handler import
-  register_error_handlers`), montando G2 y G4 lado a lado como estarán
-  en el repo. Los 404/422/409 ya salen con el formato común, sin que
-  tuviéramos que tocar ningún `HTTPException` existente.
-- Si G4 corre completamente sola (sin G2 al lado), el import falla en
-  silencio y sigue funcionando con los errores normales de FastAPI — no
-  se rompe para quien solo quiere probar G4.
-- El mount de `udv-styles` ya NO se activa por defecto (como pidió el
-  brief) — solo se prende con `G4_STANDALONE_DEV=1`, para seguir viendo
-  el CSS institucional mientras prueban G4 solos.
-- Docs ahora en `/api/v1/docs` (antes `/docs`), para coincidir con la
-  convención del resto del proyecto.
+- `g4_inbox/inbox.py` y `datos_ejemplo.py` .
+- `g4_inbox/routes.py` - el router que de verdad se monta en el
+  proyecto completo: inbox, detalle, borrador, comentarios, archivos.
+  Nada más.
+- `g4_inbox/acciones.py` - las seis transiciones (iniciar, entregar,
+  revisar, aprobar, devolver, reenviar). Desde el 21 de octubre esto ya
+  no es nuestro, es de G3, así que este router no se monta en
+  producción. Lo dejamos aparte para poder seguir probando el flujo
+  completo en nuestras pruebas, y es el archivo que le pasamos a G3
+  como referencia.
+- `g4_inbox/database.py` - conexión real a MySQL (las vistas de G1:
+  `v_inbox`, `v_historial_tarea`, etc). Se activa con
+  `G4_USAR_MYSQL=1` y una `DATABASE_URL` en el `.env`. Si no está
+  prendido, usa los datos de prueba en memoria.
+- `g4_inbox/main.py` - solo sirve para correr G4 por su cuenta en
+  local. La raíz del proyecto usa `routes.py` directo, no este archivo.
+- `static/` - las dos pantallas, con sus propios css y js.
 
-## Brief del 14 de octubre — estado final
+## Cosas que hay que tener en cuenta
 
-| # | Punto | Estado |
-|---|---|---|
-| 1 | Versiones exactas | ✅ Resuelto |
-| 2 | Base de datos real (MySQL) | ✅ Resuelto — SQLAlchemy + DATABASE_URL, probado contra MySQL real |
-| 3 | Transiciones duplicadas con G3 | Confirmado en reunión del 16/10: seguimos emulando hasta que G3 publique su motor |
-| 4 | Pruebas automatizadas | ✅ Resuelto — 66 pruebas pasando |
-| 5 | Formato de error común de G2 | ✅ Resuelto — `register_error_handlers`, probado con import real |
-| 6 | APIRouter en vez de FastAPI propia | ✅ Resuelto |
-| 7 | No montar udv-styles | ✅ Resuelto — solo opcional en modo desarrollo |
+El inbox ahora exige un token real de G2 (`obtener_usuario_actual`) y
+ya no un header inventado. Esto significa que G4 no arranca si no
+tiene el código de G2 al lado, en el `PYTHONPATH` - es a propósito, fue
+un hueco de seguridad que nos encontraron en la prueba de integración
+del PM (cualquiera podía ver las tareas de otro cambiando un header).
+
+La validación de "requiere evidencia" sale de la tabla `tipo_tarea` de
+G1, no está puesta a mano - solo algunas tareas piden archivo
+obligatorio.
+
+La tabla de transiciones que usamos en `acciones.py` es una copia de
+lo que dice el contrato
 
 
+## Pruebas
 
+```
+pytest tests/ -v
+```
+
+17 pruebas
