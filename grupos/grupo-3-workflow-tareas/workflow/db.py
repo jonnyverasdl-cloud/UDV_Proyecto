@@ -181,7 +181,7 @@ class MySQLConn:
 
     def execute(self, sql, params=()):
         cur = self._raw.cursor()
-        cur.execute(sql.replace("?", "%s"), tuple(params))
+        cur.execute(sql.replace("%", "%%").replace("?", "%s"), tuple(params))
         return _Cursor(cur)
 
     def begin(self):
