@@ -28,14 +28,17 @@ for carpeta in sorted((RAIZ / "grupos").glob("grupo-*")):
         sys.path.insert(0, str(carpeta))
 
 # Routers registrados. Para sumar uno: agregar ("paquete.modulo", "variable").
+# Cada grupo se descomenta cuando su PR entra a main (nombres reales de sus paquetes).
 ROUTERS = [
     ("g2_api.routers.auth", "router"),
+    ("g2_api.routers.auth", "me_router"),   # GET /api/v1/me
     ("g2_api.routers.users", "router"),
     ("g2_api.routers.roles", "router"),
-    # ("g3_workflow.api", "router"),
-    # ("g4_inbox.api", "router"),
-    # ("g5_programas.api", "router"),
-    # ("g6_admin.api", "router"),
+    # ("g2_api.routers.files", "router"),   # G2: se monta cuando se corrija G2-21 (descarga sin validar dueño)
+    # ("workflow.api", "router"),           # G3
+    # ("g4_inbox.routes", "router"),        # G4
+    # ("g5_programas.router", "router"),    # G5
+    # ("g6_admin.api", "router"),           # G6
 ]
 
 app = FastAPI(
@@ -57,10 +60,10 @@ montados, pendientes = [], {}
 for modulo, nombre in ROUTERS:
     try:
         app.include_router(getattr(importlib.import_module(modulo), nombre))
-        montados.append(modulo)
+        montados.append(f"{modulo}:{nombre}")
     except Exception as exc:  # el grupo aún no integró ese módulo a esta rama
-        pendientes[modulo] = f"{type(exc).__name__}: {exc}"
-        log.warning("Router omitido %s -> %s", modulo, exc)
+        pendientes[f"{modulo}:{nombre}"] = f"{type(exc).__name__}: {exc}"
+        log.warning("Router omitido %s:%s -> %s", modulo, nombre, exc)
 
 
 @app.get("/health", tags=["Sistema"])
