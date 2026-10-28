@@ -1,0 +1,53 @@
+/* Solo lo propio del inbox. Colores, fuente, botones, formularios, tarjetas,
+   insignias y alertas vienen de grupos/udv-styles/udv.css (variables --udv-*). */
+
+.inbox-resultado {
+  font-size: .85rem;
+  color: var(--udv-text-muted);
+  margin-bottom: 1rem;
+}
+
+/* ---------- Contadores ---------- */
+.inbox-contador {
+  display: flex;
+  flex-direction: column;
+}
+.inbox-contador__numero {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--udv-navy);
+  line-height: 1.1;
+}
+.inbox-contador__texto {
+  font-size: .8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--udv-text-muted);
+}
+/* Vencidas: borde sólido; por vencer: punteado. Además llevan ícono y texto. */
+.inbox-contador--vencida     { border-left: 4px solid var(--udv-danger); }
+.inbox-contador--vencida .inbox-contador__numero { color: var(--udv-danger); }
+.inbox-contador--por-vencer  { border-left: 4px dashed var(--udv-warning); }
+.inbox-contador--por-vencer .inbox-contador__numero { color: var(--udv-warning); }
+
+/* ---------- Tarjetas (udv-card oscura) ---------- */
+.inbox-tarjeta.vencida     { border-left: 4px solid var(--udv-danger); }
+.inbox-tarjeta.por-vencer  { border-left: 4px dashed var(--udv-warning); }
+
+.inbox-tarjeta__detalles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem 1rem;
+  font-size: .85rem;
+  color: rgba(255, 255, 255, .8);
+}
+.vence--vencida    { color: #F87171; }
+.vence--por-vencer { color: #FBBF24; }
+
+.udv-alert .btn-udv { margin-left: auto; }
+
+/* Las clases de layout de udv.css (p. ej. .udv-flex-between) ponen display:flex
+   y anulaban el atributo hidden: se vuelve a respetar. */
+[hidden] { display: none !important; }

@@ -11,10 +11,10 @@
 
 | Rol | Nombre | Usuario GitHub |
 |---|---|---|
-| Coordinador (abre los PRs) | | |
-| Dev | | |
-| Dev | | |
-| Dev | | |
+| Coordinador (abre los PRs) | Juan Eduardo Chopen Morales | eduardo150618-sudo |
+| Dev | Jorge Isai Velasquez Cux  | jVELAS4 |
+| Dev | Elmer Josue Ajtun Tepet | Josue17AJ |
+| Dev |  | |
 
 ## 2. Alcance del módulo
 

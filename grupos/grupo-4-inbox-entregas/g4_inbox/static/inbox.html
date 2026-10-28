@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mi inbox · UDV</title>
+  <!-- Estilos institucionales del PM (grupos/udv-styles): se importan, no se copian -->
+  <link rel="stylesheet" href="../../../udv-styles/udv.css">
+  <link rel="stylesheet" href="css/inbox.css">
+</head>
+<body>
+
+  <header class="udv-header">
+    <a href="#" class="udv-header__logo">
+      <div class="udv-header__logo-text">
+        Universidad Da Vinci
+        <span>de Guatemala</span>
+      </div>
+    </a>
+    <nav aria-label="Principal">
+      <ul class="udv-header__nav">
+        <li><a href="#">Inicio</a></li>
+        <li><a href="#" class="active" aria-current="page">Inbox</a></li>
+        <li><a href="#">Tareas</a></li>
+        <li><a href="#">Programas</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main class="udv-section">
+    <div class="udv-container">
+      <h1 class="udv-section-title">Mi inbox</h1>
+      <p class="udv-section-subtitle">Tus asignaciones, ordenadas por fecha límite.</p>
+
+      <!-- Contadores: los llena inbox.js desde GET /inbox/summary -->
+      <div class="udv-grid-3 udv-mb-3">
+        <div class="udv-card-light inbox-contador">
+          <span class="inbox-contador__numero" id="total-pendientes">0</span>
+          <span class="inbox-contador__texto">Pendientes</span>
+        </div>
+        <div class="udv-card-light inbox-contador inbox-contador--vencida">
+          <span class="inbox-contador__numero" id="total-vencidas">0</span>
+          <span class="inbox-contador__texto">⚠ Vencidas</span>
+        </div>
+        <div class="udv-card-light inbox-contador inbox-contador--por-vencer">
+          <span class="inbox-contador__numero" id="total-por-vencer">0</span>
+          <span class="inbox-contador__texto">⏰ Por vencer</span>
+        </div>
+      </div>
+
+      <!-- Búsqueda, filtro y tamaño de página -->
+      <div class="udv-grid-3 udv-mb-2">
+        <div class="udv-form-group">
+          <label class="udv-label" for="buscar">Buscar por título</label>
+          <input class="udv-input" type="search" id="buscar" placeholder="Ej.: programa">
+        </div>
+        <div class="udv-form-group">
+          <label class="udv-label" for="filtro-estado">Estado</label>
+          <select class="udv-select" id="filtro-estado">
+            <option value="">Todos los estados</option>
+            <option value="assigned">Asignada</option>
+            <option value="in_progress">En progreso</option>
+            <option value="submitted">Entregada</option>
+            <option value="under_review">En revisión</option>
+            <option value="returned">Devuelta</option>
+            <option value="approved">Aprobada</option>
+            <option value="closed">Cerrada</option>
+            <option value="cancelled">Cancelada</option>
+          </select>
+        </div>
+        <div class="udv-form-group">
+          <label class="udv-label" for="por-pagina">Por página</label>
+          <select class="udv-select" id="por-pagina">
+            <option value="5" selected>5</option>
+            <option value="10">10</option>
+            <option value="20">20</option>
+          </select>
+        </div>
+      </div>
+
+      <p id="resultado" class="inbox-resultado" aria-live="polite"></p>
+      <div id="aviso"></div>
+
+      <!-- Aquí JavaScript coloca las tarjetas -->
+      <div id="lista" class="udv-grid-2"></div>
+
+      <nav id="paginacion" class="udv-flex-between udv-mt-3" aria-label="Paginación" hidden>
+        <button type="button" class="btn-udv btn-udv-primary btn-udv-sm" id="pagina-anterior">← Anterior</button>
+        <span id="pagina-actual" aria-live="polite"></span>
+        <button type="button" class="btn-udv btn-udv-primary btn-udv-sm" id="pagina-siguiente">Siguiente →</button>
+      </nav>
+    </div>
+  </main>
+
+  <!-- api.js ya habla con el servidor real; datos.js (de prueba) ya no hace falta -->
+  <script src="js/api.js"></script>
+  <script src="js/inbox.js"></script>
+</body>
+</html>
