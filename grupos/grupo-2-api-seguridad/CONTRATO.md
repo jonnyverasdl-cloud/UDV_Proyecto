@@ -11,10 +11,11 @@
 
 | Rol | Nombre | Usuario GitHub |
 |---|---|---|
-| Coordinador (abre los PRs) | | |
-| Dev | | |
-| Dev | | |
-| Dev | | |
+| Coordinador (abre los PRs) | Daniel | dancobs |
+| Dev | Randy | rtorresixcoy375 |
+| Dev | Edgar | zeusgeo99-code |
+| Dev | Fulvio | Ful55 |
+| Dev | Robert | Davids107 |
 
 ## 2. Alcance del módulo
 

@@ -1,1 +1,26 @@
-# Dependencias del grupo-2-api-seguridad. Una por línea, con versión fija (ej.: libreria==1.2.3).
+# Dependencias del grupo-2-api-seguridad. Una por linea, con version fija.
+# Instalar con: pip install -r requirements.txt
+
+# API
+fastapi==0.142.1 # Oficial.
+uvicorn[standard]==0.54.0 # Oficial.
+pydantic==2.14.0 # Oficial. Validación de datos (422 por campo).
+python-multipart==0.0.31 # Recibir archivos en /files (Persona 4).
+puremagic==2.2.0 # Lee los bytes del archivo para verificar que es real (files.py, Persona 4).
+email-validator==2.3.0 # Validar correos (EmailStr de pydantic).
+
+# Seguridad
+bcrypt==5.0.0 # hash de contraseñas login (Persona 1).
+PyJWT==2.15.1 # Tokens de sesion (Persona de autenticacion)
+
+# Base de datos
+SQLAlchemy==2.1.1 # Conexión a base de datos (Persona 5)
+PyMySQL==1.1.1 # Oficial. Driver de MySQL: mysql+pymysql://...
+cryptography==44.0.2 # Oficial. PyMySQL la necesita para el login de MySQL 8 (caching_sha2_password).
+
+# Configuracion
+python-dotenv==1.2.3 # Leer el archivo .env
+
+# Pruebas
+pytest==9.1.1 # Oficial.
+httpx==0.28.1 # Lo usa TestClient de FastAPI
