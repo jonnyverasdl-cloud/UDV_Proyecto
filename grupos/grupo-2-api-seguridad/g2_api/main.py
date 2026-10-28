@@ -58,7 +58,7 @@ _USUARIO = {
 }
 
 
-def _resp_error(codigo: int) -> dict:
+def _resp_error(codigo: int):
     code, msg = _ERRORES[codigo]
     detalles = {}
     if codigo == 422:
@@ -72,14 +72,14 @@ def _resp_error(codigo: int) -> dict:
     }
 
 
-def _resp_ok(descripcion: str, ejemplo, esquema: dict | None = None) -> dict:
+def _resp_ok(descripcion: str, ejemplo, esquema: dict | None = None):
     cuerpo = {"example": ejemplo}
     if esquema:
         cuerpo["schema"] = esquema
     return {"description": descripcion, "content": {"application/json": cuerpo}}
 
 
-def _completar_openapi() -> dict:
+def _completar_openapi():
     if app.openapi_schema:
         return app.openapi_schema
     esquema = get_openapi(title=app.title, version=app.version, routes=app.routes)
