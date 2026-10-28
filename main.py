@@ -35,7 +35,7 @@ ROUTERS = [
     ("g2_api.routers.users", "router"),
     ("g2_api.routers.roles", "router"),
     # ("g2_api.routers.files", "router"),   # G2: se monta cuando se corrija G2-21 (descarga sin validar dueño)
-    # ("workflow.api", "router"),           # G3
+    ("workflow.api", "router"),           # G3
     # ("g4_inbox.routes", "router"),        # G4
     # ("g5_programas.router", "router"),    # G5
     # ("g6_admin.api", "router"),           # G6
