@@ -5,6 +5,12 @@ from g2_api.middleware.auth_middleware import obtener_usuario_actual
 from g2_api.models import Usuario
 from pathlib import Path
 from fastapi.responses import FileResponse
+import hashlib
+
+from sqlalchemy.orm import Session
+
+from g2_api.database import get_db
+from g2_api.models import Archivo
 
 # Crear un router para manejar las rutas relacionadas con archivos
 router = APIRouter(
@@ -25,7 +31,8 @@ MIMETYPES_PERMITIDOS = {
 # Definir la ruta para verificar el archivo subido
 @router.post("")
 async def verificar_archivo(file: UploadFile = File(...),
-    usuario_actual: Usuario = Depends(obtener_usuario_actual)
+    usuario_actual: Usuario = Depends(obtener_usuario_actual),
+    db: Session = Depends(get_db)
 ):
     contenido = await file.read()
 
@@ -56,6 +63,7 @@ async def verificar_archivo(file: UploadFile = File(...),
     # Generar un identificador único para el archivo y un nombre interno basado en el tipo de archivo
     file_id = str(uuid.uuid4())
 
+    # Guardar el archivo f
     nombre_interno = (
         file_id +
         MIMETYPES_PERMITIDOS[tipo_real]
@@ -67,39 +75,64 @@ async def verificar_archivo(file: UploadFile = File(...),
 
     with open(ruta_archivo, "wb") as archivo:
         archivo.write(contenido)
+        
+    hash_sha256 = hashlib.sha256(contenido).hexdigest()
+
+    nuevo_archivo = Archivo(
+        nombre_original=file.filename,
+        nombre_interno=nombre_interno,
+        tipo_mime=tipo_real,
+        tamano_bytes=len(contenido),
+        hash_sha256=hash_sha256,
+        ubicacion=str(ruta_archivo),
+        autor_id=usuario_actual.id
+    )
+
+    db.add(nuevo_archivo)
+    db.commit()
+    db.refresh(nuevo_archivo)
+    
     # devolver el identificador único y el nombre interno del archivo
     return {
-        "file_id": file_id,
-        "nombre_interno": nombre_interno,
-        "usuario": usuario_actual.correo
+        "file_id": nuevo_archivo.id,
+        "nombre_interno": nombre_interno
     }
     
 
 
+
 @router.get("/{id}")
 async def descargar_archivo(
-    file_id: str,
-    usuario_actual: Usuario = Depends(obtener_usuario_actual)
+    id: int,
+    usuario_actual: Usuario = Depends(obtener_usuario_actual),
+    db: Session = Depends(get_db)
 ):
 
-    carpeta = Path("uploads")
-    
-    if not carpeta.exists():
+    registro = db.query(Archivo).filter(
+        Archivo.id == id
+    ).first()
+
+    if registro is None:
         raise HTTPException(
-        status_code=404,
-        detail="No existen archivos almacenados"
-    )
+            status_code=404,
+            detail="Archivo no encontrado"
+        )
 
-    for archivo in carpeta.iterdir():
-        if archivo.name.startswith(file_id):
-            return FileResponse(
-                path=archivo,
-                filename=archivo.name
-            )
+    if registro.autor_id != usuario_actual.id:
+        raise HTTPException(
+            status_code=403,
+            detail="No tienes permiso para acceder a este archivo"
+        )
 
-    raise HTTPException(
-        status_code=404,
-        detail="Archivo no encontrado"
+    ruta = Path(registro.ubicacion)
+
+    if not ruta.exists():
+        raise HTTPException(
+            status_code=404,
+            detail="Archivo no encontrado en almacenamiento"
+        )
+
+    return FileResponse(
+        path=str(ruta),
+        filename=registro.nombre_original
     )
-# El archivo es validado y almacenado localmente
-# usando un nombre interno generado de forma aleatoria.
