@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UDV — Guía de estilos institucional</title>
+  <link rel="stylesheet" href="udv.css">
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  HEADER                                                -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<header class="udv-header">
+  <a href="#" class="udv-header__logo">
+    <div class="udv-header__logo-text">
+      Universidad Da Vinci
+      <span>de Guatemala</span>
+    </div>
+  </a>
+  <nav>
+    <ul class="udv-header__nav">
+      <li><a href="#" class="active">Inicio</a></li>
+      <li><a href="#">Inbox</a></li>
+      <li><a href="#">Tareas</a></li>
+      <li><a href="#">Programas</a></li>
+      <li><a href="#" class="btn-udv btn-udv-primary btn-udv-sm">Mi cuenta</a></li>
+    </ul>
+  </nav>
+</header>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  HERO (sección oscura)                                 -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section class="udv-section udv-section-dark">
+  <div class="udv-container">
+    <p style="color:var(--udv-gold);font-weight:700;font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;margin-bottom:.5rem;">
+      Sistema de Workflow Docente
+    </p>
+    <h1 class="udv-section-title" style="font-size:2.5rem;">Guía de estilos UDV</h1>
+    <p class="udv-section-subtitle" style="color:rgba(255,255,255,.7);max-width:540px;">
+      Todos los componentes visuales del proyecto. Importa <code style="background:rgba(255,255,255,.1);padding:.1rem .4rem;border-radius:4px;">udv.css</code>
+      y usa estas clases directamente en tu HTML.
+    </p>
+    <div class="udv-flex udv-gap-2 udv-mt-2">
+      <a href="#botones" class="btn-udv btn-udv-primary">Ver componentes</a>
+      <a href="#colores" class="btn-udv btn-udv-outline">Paleta de colores</a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  COLORES                                               -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section class="udv-section" id="colores">
+  <div class="udv-container">
+    <h2 class="udv-section-title">Paleta institucional</h2>
+    <p class="udv-section-subtitle">Colores tomados directamente de udv.edu.gt</p>
+    <div class="udv-grid-4">
+      <div class="udv-card-light" style="text-align:center;">
+        <div style="height:80px;background:#001D4A;border-radius:8px;margin-bottom:1rem;"></div>
+        <strong>Navy</strong><br>
+        <code style="font-size:.8rem;color:var(--udv-text-muted);">#001D4A</code><br>
+        <small>--udv-navy</small>
+      </div>
+      <div class="udv-card-light" style="text-align:center;">
+        <div style="height:80px;background:#00AEEF;border-radius:8px;margin-bottom:1rem;"></div>
+        <strong>Cyan</strong><br>
+        <code style="font-size:.8rem;color:var(--udv-text-muted);">#00AEEF</code><br>
+        <small>--udv-cyan</small>
+      </div>
+      <div class="udv-card-light" style="text-align:center;">
+        <div style="height:80px;background:#A67C1E;border-radius:8px;margin-bottom:1rem;"></div>
+        <strong>Gold</strong><br>
+        <code style="font-size:.8rem;color:var(--udv-text-muted);">#A67C1E</code><br>
+        <small>--udv-gold</small>
+      </div>
+      <div class="udv-card-light" style="text-align:center;">
+        <div style="height:80px;background:#020F24;border-radius:8px;margin-bottom:1rem;"></div>
+        <strong>Navy Dark</strong><br>
+        <code style="font-size:.8rem;color:var(--udv-text-muted);">#020F24</code><br>
+        <small>--udv-navy-dark</small>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  BOTONES                                               -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section class="udv-section udv-section-dark" id="botones">
+  <div class="udv-container">
+    <h2 class="udv-section-title">Botones</h2>
+    <p class="udv-section-subtitle" style="color:rgba(255,255,255,.6);">Clase base <code>.btn-udv</code> + modificador</p>
+    <div class="udv-flex udv-gap-2" style="flex-wrap:wrap;">
+      <button class="btn-udv btn-udv-primary">Primario</button>
+      <button class="btn-udv btn-udv-outline">Outline</button>
+      <button class="btn-udv btn-udv-gold">Dorado</button>
+      <button class="btn-udv btn-udv-dark">Oscuro</button>
+      <button class="btn-udv btn-udv-primary btn-udv-sm">Small</button>
+      <button class="btn-udv btn-udv-primary btn-udv-lg">Large</button>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  BADGES DE ESTADO                                      -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section class="udv-section">
+  <div class="udv-container">
+    <h2 class="udv-section-title">Estados del workflow</h2>
+    <p class="udv-section-subtitle">Usa la clase <code>.udv-badge</code> + <code>.badge-{estado}</code></p>
+    <div class="udv-flex udv-gap-2" style="flex-wrap:wrap;">
+      <span class="udv-badge badge-draft">draft</span>
+      <span class="udv-badge badge-assigned">assigned</span>
+      <span class="udv-badge badge-in-progress">in_progress</span>
+      <span class="udv-badge badge-submitted">submitted</span>
+      <span class="udv-badge badge-under-review">under_review</span>
+      <span class="udv-badge badge-returned">returned</span>
+      <span class="udv-badge badge-approved">approved</span>
+      <span class="udv-badge badge-closed">closed</span>
+      <span class="udv-badge badge-cancelled">cancelled</span>
+      <span class="udv-badge badge-authorized">authorized</span>
+      <span class="udv-badge badge-superseded">superseded</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  TARJETAS                                              -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section class="udv-section" style="background:var(--udv-navy-dark);">
+  <div class="udv-container">
+    <h2 class="udv-section-title" style="color:white;">Tarjetas</h2>
+    <div class="udv-grid-3">
+      <div class="udv-card">
+        <p class="udv-card__category">Grupo 1</p>
+        <h3 class="udv-card__title">Base de datos</h3>
+        <p class="udv-card__body">Modelo relacional, migraciones y semillas del sistema completo.</p>
+        <div class="udv-mt-2">
+          <span class="udv-badge badge-in-progress">En progreso</span>
+        </div>
+      </div>
+      <div class="udv-card">
+        <p class="udv-card__category">Grupo 3</p>
+        <h3 class="udv-card__title">Workflow y tareas</h3>
+        <p class="udv-card__body">Motor de transiciones, publicación y asignación de tareas.</p>
+        <div class="udv-mt-2">
+          <span class="udv-badge badge-assigned">Asignado</span>
+        </div>
+      </div>
+      <div class="udv-card-light">
+        <p class="udv-card__category" style="color:var(--udv-gold);">Tarjeta clara</p>
+        <h3 class="udv-card__title" style="color:var(--udv-navy);">Grupo 4</h3>
+        <p class="udv-card__body" style="color:var(--udv-text-muted);">Inbox y experiencia del docente y revisor.</p>
+        <div class="udv-mt-2">
+          <span class="udv-badge badge-approved">Aprobado</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  FORMULARIO                                            -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section class="udv-section">
+  <div class="udv-container">
+    <h2 class="udv-section-title">Formulario</h2>
+    <div style="max-width:520px;">
+      <div class="udv-form-group">
+        <label class="udv-label" for="demo-nombre">Nombre completo</label>
+        <input class="udv-input" id="demo-nombre" type="text" placeholder="Jonathan Veras">
+      </div>
+      <div class="udv-form-group">
+        <label class="udv-label" for="demo-rol">Rol</label>
+        <select class="udv-select" id="demo-rol">
+          <option>Docente</option>
+          <option>Coordinador</option>
+          <option>Revisor</option>
+        </select>
+      </div>
+      <div class="udv-form-group">
+        <label class="udv-label" for="demo-obs">Observaciones</label>
+        <textarea class="udv-textarea" id="demo-obs" rows="3" placeholder="Escribe aquí..."></textarea>
+      </div>
+      <div class="udv-form-group">
+        <label class="udv-label" for="demo-error">Campo con error</label>
+        <input class="udv-input error" id="demo-error" type="text" value="dato incorrecto">
+        <p class="udv-input-error-msg">Este campo es requerido.</p>
+      </div>
+      <button class="btn-udv btn-udv-primary">Guardar</button>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  TABLA                                                 -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section class="udv-section" style="background:var(--udv-bg-white);">
+  <div class="udv-container">
+    <h2 class="udv-section-title">Tabla</h2>
+    <div class="udv-table-wrapper udv-mt-2">
+      <table class="udv-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Tarea</th>
+            <th>Grupo</th>
+            <th>Estado</th>
+            <th>Vence</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td>Modelo entidad-relación</td>
+            <td>G1 Base de datos</td>
+            <td><span class="udv-badge badge-submitted">submitted</span></td>
+            <td>2026-10-05</td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td>Endpoints de autenticación</td>
+            <td>G2 API y seguridad</td>
+            <td><span class="udv-badge badge-in-progress">in_progress</span></td>
+            <td>2026-10-08</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td>Máquina de estados</td>
+            <td>G3 Workflow</td>
+            <td><span class="udv-badge badge-assigned">assigned</span></td>
+            <td>2026-10-10</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  ALERTAS                                               -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section class="udv-section">
+  <div class="udv-container">
+    <h2 class="udv-section-title">Alertas</h2>
+    <div class="udv-mt-2">
+      <div class="udv-alert udv-alert-info">ℹ️ Tu tarea fue asignada. Tienes hasta el 10 de octubre.</div>
+      <div class="udv-alert udv-alert-success">✅ Entrega aprobada por el revisor.</div>
+      <div class="udv-alert udv-alert-warning">⚠️ Tu entrega vence en 2 días.</div>
+      <div class="udv-alert udv-alert-danger">❌ La tarea fue devuelta con observaciones.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!--  FOOTER                                                -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<footer class="udv-footer">
+  <div class="udv-container">
+    <div class="udv-footer__top">
+      <div>
+        <p class="udv-footer__logo-text">Universidad Da Vinci<br>de Guatemala</p>
+        <p style="font-size:.8rem;margin-top:.5rem;color:rgba(255,255,255,.45);">
+          Sistema de Workflow Docente
+        </p>
+      </div>
+      <ul class="udv-footer__links">
+        <li><a href="#">Inicio</a></li>
+        <li><a href="#">Inbox</a></li>
+        <li><a href="#">Tareas</a></li>
+        <li><a href="#">Programas</a></li>
+        <li><a href="#">Ayuda</a></li>
+      </ul>
+    </div>
+    <div class="udv-footer__bottom">
+      <span>© 2026 Universidad Da Vinci de Guatemala. Proyecto Integrador — Programación Web.</span>
+      <span>PM: Jonathan Veras</span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

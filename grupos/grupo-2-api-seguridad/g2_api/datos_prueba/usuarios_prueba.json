@@ -1,0 +1,14 @@
+{
+    "usuarios": [
+        {
+            "id": 1,
+            "correo": "admin@udv.com.gt",
+            "nombres": "Usuario",
+            "apellidos": "De Prueba",
+            "hash_contrasena": "$2b$12$lAJh6bdRbqrjkQYDVM907etTBKIINI/6b/.SkwSYGA/pKNYfa0XCm",
+            "activo": true,
+            "roles": ["administrador"],
+            "creado_en": "2026-06-22T00:00:00Z"
+        }
+    ]
+}
