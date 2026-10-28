@@ -1,41 +1,34 @@
-# Casos de Prueba - QA Grupo 5 (Programas de Curso y PDF)
+# Matriz de Casos de Prueba - QA Grupo 5 (Programas de Curso y PDF)
 
-**Objetivo:** Validar la integridad lógica, las transiciones de estado y la generación de documentos del módulo de programas, de acuerdo con el CONTRATO.md oficial.
+*Objetivo:* Validar la integridad lógica, las reglas de negocio específicas del G5 y el cumplimiento del CONTRATO_COMUN.md en la gestión de programas de curso.
 
-### 1. Flujos Base (Transiciones Válidas)
+## A. Flujos de Negocio y Transiciones (Happy Path)
+Valida que el sistema permita los caminos ideales definidos en el contrato.
 
-**Caso 01: Creación de programa y versión inicial**
-* **Acción:** `POST /api/v1/course-programs` seguido de `POST /api/v1/course-programs/{id}/versions`.
-* **Resultado Esperado:** Código HTTP `201`. El sistema asigna automáticamente el estado inicial `draft` a la versión.
+| ID | Caso de prueba | Resultado esperado | Código HTTP |
+|---|---|---|---|
+| *G5-01* | *Crear programa y versión borrador.* Registrar un programa base y generar su primera versión. | El programa se guarda correctamente asignando el estado inicial draft. | 201 Created |
+| *G5-02* | *Flujo completo de Autorización.* Ejecutar secuencialmente: submit ➔ review ➔ approve ➔ authorize. | Cada paso se registra en auditoría. La versión alcanza el estado authorized y se consolida como vigente. | 200 OK |
+| *G5-03* | *Ciclo de devolución y reenvío.* Transición de under_review ➔ returned con observaciones, edición y nuevo submit. | La versión pasa a returned conservando comentarios. Tras editarse, regresa a submitted. | 200 OK |
 
-**Caso 02: Flujo completo de autorización**
-* **Acción:** Ejecutar secuencialmente sobre una versión en `draft`: `submit` -> `review` -> `approve` -> `authorize`.
-* **Resultado Esperado:** Códigos HTTP `200`. La versión alcanza el estado `authorized` y se consolida como la única vigente.
+## B. Reglas Duras y Vulnerabilidades (Casos Críticos G5)
+Auditoría de los bloqueos de seguridad y lógica de negocio específica del módulo.
 
-**Caso 03: Generación de documento oficial**
-* **Acción:** `GET /api/v1/program-versions/{id}/pdf` sobre una versión en estado `authorized`.
-* **Resultado Esperado:** Código HTTP `200`. El sistema descarga el PDF institucional reflejando la fecha y aprobación de origen.
+| ID | Caso de prueba | Resultado esperado | Código HTTP |
+|---|---|---|---|
+| *G5-04* | *Protección de Inmutabilidad (Edición ilegal).* Intentar un PUT en una versión que está en estado submitted, under_review o authorized. | La operación se rechaza totalmente para proteger la integridad del documento en revisión. | 409 Conflict / 403 |
+| *G5-05* | *Transición Fantasma.* Intentar un salto de estados no permitido (ej. de draft directo a approve). | La operación se rechaza según la tabla de transiciones estricta del contrato G5. | 409 Conflict |
+| *G5-06* | *Validación Matemática de Zonas.* Enviar a la sección de evaluación ponderaciones que sumen distinto a 100% (ej. 90% o 110%). | La API rechaza la petición validando la regla dura matemática de evaluación. | 422 Unprocessable |
+| *G5-07* | *Bloqueo de PDF prematuro.* Intentar generar/descargar el PDF de una versión en draft o under_review. | El sistema bloquea la descarga, ya que solo permite generar PDF de datos autorizados. | 403 / 409 |
+| *G5-08* | *Generación de PDF Oficial.* Descargar el PDF de una versión authorized. | Se genera el documento con el contenido correcto, versión, fecha y aprobación de origen. | 200 OK |
 
-### 2. Flujos Alternativos y Devoluciones
+## C. Integridad de API y Contrato Común
+Validaciones estándar de infraestructura, paginación y formato.
 
-**Caso 04: Ciclo de corrección y retorno**
-* **Acción:** Transición de `under_review` a `returned` enviando un `POST /api/v1/program-versions/{id}/return` con observaciones. Edición (`PUT`) y nuevo envío (`submit`).
-* **Resultado Esperado:** La versión pasa a `returned` conservando los comentarios. Tras la edición, regresa correctamente a `submitted`.
-
-### 3. Reglas Duras y Auditoría de Errores
-
-**Caso 05: Protección de inmutabilidad**
-* **Acción:** Enviar un `PUT /api/v1/program-versions/{id}` para modificar contenido de una versión en estado `submitted`, `under_review` o `authorized`.
-* **Resultado Esperado:** Código HTTP `409` o `403`. El sistema rechaza la petición protegiendo los datos enviados o vigentes.
-
-**Caso 06: Validación matemática de evaluación**
-* **Acción:** Enviar a `PUT /api/v1/program-versions/{id}/sections/evaluacion` un arreglo de zonas cuya ponderación sume 90% o 110%.
-* **Resultado Esperado:** Código HTTP `422 Validation Error`. El sistema rechaza la petición validando el tope exacto del 100%.
-
-**Caso 07: Salto de estados**
-* **Acción:** Intentar ejecutar `POST /api/v1/program-versions/{id}/approve` sobre una versión que se encuentra en `draft` o `submitted`.
-* **Resultado Esperado:** Código HTTP `409 Conflict`. El sistema bloquea la acción por no estar en la tabla de transiciones válidas.
-
-**Caso 08: Bloqueo de PDF prematuro**
-* **Acción:** Solicitar `GET /api/v1/program-versions/{id}/pdf` de una versión que apenas está en estado `draft` o `under_review`.
-* **Resultado Esperado:** Rechazo de la solicitud (HTTP `403` o `409`), asegurando que solo los programas autorizados generen el documento final.
+| ID | Caso de prueba | Resultado esperado | Código HTTP |
+|---|---|---|---|
+| *G5-09* | *Consulta de estado y recursos.* Consultar el estado de un programa existente y de un ID inexistente. | Devuelve el estado real registrado o el error correspondiente si no existe. | 200 OK / 404 |
+| *G5-10* | *Validación de tipos de datos.* Enviar información con formato inválido o campos faltantes. | La API devuelve detalle de validación estructurado por campo. | 422 Unprocessable |
+| *G5-11* | *Estructura de Paginación.* Consultar el listado general de programas. | La respuesta contiene exactamente las llaves page, per_page, total y data. | 200 OK |
+| *G5-12* | *Acceso y Autenticación.* Consumir endpoints protegidos sin token o con roles sin permisos. | El sistema aplica la protección de G2 y rechaza la petición sin afectar datos. | 401 / 403 |
+| *G5-13* | *Correspondencia OpenAPI.* Revisar la documentación autogenerada de un endpoint (Swagger). | La ruta, los métodos y las respuestas coinciden al 100% con el CONTRATO.md. | N/A |
