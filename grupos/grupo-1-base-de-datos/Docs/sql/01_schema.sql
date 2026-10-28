@@ -1,4 +1,4 @@
--- 01_schema.sql | Grupo 1 - Base de datos | Workflow docente UDV | version 1.1.0
+-- 01_schema.sql | Grupo 1 - Base de datos | Workflow docente UDV | version 1.2.0
 -- MySQL 8.0+ y MariaDB 10.4+, utf8mb4. Borra y recrea la base db_udv: tablas, triggers, procedimientos y vistas.
 -- Despues de este archivo se ejecuta 02_seed.sql (datos semilla).
 
@@ -219,6 +219,15 @@ CREATE TABLE estado_tarea (
     es_final  TINYINT(1)        NOT NULL DEFAULT 0,
     orden     TINYINT UNSIGNED  NOT NULL,
     PRIMARY KEY (codigo)
+) ENGINE=InnoDB;
+
+CREATE TABLE prioridad_tarea (
+    codigo  VARCHAR(20)       NOT NULL,
+    nombre  VARCHAR(60)       NOT NULL,
+    orden   TINYINT UNSIGNED  NOT NULL,
+    activo  TINYINT(1)        NOT NULL DEFAULT 1,
+    PRIMARY KEY (codigo),
+    CONSTRAINT uq_prioridad_orden UNIQUE (orden)
 ) ENGINE=InnoDB;
 
 CREATE TABLE tipo_tarea (
@@ -494,7 +503,7 @@ CREATE TABLE tarea (
     estado_codigo        VARCHAR(20)  NOT NULL DEFAULT 'draft',
     titulo               VARCHAR(200) NOT NULL,
     descripcion          TEXT         NULL,
-    prioridad            VARCHAR(10)  NOT NULL DEFAULT 'medium',
+    prioridad            VARCHAR(20)  NOT NULL DEFAULT 'medium',
     creado_por           INT          NOT NULL,
     revisor_id           INT          NULL,
     alcance              VARCHAR(12)  NOT NULL DEFAULT 'individual',
@@ -517,7 +526,7 @@ CREATE TABLE tarea (
        AND (alcance <> 'sede'   OR sede_destino_id IS NOT NULL)
        AND (alcance <> 'unidad' OR unidad_destino_id IS NOT NULL)
        AND (alcance <> 'curso'  OR (curso_id IS NOT NULL AND periodo_id IS NOT NULL))),
-    CONSTRAINT ck_tarea_prioridad CHECK (prioridad IN ('low', 'medium', 'high')),
+    CONSTRAINT fk_tarea_prioridad FOREIGN KEY (prioridad) REFERENCES prioridad_tarea(codigo),
     CONSTRAINT ck_tarea_publicada CHECK (estado_codigo = 'draft' OR publicada_en IS NOT NULL),
     CONSTRAINT fk_tarea_workflow       FOREIGN KEY (workflow_id)         REFERENCES workflow(id),
     CONSTRAINT fk_tarea_estado         FOREIGN KEY (estado_codigo)       REFERENCES estado_tarea(codigo),
@@ -820,7 +829,8 @@ ALTER TABLE programa_version
 
 INSERT INTO schema_migracion (version, descripcion) VALUES
 ('1.0.0', 'Esquema inicial (01_schema.sql)'),
-('1.1.0', 'Aportes del esquema de Pablo: modalidad, area, docente_curso, flujo_programa, perfil de egreso, seleccion, borrador, evento, programa_pdf');
+('1.1.0', 'Aportes del esquema de Pablo: modalidad, area, docente_curso, flujo_programa, perfil de egreso, seleccion, borrador, evento, programa_pdf'),
+('1.2.0', 'Catalogo prioridad_tarea (low, medium, high, urgent) y FK en tarea.prioridad');
 -- ==================== TRIGGERS Y PROCEDIMIENTOS ====================
 
 DELIMITER $$
@@ -1458,6 +1468,7 @@ SELECT
     tt.codigo            AS tipo_codigo,
     tt.nombre            AS tipo_nombre,
     t.prioridad,
+    pt.nombre            AS prioridad_nombre,
     COALESCE(td.fecha_limite, t.fecha_limite) AS fecha_limite,
     t.publicada_en,
     td.asignado_en,
@@ -1475,6 +1486,7 @@ JOIN workflow     w  ON w.id = t.workflow_id
 JOIN tipo_tarea   tt ON tt.id = w.tipo_tarea_id
 JOIN estado_tarea et ON et.codigo = td.estado_codigo
 JOIN usuario      c  ON c.id = t.creado_por
+JOIN prioridad_tarea pt ON pt.codigo = t.prioridad
 WHERE t.estado_codigo <> 'draft'
   AND t.eliminado_en IS NULL;
 
@@ -1484,6 +1496,8 @@ SELECT
     t.titulo,
     tt.nombre       AS tipo_nombre,
     t.estado_codigo AS estado_tarea,
+    t.prioridad,
+    pt.nombre       AS prioridad_nombre,
     t.creado_por,
     t.revisor_id,
     t.fecha_limite,
@@ -1505,9 +1519,10 @@ SELECT
 FROM tarea t
 JOIN workflow w ON w.id = t.workflow_id
 JOIN tipo_tarea tt ON tt.id = w.tipo_tarea_id
+JOIN prioridad_tarea pt ON pt.codigo = t.prioridad
 LEFT JOIN tarea_destinatario td ON td.tarea_id = t.id
 WHERE t.eliminado_en IS NULL
-GROUP BY t.id, t.titulo, tt.nombre, t.estado_codigo, t.creado_por, t.revisor_id, t.fecha_limite;
+GROUP BY t.id, t.titulo, tt.nombre, t.estado_codigo, t.prioridad, pt.nombre, t.creado_por, t.revisor_id, t.fecha_limite;
 
 CREATE OR REPLACE VIEW v_historial_tarea AS
 SELECT
@@ -1520,9 +1535,13 @@ SELECT
     tr.actor_id,
     CONCAT(a.nombres, ' ', a.apellidos) AS actor,
     tr.comentario,
-    tr.creado_en
+    tr.creado_en,
+    t.prioridad,
+    pt.nombre            AS prioridad_nombre
 FROM tarea_transicion tr
 JOIN tarea_destinatario td ON td.id = tr.tarea_destinatario_id
+JOIN tarea t ON t.id = td.tarea_id
+JOIN prioridad_tarea pt ON pt.codigo = t.prioridad
 JOIN usuario d ON d.id = td.usuario_id
 JOIN usuario a ON a.id = tr.actor_id;
 

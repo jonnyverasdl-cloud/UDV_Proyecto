@@ -1,6 +1,6 @@
 # Grupo 1 · Base de datos
 
-Base de datos del sistema de solicitudes a docentes (`db_udv`, versión 1.1.0). Motor: MySQL 8.0 o superior, o MariaDB 10.4 o superior (el que trae XAMPP).
+Base de datos del sistema de solicitudes a docentes (`db_udv`, versión 1.2.0). Motor: MySQL 8.0 o superior, o MariaDB 10.4 o superior (el que trae XAMPP).
 
 ## Contenido
 
@@ -11,7 +11,8 @@ Docs/
 │  ├─ 01_schema.sql         tablas, triggers, procedimientos y vistas
 │  ├─ 02_seed.sql           datos semilla (catálogos, roles, usuarios demo, ejemplos)
 │  ├─ triggers.sql          solo los triggers y procedimientos (para consulta)
-│  └─ verificacion.sql      pruebas de las restricciones
+│  ├─ verificacion.sql      pruebas de las restricciones
+│  └─ migracion_1.2.0.sql   pasa una base 1.1.0 a 1.2.0 sin perder datos
 ├─ Diagramas/               diagramas entidad-relación en PDF
 └─ diccionario/
    ├─ diccionario_db_udv.html   diccionario de datos (abrir en el navegador)
@@ -47,7 +48,7 @@ python -m g1_bd crear --host localhost --port 3306 --user root --password <clave
 python -m g1_bd verificar --host localhost --port 3306 --user root --password <clave>
 ```
 
-`crear` corre `01_schema.sql` y `02_seed.sql` y muestra cuántas tablas, vistas, triggers y procedimientos quedaron. `verificar` corre `verificacion.sql` y debe terminar con `pasan 73, fallan 0`. Si existe la variable `DATABASE_URL` (`mysql+pymysql://usuario:clave@host:puerto/db_udv`), se puede omitir `--host` y lo demás.
+`crear` corre `01_schema.sql` y `02_seed.sql` y muestra cuántas tablas, vistas, triggers y procedimientos quedaron. `verificar` corre `verificacion.sql` y debe terminar con `pasan 75, fallan 0`. Si existe la variable `DATABASE_URL` (`mysql+pymysql://usuario:clave@host:puerto/db_udv`), se puede omitir `--host` y lo demás.
 
 ### Con la consola
 
@@ -65,7 +66,7 @@ Si el usuario `root` tiene contraseña, agregar `-p`.
 ```sql
 USE db_udv;
 SELECT COUNT(*) FROM information_schema.tables
-WHERE table_schema = 'db_udv' AND table_type = 'BASE TABLE';   -- 49
+WHERE table_schema = 'db_udv' AND table_type = 'BASE TABLE';   -- 50
 SELECT * FROM v_inbox WHERE usuario_id = 3;                     -- 2 tareas
 ```
 
@@ -79,7 +80,7 @@ En phpMyAdmin: seleccionar `db_udv`, pestaña **SQL**, pegar el contenido del ar
 mysql -u root db_udv < verificacion.sql
 ```
 
-La primera fila del resultado debe decir `pasan 73, fallan 0`. Las demás filas muestran cada prueba con su resultado.
+La primera fila del resultado debe decir `pasan 75, fallan 0`. Las demás filas muestran cada prueba con su resultado.
 
 ## Usuarios de prueba
 
@@ -115,7 +116,7 @@ mysql -u root db_udv < respaldo_db_udv.sql
 
 ## Migrar
 
-Esta es la primera versión subida. La tabla `schema_migracion` guarda qué versiones del esquema tiene aplicadas la base:
+La tabla `schema_migracion` guarda qué versiones del esquema tiene aplicadas la base:
 
 ```sql
 SELECT * FROM schema_migracion;
@@ -133,6 +134,12 @@ Para cambiar el esquema más adelante:
 3. Aplicarlo sobre la base que ya existe: `mysql -u root db_udv < migracion_1.2.0.sql`. No hace falta borrar la base ni perder datos.
 4. Actualizar también `01_schema.sql` (o `02_seed.sql` si son datos), el diccionario y el diagrama, para que quien monte la base desde cero ya tenga el cambio.
 5. Avisar a los grupos afectados antes de renombrar o quitar una tabla o columna.
+
+| Versión | Script | Cambio |
+|---|---|---|
+| 1.2.0 | `migracion_1.2.0.sql` | Catálogo `prioridad_tarea` (low, medium, high, urgent). `tarea.prioridad` pasa de un `CHECK` a una llave foránea (`fk_tarea_prioridad`). Las vistas `v_inbox`, `v_panel_tarea` y `v_historial_tarea` agregan `prioridad_nombre`. |
+
+Quien ya tiene la base 1.1.0 montada corre `mysql -u root db_udv < migracion_1.2.0.sql`. Quien la monta desde cero no lo necesita: `01_schema.sql` y `02_seed.sql` ya traen el cambio.
 
 ## Eliminación lógica
 
@@ -167,6 +174,7 @@ Con el Docker del proyecto el puerto es `3307`. Hay que usar `root` u otro usuar
 - Identificadores enteros (`INT AUTO_INCREMENT`).
 - Estados en inglés y minúsculas, como en `CONTRATO_COMUN.md`.
 - Roles: `admin`, `coordinator`, `teacher`, `reviewer`, `authority`, `auditor`.
+- Prioridades de tarea: `low`, `medium`, `high`, `urgent`, del catálogo `prioridad_tarea`. Una prioridad que no esté en el catálogo se rechaza. Las vistas traen además `prioridad_nombre` (Baja, Media, Alta, Urgente).
 - Nada con historial se borra con `DELETE`: se marca `eliminado_en` y `eliminado_por`.
 - Después de autenticar, la API ejecuta `SET @actor_id = <id del usuario>;` en la conexión. Así la auditoría guarda quién hizo cada cambio.
 - Los errores de las reglas usan `SQLSTATE 45000` y el mensaje indica el código HTTP que corresponde (409 o 422).

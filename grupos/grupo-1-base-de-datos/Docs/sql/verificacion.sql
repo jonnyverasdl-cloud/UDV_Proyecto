@@ -2,7 +2,7 @@
    verificacion.sql | Pruebas de las restricciones
    Ejecutar despues de 01_schema.sql y 02_seed.sql. Todo corre dentro de una transaccion
    que se deshace al final: los datos semilla quedan intactos.
-   Resultado esperado: la primera fila dice 'pasan 73, fallan 0'.
+   Resultado esperado: la primera fila dice 'pasan 75, fallan 0'.
    ===================================================================== */
 USE db_udv;
 SET NAMES utf8mb4;
@@ -152,6 +152,8 @@ CALL sp_prueba('PDF de una version en borrador', 'error',
   "INSERT INTO programa_pdf (programa_version_id, archivo_id, hash_contenido, generado_por) VALUES (2, 2, REPEAT('a', 64), 6)");
 CALL sp_prueba('Modificar el historial de PDF', 'error', "UPDATE programa_pdf SET generado_por = 1");
 CALL sp_prueba('Prioridad invalida', 'error', "UPDATE tarea SET prioridad = 'urgente' WHERE id = 3");
+CALL sp_prueba('Prioridad urgent del catalogo prioridad_tarea', 'ok', "UPDATE tarea SET prioridad = 'urgent' WHERE id = 3");
+CALL sp_prueba('Borrar una prioridad usada por una tarea', 'error', "DELETE FROM prioridad_tarea WHERE codigo = 'high'");
 CALL sp_prueba('Alcance por rol sin rol destino', 'error', "UPDATE tarea SET rol_destino_id = NULL WHERE id = 3");
 CALL sp_prueba('Seleccion tipo usuario sin usuario', 'error',
   "INSERT INTO tarea_seleccion (tarea_id, tipo) VALUES (3, 'usuario')");
