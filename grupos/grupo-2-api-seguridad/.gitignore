@@ -1,0 +1,27 @@
+# Secretos y variables locales: Nunca se suben.
+.env
+.env.*
+!.env.example
+
+# Entorno virtual de Python.
+.venv/
+venv/
+
+# Archivos generados por Python y por pytest.
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Bases de datos locales y archivos subidos.
+*.db
+*.sqlite3
+uploads/
+
+# Registros.
+*.log
+almacen_archivos/
+
+# Datos de acceso que da el PM: nunca se suben.
+grupo-2.txt
+semilla_local.py
+

@@ -1,0 +1,293 @@
+<title>Diccionario db_udv</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: indice de bloques a la izquierda, buscador fijo arriba y fichas de tabla tipo catalogo de archivo */
+:root {
+  --bg: #f3f4f1;
+  --panel: #ffffff;
+  --ink: #1d2422;
+  --muted: #5d6965;
+  --line: #d9ddd8;
+  --accent: #1f5f57;
+  --accent-soft: #e1eeeb;
+  --mark: #f6e3a1;
+  --pk: #7a4b00;
+  --pk-soft: #f6ead2;
+  --fk: #24508f;
+  --fk-soft: #e2eaf6;
+  --rule: #6b4a8a;
+  --rule-soft: #eee6f5;
+  --f-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --f-body: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #131816; --panel: #1b2220; --ink: #e5ebe8; --muted: #9aa8a3; --line: #2f3936;
+    --accent: #6cc3b5; --accent-soft: #1d3330; --mark: #6b5a17;
+    --pk: #e9b665; --pk-soft: #3a2e17; --fk: #8db4ee; --fk-soft: #1d2a40; --rule: #c4a3e3; --rule-soft: #2e2440;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #131816; --panel: #1b2220; --ink: #e5ebe8; --muted: #9aa8a3; --line: #2f3936;
+  --accent: #6cc3b5; --accent-soft: #1d3330; --mark: #6b5a17;
+  --pk: #e9b665; --pk-soft: #3a2e17; --fk: #8db4ee; --fk-soft: #1d2a40; --rule: #c4a3e3; --rule-soft: #2e2440;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.5; }
+a { color: var(--fk); }
+code, .mono { font-family: var(--f-mono); font-size: 0.86em; }
+mark { background: var(--mark); color: inherit; border-radius: 2px; padding: 0 1px; }
+
+.wrap { max-width: 1240px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 64px; }
+header.top { display: flex; flex-wrap: wrap; gap: 12px 32px; align-items: end; justify-content: space-between; }
+.eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+h1 { font-family: var(--f-display); font-weight: 600; font-size: clamp(28px, 4vw, 40px); line-height: 1.1; margin: 4px 0 6px; text-wrap: balance; }
+.lede { color: var(--muted); max-width: 62ch; margin: 0; }
+.stats { display: flex; gap: 22px; flex-wrap: wrap; }
+.stat b { display: block; font-family: var(--f-display); font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.stat span { font-size: 12px; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
+
+.searchbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding-block: 14px 10px; margin-top: 18px; border-bottom: 1px solid var(--line); }
+.searchrow { display: flex; gap: 10px; align-items: center; }
+.search { flex: 1; min-width: 0; position: relative; }
+.search input { width: 100%; font: inherit; font-size: 16px; padding: 12px 14px 12px 40px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--ink); }
+.search input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.search svg { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); width: 17px; height: 17px; stroke: var(--muted); }
+.btn { font: inherit; font-size: 14px; padding: 10px 14px; border-radius: 8px; border: 1.5px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; white-space: nowrap; }
+.btn:hover { border-color: var(--accent); }
+.btn:focus-visible, .chip:focus-visible, .toc a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.chip { font: inherit; font-size: 13px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.status { font-size: 13px; color: var(--muted); margin-top: 8px; min-height: 1.4em; }
+.hint { font-size: 13px; color: var(--muted); }
+
+.layout { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 28px; margin-top: 20px; }
+.toc { position: sticky; top: 160px; align-self: start; max-height: calc(100vh - 180px); overflow: auto; font-size: 13.5px; padding-right: 6px; }
+.toc h3 { font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 14px 0 4px; font-weight: 700; }
+.toc h3:first-child { margin-top: 0; }
+.toc a { display: block; padding: 2px 6px; border-radius: 4px; color: var(--ink); text-decoration: none; font-family: var(--f-mono); font-size: 12.5px; overflow-wrap: anywhere; }
+.toc a:hover { background: var(--accent-soft); }
+.toc a.dim { color: var(--muted); opacity: .45; }
+
+.results { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; min-width: 0; scroll-margin-top: 170px; }
+.card-h { padding: 16px 18px 12px; display: flex; flex-direction: column; gap: 6px; border-bottom: 1px solid var(--line); }
+.card-title { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: baseline; }
+.card-title h2 { margin: 0; font-family: var(--f-mono); font-size: 19px; font-weight: 600; overflow-wrap: anywhere; }
+.tag { font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.tag.view { background: var(--rule-soft); color: var(--rule); }
+.card-desc { margin: 0; max-width: 80ch; }
+.api { font-size: 13px; color: var(--muted); }
+.api code { color: var(--ink); }
+.scroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: left; font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 700; padding: 8px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+td.col { font-family: var(--f-mono); font-size: 13px; font-weight: 600; white-space: nowrap; }
+td.type { font-family: var(--f-mono); font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+td.null { font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+td.desc { min-width: 260px; }
+.k { display: inline-block; font-size: 11px; font-weight: 700; padding: 0 6px; border-radius: 4px; margin: 0 4px 2px 0; white-space: nowrap; }
+.k.pk { background: var(--pk-soft); color: var(--pk); }
+.k.fk { background: var(--fk-soft); color: var(--fk); text-decoration: none; }
+.k.fk:hover { text-decoration: underline; }
+.k.gen { background: var(--rule-soft); color: var(--rule); }
+.def { font-size: 12px; color: var(--muted); }
+.more { padding: 8px 18px; font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.linkbtn { font: inherit; font-size: 13px; background: none; border: 0; color: var(--fk); cursor: pointer; padding: 0; text-decoration: underline; }
+details.rules { border-top: 1px solid var(--line); }
+details.rules summary { padding: 10px 18px; cursor: pointer; font-size: 13.5px; font-weight: 700; color: var(--rule); }
+details.rules ul { list-style: none; margin: 0; padding: 0 18px 14px; display: flex; flex-direction: column; gap: 6px; }
+details.rules li { font-size: 13.5px; display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 10px; }
+details.rules .rk { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); padding-top: 2px; }
+details.rules .rn { font-family: var(--f-mono); font-size: 12.5px; overflow-wrap: anywhere; }
+.empty { padding: 40px 0; color: var(--muted); }
+footer { margin-top: 40px; font-size: 13px; color: var(--muted); max-width: 80ch; }
+
+@media (max-width: 860px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  .toc { display: none; }
+  .wrap { padding-inline: 16px; }
+}
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow">Grupo 1 · Base de datos · MySQL 8 · esquema 1.1.0</div>
+      <h1>Diccionario de datos de db_udv</h1>
+      <p class="lede">Cada tabla y vista del sistema de solicitudes a docentes, con lo que guarda cada columna, sus llaves y las reglas que la base hace cumplir.</p>
+    </div>
+    <div class="stats" id="stats"></div>
+  </header>
+
+  <div class="searchbar">
+    <div class="searchrow">
+      <label class="search" for="q">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        <input id="q" type="search" autocomplete="off" placeholder="Busca una tabla, columna o palabra: correo, vigente, /assignments, borrador…" aria-label="Buscar en el diccionario">
+      </label>
+      <button class="btn" id="clear" type="button">Limpiar</button>
+    </div>
+    <div class="chips" id="chips" role="group" aria-label="Filtrar por bloque"></div>
+    <div class="status" id="status" aria-live="polite"></div>
+  </div>
+
+  <div class="layout">
+    <nav class="toc" id="toc" aria-label="Índice de tablas"></nav>
+    <main class="results" id="results"></main>
+  </div>
+
+  <footer>
+    Generado desde la base real (<code>information_schema</code>) después de importar <code>db_udv_completo.sql</code>. Los recursos de API son la propuesta del Grupo 1 y se confirman con los grupos 2 a 6. Columnas con <span class="k pk">PK</span> son llave primaria, <span class="k fk">FK</span> apuntan a otra tabla (clic para ir) y <span class="k gen">calculada</span> las calcula la base.
+  </footer>
+</div>
+
+<script>
+const DATA = __DATA__;
+const BLOQUES = __BLOQUES__;
+
+const norm = s => (s || '').toString().normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const esc = s => (s == null ? '' : String(s)).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+// resalta los terminos buscados sin importar tildes
+function hl(text, terms) {
+  const raw = text == null ? '' : String(text);
+  if (!terms.length) return esc(raw);
+  const n = norm(raw);
+  const marks = new Array(raw.length).fill(false);
+  for (const t of terms) {
+    let i = n.indexOf(t);
+    while (t && i !== -1) { for (let j = i; j < i + t.length; j++) marks[j] = true; i = n.indexOf(t, i + t.length); }
+  }
+  let out = '', open = false;
+  for (let i = 0; i < raw.length; i++) {
+    if (marks[i] && !open) { out += '<mark>'; open = true; }
+    if (!marks[i] && open) { out += '</mark>'; open = false; }
+    out += esc(raw[i]);
+  }
+  return out + (open ? '</mark>' : '');
+}
+
+// indice de texto por tabla y por columna
+for (const t of DATA) {
+  t.txt = norm([t.t, t.d, t.api, t.b].join(' '));
+  t.rtxt = norm(t.r.map(r => r.n + ' ' + r.v).join(' '));
+  for (const c of t.c) c.txt = norm([c.n, c.t, c.desc, c.fk || ''].join(' '));
+}
+
+const stats = document.getElementById('stats');
+const nTab = DATA.filter(t => !t.v).length, nVis = DATA.filter(t => t.v).length;
+const nCol = DATA.filter(t => !t.v).reduce((a, t) => a + t.c.length, 0);
+const nFk = DATA.reduce((a, t) => a + t.c.filter(c => c.fk).length, 0);
+const nTr = DATA.reduce((a, t) => a + t.r.filter(r => r.k === 'Trigger').length, 0);
+stats.innerHTML = [[nTab, 'tablas'], [nVis, 'vistas'], [nCol, 'columnas'], [nFk, 'llaves foráneas'], [nTr, 'triggers']]
+  .map(([n, l]) => `<div class="stat"><b>${n}</b><span>${l}</span></div>`).join('');
+
+let bloque = 'Todos';
+const expanded = new Set();
+const chips = document.getElementById('chips');
+['Todos', ...BLOQUES].forEach(b => {
+  const n = b === 'Todos' ? DATA.length : DATA.filter(t => t.b === b).length;
+  if (!n) return;
+  const el = document.createElement('button');
+  el.type = 'button'; el.className = 'chip'; el.textContent = `${b} (${n})`;
+  el.setAttribute('aria-pressed', b === bloque);
+  el.onclick = () => { bloque = b; [...chips.children].forEach(c => c.setAttribute('aria-pressed', c === el)); render(); };
+  chips.appendChild(el);
+});
+
+const q = document.getElementById('q');
+const results = document.getElementById('results');
+const toc = document.getElementById('toc');
+const status = document.getElementById('status');
+
+function keyBadges(c) {
+  let s = '';
+  if (c.pk) s += '<span class="k pk">PK</span>';
+  if (c.fk) { const [rt, rc] = c.fk.split('.'); s += `<a class="k fk" href="#${rt}" data-go="${rt}">FK → ${esc(rt)}</a>`; }
+  if (c.gen) s += '<span class="k gen">calculada</span>';
+  return s;
+}
+
+function render() {
+  const terms = norm(q.value).split(/\s+/).filter(Boolean);
+  let shown = 0, colHits = 0;
+  const html = [];
+  const visible = new Set();
+  for (const t of DATA) {
+    if (bloque !== 'Todos' && t.b !== bloque) continue;
+    let cols = t.c, partial = false;
+    if (terms.length) {
+      const tableHit = terms.every(x => t.txt.includes(x) || t.c.some(c => c.txt.includes(x)) || t.rtxt.includes(x));
+      if (!tableHit) continue;
+      const tableTextHit = terms.every(x => t.txt.includes(x));
+      if (!tableTextHit) {
+        const m = t.c.filter(c => terms.some(x => c.txt.includes(x)));
+        if (m.length && !expanded.has(t.t)) { cols = m; partial = m.length < t.c.length; }
+      }
+      colHits += t.c.filter(c => terms.some(x => c.txt.includes(x))).length;
+    }
+    shown++; visible.add(t.t);
+    const rows = cols.map(c => `<tr>
+        <td class="col">${hl(c.n, terms)}</td>
+        <td class="type">${hl(c.t, terms)}</td>
+        <td class="null">${c.nul ? 'NULL' : 'NOT NULL'}${c.d != null && !c.ai ? `<div class="def">def: ${esc(c.d)}</div>` : ''}${c.ai ? '<div class="def">autoincremental</div>' : ''}</td>
+        <td>${keyBadges(c)}</td>
+        <td class="desc">${hl(c.desc, terms)}</td></tr>`).join('');
+    const rules = t.r.length ? `<details class="rules"${terms.length && terms.some(x => t.rtxt.includes(x)) ? ' open' : ''}>
+        <summary>Reglas e índices (${t.r.length})</summary>
+        <ul>${t.r.map(r => `<li><span class="rk">${r.k}</span><span><span class="rn">${hl(r.n, terms)}</span>${r.v ? ' · ' + hl(r.v, terms) : ''}</span></li>`).join('')}</ul>
+      </details>` : '';
+    html.push(`<article class="card" id="${t.t}">
+      <div class="card-h">
+        <div class="card-title"><h2>${hl(t.t, terms)}</h2><span class="tag${t.v ? ' view' : ''}">${t.v ? 'Vista' : esc(t.b)}</span></div>
+        <p class="card-desc">${hl(t.d, terms)}</p>
+        <div class="api">Recurso de API: <code>${hl(t.api, terms)}</code></div>
+      </div>
+      <div class="scroll"><table>
+        <thead><tr><th>Columna</th><th>Tipo</th><th>Nulo</th><th>Llave</th><th>Qué guarda</th></tr></thead>
+        <tbody>${rows}</tbody></table></div>
+      ${partial ? `<div class="more">Mostrando ${cols.length} de ${t.c.length} columnas que coinciden. <button class="linkbtn" type="button" data-expand="${t.t}">Ver todas</button></div>` : ''}
+      ${rules}
+    </article>`);
+  }
+  results.innerHTML = html.length ? html.join('') :
+    `<div class="empty">No hay tablas ni columnas que coincidan con “${esc(q.value)}”. Prueba con otra palabra o quita el filtro de bloque.</div>`;
+  status.textContent = terms.length
+    ? `${shown} ${shown === 1 ? 'tabla o vista' : 'tablas o vistas'} · ${colHits} ${colHits === 1 ? 'columna coincide' : 'columnas coinciden'}`
+    : `${shown} tablas y vistas${bloque !== 'Todos' ? ' en ' + bloque : ''}`;
+  toc.innerHTML = BLOQUES.map(b => {
+    const ts = DATA.filter(t => t.b === b);
+    if (!ts.length) return '';
+    return `<h3>${esc(b)}</h3>` + ts.map(t => `<a href="#${t.t}" data-go="${t.t}" class="${visible.has(t.t) ? '' : 'dim'}">${esc(t.t)}</a>`).join('');
+  }).join('');
+}
+
+function go(name) {
+  let el = document.getElementById(name);
+  if (!el) { q.value = ''; bloque = 'Todos'; [...chips.children].forEach((c, i) => c.setAttribute('aria-pressed', i === 0)); render(); el = document.getElementById(name); }
+  if (el) el.scrollIntoView({ block: 'start' });
+}
+document.addEventListener('click', e => {
+  const g = e.target.closest('[data-go]');
+  if (g) { e.preventDefault(); go(g.dataset.go); return; }
+  const x = e.target.closest('[data-expand]');
+  if (x) { expanded.add(x.dataset.expand); render(); }
+});
+q.addEventListener('input', () => { expanded.clear(); render(); });
+document.getElementById('clear').onclick = () => { q.value = ''; expanded.clear(); render(); q.focus(); };
+document.addEventListener('keydown', e => {
+  if (e.key === '/' && document.activeElement !== q) { e.preventDefault(); q.focus(); }
+});
+render();
+if (location.hash.length > 1) go(location.hash.slice(1));
+</script>
