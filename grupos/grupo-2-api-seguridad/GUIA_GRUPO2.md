@@ -29,6 +29,7 @@ Coordinador: Daniel (dancobs) · Versión 2 · 10-oct-2026 · Estado actualizado
 | 🔵 | Pantalla de login (`frontend-login/`) | Fulvio |
 | ✅ | Login con campos vacíos: `""` ya da 422 y la contraseña va de 8 a 64 caracteres (23-oct, G2-04) | Daniel |
 | ✅ | `registro.py`: el login fallido con correo inexistente o vacío ya se guarda (23-oct). Queda quitar las funciones que ya no se usan | Edgar |
+| ⏳ | `registro.py`: `set_actor_id()` (línea 61) manda `@actor_id = 0` cuando no hay usuario y la llave foránea hace fallar la auditoría (aviso del Grupo 1, 28-oct). Mandar NULL o usar `fijar_actor()`; hoy ninguna ruta la llama | Edgar |
 | 🔵 | Archivos (28-oct): `POST /files` ya no da 500 y guarda el archivo en la tabla `archivo` con SHA-256 y `autor_id`. `GET /files/{id}` usa `{id}`, da 404 si no existe y 403 si quien pide no es el autor (G2-21). Falta retest de QA, `tests/test_files.py` y confirmar con el PM si un admin también puede descargar | Fulvio |
 | ✅ | Bloqueo por intentos (5 fallos = 429 por 15 minutos): PASS en el retest (G2-34) | Daniel |
 | 🔵 | Paginación en `GET /users` (`page`, `per_page`, `total`, `data`): ya la usa `users.py` (24-oct) y tiene pruebas. Falta retest de QA (G2-31) | Randy |
@@ -109,6 +110,7 @@ Cada tarea dice: **archivo → qué haces** y, en *cursiva*, con quién se conec
 
 **Semana 3 · martes 27-oct**
 - `utils/registro.py` → que el login fallido con correo inexistente o vacío también se guarde (`registro_id` no puede ir NULL en la base). Con eso `pytest` queda en 34 de 34.
+- `utils/registro.py` → `set_actor_id()` (línea 61) manda `@actor_id = 0` sin usuario; el Grupo 1 pide NULL o usar `fijar_actor()` (28-oct).
 - `middleware/error_handler.py` → confirmar con el PM si `details` queda como lista de objetos (`field`, `code`, `message`) o como diccionario, y revisar que 401, 403, 404, 409 y 422 salgan con el formato común.
 
 **Semana 4 · martes 03-nov**
@@ -150,7 +152,7 @@ Cada tarea dice: **archivo → qué haces** y, en *cursiva*, con quién se conec
 - `main.py` → agregar los routers nuevos: `roles` y `files`.
   *Son de Randy y Fulvio.*
 
-**Semana 3 · martes 27-oct** (adelantada: hecha el 22-oct; conexión probada con su `.env` el 28-oct)
+**Semana 3 · martes 27-oct** (adelantada: hecha el 22-oct; conexión probada con su `.env` el 27-oct)
 - `.env.example` → formato de `DATABASE_URL` para las tres opciones (Docker, XAMPP y base compartida), sin claves reales.
 - `requirements.txt` → sin cambios: ya trae `PyMySQL` y `cryptography`; se comprobó que instala desde cero.
 - `database.py` → conexión a MySQL 8: cada conexión nueva queda en UTC y `fijar_actor(db, actor_id, ip)` llena `@actor_id` e `@ip_origen` para los triggers del Grupo 1. Las variables se limpian al devolver la conexión al pool.
@@ -225,7 +227,9 @@ Para correr la API: `http://127.0.0.1:8000/api/v1/docs`
 ## 7. Pendientes con otros grupos
 
 - **Grupo 1:** ¿MariaDB local o servidor compartido? ¿Cuándo sube el script con datos semilla? (Ya lo respondió el Grupo 1)
-- **Grupos 3 y 5:** ¿necesitan un rol "autoridad" para autorizar programas?
+- **Grupo 1 (28-oct):** el PM carga y actualiza la base de Railway (README §5), así que no hay que correr la migración. La versión se ve con `SELECT * FROM schema_migracion;`: si aparece 1.2.0 está al día; si no, se avisa al PM. También avisaron lo de `set_actor_id()` en `registro.py` (ver sección 1). Falta preguntarles el código y los permisos del rol de autoridad.
+- **Grupo 5 (28-oct):** los PDF de las versiones autorizadas se guardan con nuestro módulo de archivos (hoy el límite es de 5 MB); ellos guardan `pdf_hash` en `programa_version`. Piden que cualquier rol descargue el PDF, pero hoy solo el autor lo descarga (los demás reciben 403): se decide con el PM. Preguntaron si exponemos el usuario en `request.state.user`: hoy se usa `Depends(obtener_usuario_actual)`, que devuelve el usuario con sus roles. Falta confirmar el código del rol de autoridad.
+- **Grupo 3:** ¿necesita un rol "autoridad" para autorizar programas?
 - **Todos:** el código de rol es `admin` (confirmado por el PM el 22-oct). Ya quedó en `users.py` y `roles.py`.
 
 ---
@@ -351,12 +355,12 @@ En la sección 2 solo Daniel tiene tarea esta semana. Para que cada quien sepa q
 
 ## 9. Retest No. 2 de QA (23 y 24-oct) y qué falta
 
-Resultado: 34 PASS, 2 FAIL, 1 PARCIAL, 1 PASS histórico con retest pendiente. Los mensajes del PM (24-oct) y de Allison coinciden con esto. Cada quien toca solo sus archivos.
+Fuentes: Update No. 2 e Informe de Retest No. 2 de Allison (el detalle de los 38 escenarios está en `PENDIENTES_QA.md`). Resultado: 34 PASS, 2 FAIL, 1 PARCIAL, 1 PASS histórico con retest pendiente. Los mensajes del PM (24-oct) y de Allison coinciden con esto. Cada quien toca solo sus archivos.
 
 | Prioridad | Escenario | Qué pasa | Quién | Archivo | Estado al 27-oct |
 |-|-|-|-|-|-|
 | 🔴 Alta (crítica) | G2-21 | Un docente descarga el archivo de un admin (HTTP 200, posible IDOR). El PM pide 403 o 404. | Fulvio | `routers/files.py` | 🔵 Subido el 28-oct (commit `6982c15`): `GET /files/{id}` pide token, da 404 si no existe y 403 si no es el autor (`autor_id`); `POST /files` guarda en la tabla `archivo`. Falta retest, `tests/test_files.py` y confirmar si un admin también descarga |
-| ⚪ Baja | G2-36 | PASS del PM en el retest del 23-oct. Antes avisó que el login fallido se guardaba **dos veces** (`auth.py` y `registro.py`). | Daniel y Edgar | `routers/auth.py`, `utils/registro.py` | ✅ PASS. Queda revisar que el login fallido quede una sola vez antes del PR a `main` |
+| ⚪ Baja | G2-36 | PASS del PM y del QA en el retest. El aviso anterior del PM (correo inexistente con `registro_id` en NULL) ya está corregido: se guarda `registro_id = 0` y el correo va en `detalle`; el QA lo confirmó con un LOGIN_FALLIDO en la tabla `auditoria`. Antes se avisó que el login fallido se guardaba **dos veces** (`auth.py` y `registro.py`). | Daniel y Edgar | `routers/auth.py`, `utils/registro.py` | ✅ PASS. Queda revisar que el login fallido quede una sola vez antes del PR a `main` |
 | 🟡 Media | G2-33 | Faltaban 409, 403, ejemplos con objetos y el 422 real. | Robert | `main.py` | 🔵 Hecho (27 y 28-oct): `POST /users`, `GET /me` y `GET /users` documentan sus códigos con ejemplos reales y `tests/test_openapi.py` lo verifica. `files` ya usa `{id}`. Falta retest |
 | ⚪ Baja | G2-31 | `GET /users` devolvía un arreglo sin paginar. | Randy | `routers/users.py` | 🔵 Ya pagina (24-oct) con pruebas en `tests/test_users.py`. Falta retest |
 | ⚪ Baja | G2-32 | Las respuestas de usuarios ya no traen `creado_en` ni `actualizado_en`. | Randy, con el PM | `routers/users.py` | ⏳ Preguntar al PM si se quitaron a propósito. Si deben salir, en ISO 8601 y UTC |
@@ -370,6 +374,7 @@ Resultado: 34 PASS, 2 FAIL, 1 PARCIAL, 1 PASS histórico con retest pendiente. L
 | 🔴 Alta | G2-21 | Un docente descargó con HTTP 200 un PDF cargado por un admin: `GET /files/{id}` pedía token pero no revisaba al dueño. Debe dar 403 o 404 sin revelar el archivo | Subir un PDF con un usuario y copiar el `file_id`; pedir `GET /files/{id}` con otro usuario (debe dar **403**), con el dueño (**200**), con un id que no existe (**404**) y sin token (**401**) | Sí, como «corregido, listo para retest» (commit `6982c15`, 28-oct). No marcarlo completado hasta que Allison repita G2-21 |
 | 🟡 Media | G2-07, G2-12, G2-26 | PASS los tres (`/me`, consulta individual y recursos inexistentes) | Nada más | Ya están cerrados. Se puede comentar «PASS confirmado por el PM» |
 | 🟡 Media | G2-33 | PARCIAL: Swagger no coincidía con `POST /users`, `GET /me` y `GET /users` (faltaban códigos HTTP y los ejemplos JSON eran incorrectos) | En `/api/v1/docs` revisar `POST /users` (201, 401, 403, 409, 422), `GET /me` (200 con objeto y 401), `GET /users` (200 con `page`, `per_page`, `total`, `data`, 401 y 403) y `files` con `{id}`; correr `pytest tests/test_openapi.py` | Sí, listo para retest (Robert, 27 y 28-oct) |
+| 🟡 Media | G2-04, G2-18 | Observaciones del Informe No. 2: la API daba 401 con campos vacíos (el PM pidió 422) y Swagger de `files` pedía `file_id` en query en vez de `{id}` | Con campos vacíos (`""`) revisar que dé 422; en `/api/v1/docs` ver que `GET /files/{id}` use `{id}` en la ruta | Sí, como «corregido, listo para repetir» |
 | ⚪ Baja | G2-34, G2-36 | PASS los dos (bloqueo temporal y registro de auditoría) | Nada más; solo confirmar antes del PR que el login fallido se guarda una vez | Ya están cerrados |
 | ⚪ Baja | G2-31 | FAIL: `GET /users` no paginaba. Debe devolver `page`, `per_page`, `total` y `data` | `GET /users?page=1&per_page=5` con admin: revisar los cuatro campos y el máximo de 100 por página | Sí, listo para retest (Randy, 24-oct, con `tests/test_users.py`) |
 | ⚪ Baja | G2-32 | PASS histórico, retest pendiente: las consultas de usuarios ya no traen `creado_en` ni `actualizado_en` | Confirmar con el PM si se quitaron a propósito. Si deben salir, en ISO 8601 y UTC. Si no, documentar el cambio | Todavía no: primero la respuesta del PM |
