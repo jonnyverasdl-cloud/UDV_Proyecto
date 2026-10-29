@@ -2,10 +2,7 @@ import unittest
 import sys
 from pathlib import Path
 
-sys.path.insert(
-    0,
-    str(Path(__file__).resolve().parents[1] / "grupos" / "grupo-5-programas-pdf"),
-)
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from g5_programas.domain import editable, ensure_single_authorized, next_status
 from g5_programas.errors import ApiError
