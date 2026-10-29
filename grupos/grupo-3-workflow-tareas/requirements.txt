@@ -2,6 +2,6 @@ fastapi==0.142.1
 uvicorn==0.54.0
 pydantic==2.14.0
 PyMySQL==1.1.1
-python-dotenv==1.2.4
+python-dotenv==1.2.3
 httpx==0.28.1
 pytest==9.1.1
