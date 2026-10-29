@@ -5,7 +5,7 @@ import pytest
 from g6_admin import ambiente
 
 CLAVE = "k3Jx9" * 8  # 40 caracteres que no parecen de ejemplo
-DEMO = {"APP_ENV": "demostracion", "SECRET_KEY": CLAVE,
+DEMO = {"APP_ENV": "demostracion", "SECRET_KEY": CLAVE, "UPLOAD_DIR": "/data/archivos",
         "DATABASE_URL": "mysql+pymysql://udv_app:Xq81_vT2@mysql.railway.internal:3306/db_udv"}
 
 
@@ -29,6 +29,8 @@ def test_demostracion_bien_configurada():
     ({"SECRET_KEY": "corta"}, "SECRET_KEY"),
     ({"SECRET_KEY": "cambiar-esta-clave-por-una-larga-y-aleatoria"}, "SECRET_KEY"),
     ({"CORS_ORIGINS": "*"}, "CORS_ORIGINS"),
+    ({"UPLOAD_DIR": ""}, "UPLOAD_DIR"),             # G6-37: sin carpeta persistente
+    ({"UPLOAD_DIR": "uploads"}, "UPLOAD_DIR"),      # relativa: queda dentro del contenedor
 ])
 def test_demostracion_detecta_cada_problema(cambio, texto):
     problemas = ambiente.revisar(DEMO | cambio)

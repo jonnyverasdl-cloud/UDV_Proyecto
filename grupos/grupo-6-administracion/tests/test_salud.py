@@ -1,11 +1,13 @@
-"""Pruebas de GET /api/v1/health: escenarios G6-34 y G6-36."""
+"""Pruebas de GET /api/v1/health: escenarios G6-34, G6-36 y G6-39."""
 
 import time
 from datetime import datetime
 
-from g6_admin.salud import estado_del_servicio
+import pytest
 
-CAMPOS = {"status", "service", "version", "environment", "time",
+from g6_admin.salud import commit_desplegado, estado_del_servicio
+
+CAMPOS = {"status", "service", "version", "environment", "commit", "time",
           "uptime_seconds", "checks"}
 
 
@@ -41,6 +43,22 @@ def test_health_toma_entorno_y_version_de_variables(sin_sesion, monkeypatch):
     monkeypatch.setenv("APP_VERSION", "1.2.3")
     datos = sin_sesion.get("/api/v1/health").json()
     assert (datos["environment"], datos["version"]) == ("demostracion", "1.2.3")
+
+
+def test_health_muestra_el_commit_desplegado(sin_sesion, monkeypatch):
+    monkeypatch.setenv("RAILWAY_GIT_COMMIT_SHA", "3DC943C0123456789abcdef0123456789abcdef0")
+    assert sin_sesion.get("/api/v1/health").json()["commit"] == "3dc943c"
+
+
+@pytest.mark.parametrize("variables, esperado", [
+    ({}, None),
+    ({"APP_COMMIT": "abc1234"}, "abc1234"),
+    ({"APP_COMMIT": "abc1234", "RAILWAY_GIT_COMMIT_SHA": "def5678"}, "abc1234"),
+    ({"APP_COMMIT": "no es un commit"}, None),  # Nunca se muestra texto libre.
+    ({"APP_COMMIT": "", "RAILWAY_GIT_COMMIT_SHA": "def5678"}, "def5678"),
+])
+def test_commit_desplegado(variables, esperado):
+    assert commit_desplegado(variables) == esperado
 
 
 def test_health_no_expone_secretos_del_entorno(sin_sesion, monkeypatch):

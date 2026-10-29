@@ -189,3 +189,58 @@ def test_marcar_leida_en_mysql(cliente, docente):
         pytest.skip("El docente no tiene avisos sin leer")
     respuesta = cliente.patch(f"/api/v1/notifications/{avisos[0]['id']}/read", headers=docente)
     assert respuesta.status_code == 200 and respuesta.json()["is_read"] is True
+
+
+# ── Panel (G6-26 a G6-29): coincide con la vista v_panel_tarea del G1 ──────
+
+def test_el_panel_coincide_con_la_vista_del_g1(cliente, admin, fabrica):
+    panel = cliente.get("/api/v1/dashboard?limit=100", headers=admin)
+    assert panel.status_code == 200, panel.text
+    datos = panel.json()
+    with fabrica() as s:
+        vista = s.execute(text(
+            "SELECT COALESCE(SUM(total_asignaciones), 0) AS total,"
+            " COALESCE(SUM(canceladas), 0) AS canceladas,"
+            " COALESCE(SUM(entregadas + en_revision + aprobadas), 0) AS cumplidas,"
+            " COALESCE(SUM(CASE WHEN estado_tarea NOT IN ('cancelled', 'closed')"
+            "   THEN vencidas END), 0) AS vencidas,"
+            " COALESCE(SUM(CASE WHEN estado_tarea NOT IN ('cancelled', 'closed')"
+            "   THEN proximas_a_vencer END), 0) AS proximas FROM v_panel_tarea")).one()
+        tareas = dict(s.execute(text(
+            "SELECT estado_codigo, COUNT(*) FROM tarea WHERE eliminado_en IS NULL"
+            " GROUP BY estado_codigo")).all())
+    assert datos["assignments"]["total"] == vista.total
+    # Vencidas y próximas no cuentan tareas canceladas o cerradas (docs/panel.md).
+    assert datos["overdue"]["total"] == vista.vencidas
+    assert datos["due_soon"]["total"] == vista.proximas
+    assert datos["compliance"]["completed"] == vista.cumplidas
+    assert datos["compliance"]["expected"] == vista.total - vista.canceladas
+    assert {e: n for e, n in datos["tasks"]["by_state"].items() if n} == tareas
+
+
+def test_permisos_del_panel_y_la_auditoria_con_roles_reales(cliente, docente):
+    auditor = entrar(cliente, "auditoria@demo.udv.edu.gt")
+    coordinacion = entrar(cliente, "coordinacion@demo.udv.edu.gt")
+    assert cliente.get("/api/v1/dashboard", headers=auditor).status_code == 200
+    assert cliente.get("/api/v1/dashboard", headers=coordinacion).status_code == 200
+    assert cliente.get("/api/v1/dashboard", headers=docente).status_code == 403
+    assert cliente.get("/api/v1/audit", headers=auditor).status_code == 200
+    assert cliente.get("/api/v1/audit", headers=coordinacion).status_code == 403
+    opciones = cliente.get("/api/v1/audit/filters", headers=auditor).json()
+    assert "usuario" in opciones["entities"]
+    assert any(u["email"] == "admin@demo.udv.edu.gt" for u in opciones["users"])
+
+
+# ── Regresión (G6-40) con el login real del G2 ─────────────────────────────
+
+def test_la_regresion_pasa_contra_mysql(cliente):
+    from g6_admin import regresion
+
+    def llamar(metodo, ruta, token, cuerpo):
+        respuesta = cliente.request(metodo, ruta, json=cuerpo, headers=(
+            {"Authorization": f"Bearer {token}"} if token else {}))
+        return respuesta.status_code, respuesta.json()
+
+    casos = regresion.ejecutar(llamar, admin=("admin@demo.udv.edu.gt", CONTRASENA_DEMO),
+                               docente=("docente1@demo.udv.edu.gt", CONTRASENA_DEMO))
+    assert [c for c in casos if not c.paso] == []

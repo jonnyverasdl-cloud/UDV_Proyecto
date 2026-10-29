@@ -10,23 +10,32 @@ cero sigue [`docs/instalacion.md`](docs/instalacion.md).
 |---|---|---|
 | Catálogos: listar (con sesión), agregar y modificar (solo administración) | `GET` y `POST` en `/api/v1/<catálogo>` y `PATCH` en `/api/v1/<catálogo>/{id}`; catálogos `academic-units`, `campuses`, `courses`, `periods`, `modalities` y `areas` | G6-01 a G6-03, G6-21 a G6-25 |
 | Facultades (para elegir al crear una unidad académica) | `GET /api/v1/faculties` | G6-21 |
-| Pantalla de catálogos, con inicio de sesión del G2 | `g6_admin/pantallas/catalogos.html` | G6-01, G6-02 |
+| Pantallas con inicio de sesión del G2: catálogos, panel y auditoría | `g6_admin/pantallas/` (`catalogos.html`, `panel.html`, `auditoria.html`) | G6-01, G6-02, G6-26 a G6-33 |
 | Notificaciones: las propias, paginadas, y marcar como leída | `GET /api/v1/notifications` (`?unread=true`) y `PATCH /api/v1/notifications/{id}/read` | G6-04 a G6-13 |
 | Eventos de G3, G4 y G5 → notificaciones | Automático al listar; `POST /api/v1/notifications/process` (administración) | G6-17 |
-| Auditoría: consulta filtrada (solo administración) | `GET /api/v1/audit` con `user_id`, `from`, `to`, `entity` y `action` | G6-14, G6-15, G6-30 a G6-33 |
+| Panel de indicadores: por estado, vencidas, próximas a vencer y cumplimiento ([`docs/panel.md`](docs/panel.md)) | `GET /api/v1/dashboard` | G6-26 a G6-29 |
+| Auditoría: consulta filtrada (administración y auditoría) | `GET /api/v1/audit` con `user_id`, `from`, `to`, `entity` y `action`; `GET /api/v1/audit/filters` da los valores para elegir | G6-14, G6-15, G6-30 a G6-33 |
 | Nada queda a medias si algo falla | Transacción por operación y por evento | G6-18 |
-| Estado del servicio | `GET /api/v1/health` | G6-34, G6-36 |
+| Estado del servicio, con versión y commit | `GET /api/v1/health` | G6-34, G6-36, G6-39 |
 | Revisión de ambientes | `python -m g6_admin.ambiente` ([`docs/ambientes.md`](docs/ambientes.md)) | G6-35 |
 | Instalación desde cero | [`docs/instalacion.md`](docs/instalacion.md) y [evidencia](docs/evidencia_instalacion.md) | G6-19 |
 | Revisión de seguridad de datos semilla | [`docs/revision_seguridad.md`](docs/revision_seguridad.md) y `tests/test_seguridad.py` | G6-20 |
+| Archivos que sobreviven a un reinicio | `python -m g6_admin.persistencia` ([`docs/recuperacion.md`](docs/recuperacion.md)) | G6-37 |
+| Respaldo y recuperación, probados | [`docs/recuperacion.md`](docs/recuperacion.md) | G6-38 |
+| Versión final reproducible | [`docs/version_final.md`](docs/version_final.md) y [`CHANGELOG.md`](CHANGELOG.md) | G6-39 |
+| Casos críticos antes de cada entrega | `python -m g6_admin.regresion --url ...` ([`docs/version_final.md`](docs/version_final.md)) | G6-40 |
 
 **Quién puede hacer qué**
 
-| Rol (código del G1) | Consultar catálogos | Agregar o modificar registros | Consultar auditoría |
-|---|---|---|---|
-| Administración (`admin`) | Sí | Sí | Sí |
-| Docente (`teacher`) y demás roles | Sí | No: 403 | No: 403 |
-| Sin sesión | No: 401 | No: 401 | No: 401 |
+Son los permisos de la semilla del G1 (`rol_permiso`):
+
+| Rol (código del G1) | Consultar catálogos | Agregar o modificar registros | Panel | Auditoría |
+|---|---|---|---|---|
+| Administración (`admin`) | Sí | Sí | Sí | Sí |
+| Auditoría (`auditor`) | Sí | No: 403 | Sí | Sí |
+| Coordinación (`coordinator`) y autoridad académica (`authority`) | Sí | No: 403 | Sí | No: 403 |
+| Docente (`teacher`) y revisor (`reviewer`) | Sí | No: 403 | No: 403 | No: 403 |
+| Sin sesión | No: 401 | No: 401 | No: 401 | No: 401 |
 
 Cada persona ve y marca solo sus propias notificaciones (la de otra responde
 404).
@@ -55,6 +64,7 @@ usa el G6; si el G1 cambia una, se cambia ahí.
 | Para qué | Tablas |
 |---|---|
 | Catálogos | `facultad` (solo lectura), `sede`, `unidad_academica`, `curso`, `periodo`, `modalidad`, `area` |
+| Panel (solo lectura) | `tarea`, `tarea_destinatario`, `usuario`, `parametro` (`dias_aviso_vencimiento`) |
 | Auditoría | `auditoria` (solo INSERT; sus triggers bloquean UPDATE y DELETE) |
 | Notificaciones | `evento`, `notificacion` (llave única `evento_id` + `usuario_id`) |
 | Saber a quién avisar (solo lectura) | `tarea`, `tarea_destinatario`, `programa_version`, `usuario`, `usuario_rol`, `rol` |
@@ -71,10 +81,10 @@ error propios:
 | Paginación y máximo de `per_page` | `params_paginacion` |
 | Revisar la base en `/api/v1/health` | `probar_conexion` |
 
-La pantalla inicia sesión con `POST /api/v1/auth/login` del G2, guarda el
-token en `sessionStorage` con la clave `udv_token` y pregunta los roles a
-`GET /api/v1/me`. Si la pantalla de login del G2 guarda el token con esa
-misma clave, la sesión se comparte.
+Las pantallas inician sesión con `POST /api/v1/auth/login` del G2, guardan el
+token en `sessionStorage` con la clave `udv_token` y preguntan los roles a
+`GET /api/v1/me`. Entrar en una sirve para las tres, y si la pantalla de login
+del G2 guarda el token con esa misma clave, la sesión también se comparte.
 
 ## Cómo llegan las notificaciones (G6-04 a G6-11 y G6-17)
 
@@ -145,14 +155,17 @@ triggers reales del G1.
 | Archivo | Qué prueba |
 |---|---|
 | `test_catalogos.py` | G6-01 a G6-03, G6-21 a G6-25 y los campos de cada tabla |
+| `test_panel.py` | G6-26 a G6-29 |
 | `test_notificaciones.py` | G6-04 a G6-13 |
 | `test_eventos.py` | G6-17: eventos del G1 → avisos |
 | `test_auditoria.py` | G6-14, G6-15, G6-30 a G6-33 |
 | `test_transacciones.py` | G6-18 |
-| `test_salud.py` | G6-34, G6-36 |
-| `test_ambiente.py` | G6-35 |
+| `test_salud.py` | G6-34, G6-36, G6-39 |
+| `test_ambiente.py` | G6-35, G6-37 |
 | `test_seguridad.py` | G6-20, G6-36 |
-| `integracion/test_mysql_g1.py` | Todo lo anterior contra MySQL y el login del G2 |
+| `test_persistencia.py` | G6-37 |
+| `test_regresion.py` | G6-40 |
+| `integracion/test_mysql_g1.py` | Todo lo anterior contra MySQL y el login del G2; el panel contra la vista `v_panel_tarea` |
 
 ## Cómo se integra a la aplicación
 
@@ -160,15 +173,23 @@ El G6 no levanta su propia app (CONTRATO_COMUN §1). Lo integra el PM en el
 `main.py` de la raíz. **Pedidos al PM:**
 
 1. Activar la línea `("g6_admin.api", "router")` en `ROUTERS`.
-2. Montar también `("g2_api.routers.auth", "me_router")`: sin él,
-   `GET /api/v1/me` da 404.
-3. Servir la pantalla: `g6_admin/pantallas/` en `/g6` y `grupos/udv-styles/`
-   en `/udv-styles`. La pantalla queda en `/g6/catalogos.html`.
-4. Agregar `APP_ENV` y `APP_VERSION` al `.env.example`.
-5. `docker-compose.yml` carga `db_udv_completo.sql`, que el G1 ya no tiene:
-   ahora son `01_schema.sql` y `02_seed.sql`.
-6. Aprobar el transporte de eventos por la tabla `evento` (sección de
+2. Servir las pantallas: `g6_admin/pantallas/` en `/g6` y
+   `grupos/udv-styles/` en `/udv-styles`. Quedan en `/g6/catalogos.html`,
+   `/g6/panel.html` y `/g6/auditoria.html`.
+3. Agregar `APP_ENV`, `APP_VERSION` y `UPLOAD_DIR` al `.env.example`.
+4. Un volumen para los archivos de la app, en Railway y en
+   `docker-compose.yml`, con `UPLOAD_DIR` apuntando a él
+   ([`docs/recuperacion.md`](docs/recuperacion.md), G6-37).
+5. Aprobar el transporte de eventos por la tabla `evento` (sección de
    notificaciones).
+6. Poner la etiqueta final cuando pase la regresión
+   ([`docs/version_final.md`](docs/version_final.md), G6-39).
+
+Ya resueltos en `main`: `me_router` montado y `docker-compose.yml` con
+`01_schema.sql` y `02_seed.sql`.
+
+**Pedido al G2:** que `files.py` guarde en `config.UPLOAD_DIR`; hoy usa
+`uploads/` fijo y no respeta la variable.
 
 ## Cómo está organizado
 
@@ -177,12 +198,15 @@ El G6 no levanta su propia app (CONTRATO_COMUN §1). Lo integra el PM en el
 | `g6_admin/api.py` | Rutas `/api/v1/...` en `router`, que monta el `main.py` de la raíz |
 | `g6_admin/tablas.py` | Las columnas de las tablas del G1 que usa el G6 |
 | `g6_admin/catalogos.py` | Reglas de catálogos: campos, validación, búsqueda y orden |
+| `g6_admin/panel.py` | Indicadores del panel, calculados en el momento |
 | `g6_admin/notificaciones.py` | Eventos, destinatarios y marcas de lectura |
 | `g6_admin/auditoria.py` | Registro y consulta de la auditoría |
 | `g6_admin/salud.py` | Respuesta de `/api/v1/health`, sin detalles internos |
 | `g6_admin/ambiente.py` | Revisión de variables de cada ambiente |
-| `g6_admin/pantallas/catalogos.html` | Pantalla con los estilos de `grupos/udv-styles/udv.css` |
-| `docs/` | Instalación, ambientes, evidencia y revisión de seguridad |
+| `g6_admin/persistencia.py` | Comprueba que la carpeta de archivos sobrevive a un reinicio |
+| `g6_admin/regresion.py` | Casos críticos contra la API levantada |
+| `g6_admin/pantallas/` | Pantallas de catálogos, panel y auditoría, con los estilos de `grupos/udv-styles/udv.css` |
+| `docs/` | Instalación, ambientes, panel, recuperación, versión final, evidencia y revisión de seguridad |
 | `tests/` | Pruebas automáticas |
 
 ## Variables de entorno
@@ -193,4 +217,7 @@ El G6 no levanta su propia app (CONTRATO_COMUN §1). Lo integra el PM en el
 | `SECRET_KEY` | Firma de los tokens del G2 | Obligatoria |
 | `APP_ENV` | `desarrollo` o `demostracion`; lo muestra `/api/v1/health` | `desarrollo` |
 | `APP_VERSION` | Versión que muestra `/api/v1/health` | La versión de `g6_admin` |
+| `APP_COMMIT` | Commit que muestra `/api/v1/health` | `RAILWAY_GIT_COMMIT_SHA`, o nada |
+| `UPLOAD_DIR` | Carpeta de archivos (la revisan `ambiente` y `persistencia`) | `uploads` |
+| `G6_REGRESION_CLAVE` | Contraseña de los usuarios de prueba para `g6_admin.regresion` | Se pregunta |
 | `G6_MYSQL_URL` | Solo para `tests/integracion` | Sin valor: se omiten |

@@ -2,7 +2,8 @@
 
 Todo lo de seguridad viene del G2 y se importa desde g2_api, no se copia:
 - quién es el usuario: middleware de autenticación del G2;
-- quién puede agregar o modificar: requerir_rol del G2 con el rol de administración;
+- quién puede agregar, modificar o consultar el panel y la auditoría:
+  requerir_rol del G2 con los roles que tienen ese permiso en la semilla del G1;
 - formato de error y paginación: servicios compartidos del G2.
 """
 
@@ -23,10 +24,14 @@ from . import __version__, tablas
 from .auditoria import RepositorioAuditoria, ServicioAuditoria
 from .catalogos import CATALOGOS, Catalogo, RepositorioCatalogos, ServicioCatalogos
 from .notificaciones import RepositorioNotificaciones, ServicioNotificaciones
-from .salud import estado_del_servicio
+from .panel import RepositorioPanel, ServicioPanel
+from .salud import commit_desplegado, estado_del_servicio
 
-# Código del rol en la tabla `rol` del G1 (semilla: admin, teacher, ...).
-ROLES_ADMINISTRACION = ["admin"]
+# Códigos de la tabla `rol` del G1. Cada lista son los roles que tienen el
+# permiso correspondiente en su tabla rol_permiso (semilla 02_seed.sql).
+ROLES_ADMINISTRACION = ["admin"]                                  # catalogs.manage
+ROLES_PANEL = ["admin", "coordinator", "authority", "auditor"]    # tasks.monitor
+ROLES_AUDITORIA = ["admin", "auditor"]                            # audit.read
 
 _INICIADO_EN = time.monotonic()
 
@@ -56,6 +61,10 @@ def obtener_notificaciones(db: Sesion) -> ServicioNotificaciones:
     return notificaciones_para(db)
 
 
+def obtener_panel(db: Sesion) -> ServicioPanel:
+    return ServicioPanel(RepositorioPanel(db))
+
+
 def _id_del_usuario(usuario: Any) -> int | None:
     # El G2 entrega el registro Usuario de la base; un diccionario también sirve.
     if isinstance(usuario, dict):
@@ -66,8 +75,11 @@ def _id_del_usuario(usuario: Any) -> int | None:
 Servicio = Annotated[ServicioCatalogos, Depends(obtener_servicio)]
 Auditoria = Annotated[ServicioAuditoria, Depends(obtener_auditoria)]
 Notificaciones = Annotated[ServicioNotificaciones, Depends(obtener_notificaciones)]
+Panel = Annotated[ServicioPanel, Depends(obtener_panel)]
 UsuarioConSesion = Annotated[Any, Depends(obtener_usuario_actual)]
 Administracion = Annotated[Any, Depends(requerir_rol(ROLES_ADMINISTRACION))]
+Monitoreo = Annotated[Any, Depends(requerir_rol(ROLES_PANEL))]
+LecturaAuditoria = Annotated[Any, Depends(requerir_rol(ROLES_AUDITORIA))]
 
 # ── Esquemas para el OpenAPI ────────────────────────────────────────────────
 
@@ -126,6 +138,8 @@ class PaginaNotificaciones(BaseModel):
 class RegistroAuditoriaSalida(BaseModel):
     id: int
     actor_id: int | None
+    actor_email: str | None
+    actor_name: str | None
     action: str
     entity: str
     entity_id: int | str
@@ -143,6 +157,54 @@ class PaginaAuditoria(BaseModel):
     data: list[RegistroAuditoriaSalida]
 
 
+class ActorAuditoria(BaseModel):
+    id: int
+    email: str | None
+
+
+class OpcionesAuditoria(BaseModel):
+    entities: list[str]
+    actions: list[str]
+    users: list[ActorAuditoria]
+
+
+class Conteo(BaseModel):
+    total: int
+    by_state: dict[str, int]
+
+
+class AsignacionPanel(BaseModel):
+    assignment_id: int
+    task_id: int
+    task_title: str
+    user_id: int
+    user_email: str | None
+    user_name: str | None
+    state: str
+    due_date: str
+
+
+class ListaPanel(BaseModel):
+    total: int
+    items: list[AsignacionPanel]
+
+
+class Cumplimiento(BaseModel):
+    percentage: float | None = Field(description="Sin asignaciones esperadas: null")
+    completed: int
+    expected: int
+
+
+class IndicadoresPanel(BaseModel):
+    generated_at: str
+    due_soon_days: int
+    tasks: Conteo
+    assignments: Conteo
+    overdue: ListaPanel
+    due_soon: ListaPanel
+    compliance: Cumplimiento
+
+
 class ResumenEventos(BaseModel):
     processed: int
     notifications: int
@@ -154,6 +216,7 @@ class EstadoSalud(BaseModel):
     service: str
     version: str
     environment: str
+    commit: str | None
     time: str
     uptime_seconds: int
     checks: dict[str, str]
@@ -182,6 +245,7 @@ def health(response: Response) -> dict[str, Any]:
         iniciado_en=_INICIADO_EN,
         entorno=os.getenv("APP_ENV", "desarrollo"),
         version=os.getenv("APP_VERSION", __version__),
+        commit=commit_desplegado(os.environ),
     )
     response.headers["Cache-Control"] = "no-store"
     if estado["status"] != "ok":
@@ -303,11 +367,11 @@ def marcar_notificacion_leida(
 
 
 @router.get("/audit", tags=["Auditoría"], response_model=PaginaAuditoria,
-            summary="Consultar la auditoría (solo administración)",
+            summary="Consultar la auditoría (administración y auditoría)",
             responses=_errores(401, 403, 422))
 def consultar_auditoria(
     servicio: Auditoria,
-    _usuario: Administracion,
+    _usuario: LecturaAuditoria,
     paginacion: Annotated[Paginacion, Depends(params_paginacion)],
     user_id: Annotated[int | None, Query(ge=1, description="Quién hizo la acción")] = None,
     from_: Annotated[date | None, Query(alias="from",
@@ -324,3 +388,26 @@ def consultar_auditoria(
                                       pagina=paginacion.page, por_pagina=paginacion.per_page)
     return {"page": paginacion.page, "per_page": paginacion.per_page,
             "total": total, "data": datos}
+
+
+@router.get("/audit/filters", tags=["Auditoría"], response_model=OpcionesAuditoria,
+            summary="Entidades, acciones y usuarios que aparecen en la auditoría",
+            responses=_errores(401, 403))
+def opciones_auditoria(servicio: Auditoria, _usuario: LecturaAuditoria) -> dict[str, Any]:
+    return servicio.opciones()
+
+
+# ── Panel de indicadores (G6-26 a G6-29) ────────────────────────────────────
+
+
+@router.get("/dashboard", tags=["Panel"], response_model=IndicadoresPanel,
+            summary="Indicadores de tareas: por estado, vencidas, próximas y cumplimiento",
+            responses=_errores(401, 403, 422))
+def panel(
+    servicio: Panel,
+    _usuario: Monitoreo,
+    limit: Annotated[int, Query(ge=1, le=100, description=(
+        "Cuántas asignaciones mostrar en cada lista (vencidas y próximas). "
+        "Los totales siempre cuentan todas."))] = 20,
+) -> dict[str, Any]:
+    return servicio.indicadores(limite=limit)
