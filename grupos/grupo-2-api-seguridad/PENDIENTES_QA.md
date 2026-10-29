@@ -1,23 +1,92 @@
 ## Pendientes del QA — Grupo 2 (Update No. 1 · 17-oct-2026 · estado al 23-oct-2026)
 
-Resumen del informe de Allison Espaderos (QA) y quién corrige cada cosa. Cada quien toca **solo sus archivos**. Los números G2-xx son los escenarios del plan de QA.
+Resumen de los informes de Allison Espaderos (QA: Informe No. 1, Update No. 2 e Informe de Retest No. 2) y quién corrige cada cosa. Cada quien toca **solo sus archivos**. Los números G2-xx son los escenarios del plan de QA.
 
 Prioridad: **Alta** → **Media** → **Baja**. El Planner de Allison tiene tres tareas (Alta, Media y Baja) con puntos por escenario; están sin responsable y con fecha 21/10. El detalle está en `GUIA_GRUPO2.md`, sección 8.
 
-## Retest No. 2 (23 y 24-oct) · estado al 27-oct
+## Retest No. 2 (23 y 24-oct) · estado al 28-oct
 
 34 PASS, 2 FAIL, 1 PARCIAL y 1 PASS histórico con retest pendiente. `pytest` en `grupo-2`: 93 pasan y 1 xfail.
 
 | Escenario | Resultado de QA | Quién | Archivo | Estado al 27-oct |
 |-|-|-|-|-|
-| G2-21 | FAIL (crítico): un docente descarga el archivo de un admin | Fulvio | `routers/files.py` | ⏳ Falta validar al dueño (`autor_id`) o admin y responder 403 o 404 |
+| G2-21 | FAIL (crítico): un docente descarga el archivo de un admin | Fulvio | `routers/files.py` | 🔵 Subido el 28-oct (`6982c15`): `GET /files/{id}` da 403 si no es el autor y 404 si no existe; el archivo se registra en la tabla `archivo`. Falta retest y decidir si un admin también descarga |
 | G2-31 | FAIL: `GET /users` sin paginación | Randy | `routers/users.py` | 🔵 Ya pagina desde el 24-oct. Falta retest |
-| G2-33 | PARCIAL: faltaban 409, 403 y ejemplos reales | Robert | `main.py` | 🔵 Hecho el 27-oct y probado en `tests/test_openapi.py`. Falta retest |
+| G2-33 | PARCIAL: faltaban 409, 403 y ejemplos reales | Robert | `main.py` | 🔵 Hecho el 27 y 28-oct y probado en `tests/test_openapi.py`. Falta retest |
 | G2-32 | PASS histórico, retest pendiente: ya no salen `creado_en` ni `actualizado_en` | Randy y PM | `routers/users.py` | ⏳ Confirmar con el PM si fue a propósito |
-| G2-36 | PASS de QA, pero el PM reporta que el correo inexistente no queda registrado, y que el login fallido se guarda dos veces | Daniel y Edgar | `routers/auth.py`, `utils/registro.py` | ⏳ Dejar un solo registro y repetir en la versión de `main` |
+| G2-36 | PASS de QA y del PM (retest del 23-oct). Antes el PM avisó que el login fallido se guardaba dos veces | Daniel y Edgar | `routers/auth.py`, `utils/registro.py` | ✅ PASS. Queda revisar que se guarde una sola vez en la versión de `main` |
 | Limpieza | Aviso del PM | Daniel | `routers/auth.py` | ⏳ Quitar la carga de `usuarios_prueba.json` |
+| Aviso del Grupo 1 (28-oct) | `set_actor_id()` en `registro.py` (línea 61) manda `@actor_id = 0` cuando no hay usuario y la llave foránea hace fallar la auditoría. Hoy ninguna ruta la llama | Edgar | `utils/registro.py` | ⏳ Mandar NULL en lugar de 0 o usar `fijar_actor()` de `database.py`, y correr `pytest` |
 
 Antes de abrir el PR a `main` (solo Daniel): merge de `main` en `grupo-2` y `pytest` completo.
+
+## Update No. 2 e Informe de Retest No. 2 del QA (23 y 24-oct)
+
+Allison evaluó los 38 escenarios con las cuentas QA (admin, coordinador, docente, revisor, autoridad y auditor). Resultado general: **satisfactorio con hallazgos pendientes de corrección**. El QA no recomienda cerrar la evaluación hasta corregir los fallos y repetir lo pendiente en la versión integrada a `main`.
+
+| Estado | Cantidad |
+|-|-|
+| PASS | 34 |
+| FAIL | 2 (G2-21 y G2-31) |
+| PARCIAL | 1 (G2-33) |
+| PASS histórico, retest pendiente | 1 (G2-32) |
+| Total | 38 |
+
+| Prioridad | Escenario | Resultado de QA | Nota |
+|-|-|-|-|
+| 🔴 Alta | G2-01 | PASS | Login de la cuenta admin QA: 200 y JWT de 7200 s; el JWT abre `/me` |
+| 🔴 Alta | G2-02 | PASS | Contraseña incorrecta: 401 genérico, sin token |
+| 🔴 Alta | G2-05 | PASS | Logout revoca el token: al reusarlo da 401 |
+| 🔴 Alta | G2-06 | PASS | `GET /users` sin token da 401 (antes 422) |
+| 🔴 Alta | G2-08 | PASS | Docente en `GET /users`: 403 |
+| 🔴 Alta | G2-09 | PASS | Docente en funciones de admin: 403 |
+| 🔴 Alta | G2-10 | PASS | El encabezado `usuario-actual` falsificado ya no sirve |
+| 🔴 Alta | G2-15 | PASS (caso evaluado) | XSS guardado en `nombres`: se muestra como texto, no se ejecuta |
+| 🔴 Alta | G2-16 | PASS (caso evaluado) | SQL Injection en el login: 401 y consultas con SQLAlchemy |
+| 🔴 Alta | G2-17 | PASS | Docente no puede modificar al admin con `PATCH /users/{id}`: 403 |
+| 🔴 Alta | G2-19 | PASS | TXT y TXT renombrado a .pdf: 400 |
+| 🔴 Alta | G2-20 | PASS | Archivo de 6 MB: 400 (límite de 5 MB) |
+| 🔴 Alta | G2-21 | FAIL | Un docente descargó con 200 el archivo de un admin (posible IDOR) |
+| 🔴 Alta | G2-22 | PASS | Rutas manipuladas: 404; nombre interno con UUID |
+| 🔴 Alta | G2-23 | PASS (casos evaluados) | Errores sin SQL, rutas ni trazas |
+| 🔴 Alta | G2-24 | PASS | Respuestas sin contraseñas, hashes ni tokens |
+| 🔴 Alta | G2-35 | PASS | `.gitignore` y `.env.example` sin credenciales reales |
+| 🔴 Alta | G2-37 | PASS | Token vencido: 401 |
+| 🔴 Alta | G2-38 | PASS | Token alterado: 401 |
+| 🟡 Media | G2-03 | PASS | Usuario inexistente: 401 genérico, en API y en el frontend |
+| 🟡 Media | G2-04 | PASS (con observación) | Campos vacíos: QA vio 401 en vez de 422. Daniel lo corrigió el 23-oct (`""` da 422): pedir que se repita |
+| 🟡 Media | G2-07 | PASS | `/me` con JWT: 200 con rol y permisos; sin token 401 |
+| 🟡 Media | G2-11 | PASS | `GET /users/{id}`: 200 para admin, 403 para docente |
+| 🟡 Media | G2-12 | PASS | ID inexistente: 404 |
+| 🟡 Media | G2-13 | PASS | Campos obligatorios ausentes: 422 |
+| 🟡 Media | G2-14 | PASS | Tipos incorrectos: 422 |
+| 🟡 Media | G2-18 | PASS (con observación) | PDF válido: devuelve `file_id` y se descarga. Swagger pedía `file_id` en query en vez de `{id}`: la ruta ya usa `{id}` |
+| 🟡 Media | G2-25 | PASS | Crear usuario: 201 con admin, 403 con docente, 401 sin token |
+| 🟡 Media | G2-26 | PASS | Usuario inexistente: 404 en GET y en PATCH |
+| 🟡 Media | G2-27 | PASS | Correo repetido: 409 y no se duplica |
+| 🟡 Media | G2-28 | PASS | Error de validación: 422 con el campo `correo` |
+| 🟡 Media | G2-29 | PASS | JSON mal formado: 422 con estructura uniforme |
+| 🟡 Media | G2-30 | PASS (errores evaluados) | 400, 401, 403, 404 y 422 con `error`, `code`, `message` y `details` |
+| 🟡 Media | G2-33 | PARCIAL | Faltaban 409 y 403, y los ejemplos eran `string`; ver la tabla del retest |
+| ⚪ Baja | G2-31 | FAIL | `GET /users` devolvía un arreglo sin `page`, `per_page`, `total` ni `data` |
+| ⚪ Baja | G2-32 | PASS histórico, retest pendiente | Las consultas ya no traen fechas; falta confirmar el contrato con el PM |
+| ⚪ Baja | G2-34 | PASS | 5 intentos: 4 veces 401 y la quinta 429; con la clave correcta sigue bloqueado y a los 15 minutos entra |
+| ⚪ Baja | G2-36 | PASS | Login con correo inexistente queda como LOGIN_FALLIDO; el PATCH de usuario queda con actor y registro |
+
+**Orden de atención que recomienda el QA:** 1) G2-21 (archivos, crítico), 2) G2-36 (confirmar la auditoría en la versión de `main`, porque el PM reportó otra cosa), 3) G2-31 (paginación), 4) G2-33 (OpenAPI), 5) G2-32 (fechas). Además, una nueva regresión después de integrar `grupo-2` a `main`.
+
+**Lo que ya mejoró frente al Informe No. 1:** JWT en endpoints protegidos, encabezado `usuario-actual` sin efecto, permisos por rol, consulta individual de usuarios, logout con revocación, tokens vencidos y alterados rechazados, validación de tipo y tamaño de archivos, formato uniforme de errores, bloqueo por intentos y auditoría.
+
+## Avisos del PM por prioridad (retest del 23-oct) y qué se puede probar
+
+| Prioridad | Escenario | Aviso del PM (retest del 23-oct) | Qué probar antes de avisar | ¿Se puede comentar en el Planner? |
+|-|-|-|-|-|
+| 🔴 Alta | G2-21 | Un docente descargó con HTTP 200 un PDF cargado por un admin: `GET /files/{id}` pedía token pero no revisaba al dueño. Debe dar 403 o 404 sin revelar el archivo | Subir un PDF con un usuario y copiar el `file_id`; pedir `GET /files/{id}` con otro usuario (debe dar **403**), con el dueño (**200**), con un id que no existe (**404**) y sin token (**401**) | Sí, como «corregido, listo para retest» (commit `6982c15`, 28-oct). No marcarlo completado hasta que Allison repita G2-21 |
+| 🟡 Media | G2-07, G2-12, G2-26 | PASS los tres (`/me`, consulta individual y recursos inexistentes) | Nada más | Ya están cerrados. Se puede comentar «PASS confirmado por el PM» |
+| 🟡 Media | G2-33 | PARCIAL: Swagger no coincidía con `POST /users`, `GET /me` y `GET /users` (faltaban códigos HTTP y los ejemplos JSON eran incorrectos) | En `/api/v1/docs` revisar `POST /users` (201, 401, 403, 409, 422), `GET /me` (200 con objeto y 401), `GET /users` (200 con `page`, `per_page`, `total`, `data`, 401 y 403) y `files` con `{id}`; correr `pytest tests/test_openapi.py` | Sí, listo para retest (Robert, 27 y 28-oct) |
+| ⚪ Baja | G2-34, G2-36 | PASS los dos (bloqueo temporal y registro de auditoría) | Nada más; solo confirmar antes del PR que el login fallido se guarda una vez | Ya están cerrados |
+| ⚪ Baja | G2-31 | FAIL: `GET /users` no paginaba. Debe devolver `page`, `per_page`, `total` y `data` | `GET /users?page=1&per_page=5` con admin: revisar los cuatro campos y el máximo de 100 por página | Sí, listo para retest (Randy, 24-oct, con `tests/test_users.py`) |
+| ⚪ Baja | G2-32 | PASS histórico, retest pendiente: las consultas de usuarios ya no traen `creado_en` ni `actualizado_en` | Confirmar con el PM si se quitaron a propósito. Si deben salir, en ISO 8601 y UTC. Si no, documentar el cambio | Todavía no: primero la respuesta del PM |
 
 ## Lo más urgente (crítico)
 
@@ -55,8 +124,8 @@ El middleware de usuarios y roles todavía lee el encabezado `usuario-actual` y 
 |-|-|-|-|-|
 | G2-10, 06, 08, 09, 17, 37, 38 | Alta | Leer `Authorization: Bearer` con `verificar_token()` de Daniel y dejar de usar `usuario-actual`. Sin token = 401; sin permiso = 403. | `middleware/auth_middleware.py`, `routers/users.py`, `routers/roles.py` | 🔵 Hecho (22-oct): usa `obtener_usuario_actual()` desde la base; sin token 401, `usuario-actual` ya no sirve y sin rol 403. Falta retest de QA |
 | G2-11, 12, 26 | Media | `GET /users/{id}` no existía (daba 405); debe dar 404 si no existe. | `routers/users.py` | 🔵 Lee de la base y da 404; falta retest |
-| G2-31 | Baja | La lista de usuarios no pagina; `GET /users` devuelve todos y no usa `paginacion.py` de Edgar. | `routers/users.py` | ⏳ Pendiente |
-| G2-33 | Media | Documentar 401 y 409 en `POST /users`; el ejemplo del 201 es un string. | `routers/users.py` | ⏳ Pendiente |
+| G2-31 | Baja | La lista de usuarios no paginaba; `GET /users` devolvía todos. | `routers/users.py` | 🔵 Ya pagina (24-oct) con `paginacion.py` y `tests/test_users.py`. Falta retest |
+| G2-33 | Media | Documentar 401, 403 y 409 en `POST /users`; el ejemplo del 201 era un string. | `routers/users.py` | 🔵 Cubierto desde `main.py` (Robert, 27 y 28-oct). Falta retest |
 | Roles | Media | El código del rol es `admin` en la lista pero `requerir_rol(["administrador"])` en el POST. El PM confirmó `admin` (22-oct): cambiarlo en `users.py` y `roles.py`. | `routers/users.py`, `routers/roles.py` | ✅ Hecho: ambos usan `admin` |
 
 ### Edgar · Persona 3 · Errores, paginación y registro
@@ -69,7 +138,7 @@ El middleware de usuarios y roles todavía lee el encabezado `usuario-actual` y 
 ### Fulvio · Persona 4 · Archivos y frontend
 | Escenario | Prioridad | Qué falta | Archivo | Estado |
 |-|-|-|-|-|
-| G2-18 a G2-22 | Alta | Ya existe `POST /files` y valida el tipo real con `puremagic` (🔵 pendiente de validación QA). Falta `GET /files/{id}` con token (G2-21), registrar el archivo en la tabla `archivo`, evitar rutas manipuladas (G2-22) y probar G2-19 y G2-20 con el QA. | `routers/files.py` | 🟡 En proceso |
+| G2-18 a G2-22 | Alta | `POST /files` valida el tipo real con `puremagic` y guarda en la tabla `archivo` con SHA-256 y `autor_id`. `GET /files/{id}` con token, 404 si no existe y 403 si no es el autor (28-oct). Falta probar G2-19 y G2-20 con el QA y `tests/test_files.py`. | `routers/files.py` | 🔵 Subido, falta retest |
 | G2-18 | Media | `POST /files` ya exige token, pero con un token válido responde 500 (`usuario_actual["correo"]` y el usuario ya no es un diccionario). | `routers/files.py` | 🔵 Corregido (23-oct): `usuario_actual.correo`. Listo para retest |
 | Pruebas | Media | Falta `tests/test_files.py`. | `tests/test_files.py` | ⏳ Pendiente |
 
@@ -78,7 +147,7 @@ El middleware de usuarios y roles todavía lee el encabezado `usuario-actual` y 
 |-|-|-|-|-|
 | 1 | G2-30 | `main.py` conecta `error_handler`; `GUIA_GRUPO2.md` en la carpeta del grupo | `main.py`, `GUIA_GRUPO2.md` | ✅ Hecho |
 | 2 | G2-18 a G2-22, G2-33 | `main.py` con los routers `roles` y `files` | `main.py` | ✅ Hecho. `/me` ya queda conectado: Daniel subió `me_router` el 20-oct |
-| 3 | G2-01 | Conexión del login a la base compartida: `DATABASE_URL` y driver PyMySQL | `.env.example`, `requirements.txt`, `database.py` | 🔵 Hecho el 22-oct. Falta probarlo con tu `.env`: `python -c "from g2_api.database import probar_conexion; print(probar_conexion())"` |
+| 3 | G2-01 | Conexión del login a la base compartida: `DATABASE_URL` y driver PyMySQL | `.env.example`, `requirements.txt`, `database.py` | ✅ Probada el 28-oct con su `.env`: `probar_conexion()` devolvió `True` |
 | 3 | G2-35 | `.env.example` solo con el formato, sin claves; `.gitignore` con `.env`, `grupo-2.txt` y `semilla_local.py` | `.env.example`, `.gitignore` | 🔵 `.env.example` sin clave. Antes de cada commit: `git status` y `git diff`. `semilla_local.py` ya no aparece en el repo (copia del 22-oct) y está en el `.gitignore`: si lo tienes local, no lo agregues |
 | 3 | G2-34 | Las columnas `intentos_fallidos` y `bloqueado_hasta` coinciden con el script del Grupo 1 | `models.py` | ✅ Revisado contra `01_schema.sql`. Falta que el login las use (Daniel) |
 | 3 | G2-36 | `auditoria.detalle` guarda JSON válido (`JSON_VALID` de G1) y `fijar_actor(db, actor_id, ip)` llena `@actor_id` e `@ip_origen` | `models.py`, `database.py` | 🔵 Hecho el 22-oct. Daniel y Randy tienen que llamar a `fijar_actor` |
@@ -88,7 +157,7 @@ El middleware de usuarios y roles todavía lee el encabezado `usuario-actual` y 
 | 4 | Pruebas | `pytest` corre para todos con SQLite temporal | `tests/conftest.py` | ✅ Sin cambios. Revisado el 23-oct: pasan 40 de 40 |
 | QA | G2-35 | Que el repositorio no tenga contraseñas ni variables sensibles | `.gitignore` | PASS de QA. Para mantenerlo: `grupo-2.txt` y `.env` nunca se suben, y `.env.example` solo lleva el formato |
 
-## Estado de los escenarios (resumen del informe de QA del 17-oct; el retest es el viernes 23)
+## Estado de los escenarios (histórico: Informe No. 1 del 17-oct, ya superado por el retest No. 2)
 
 - **PASS:** G2-02, 03, 04, 13, 14, 15, 16, 23, 24, 25, 27, 28, 29, 30, 32, 35.
 - **Bloqueados o fallan:** G2-05, 06, 07, 08, 09, 10, 12, 37, 38.
@@ -124,6 +193,7 @@ Antes, `error_handler.py` respondía `{"status", "error", "meta"}` con `details`
 - La base exige `tabla` y `registro_id` (NOT NULL) y `detalle` como JSON válido (ver `01_schema.sql`).
 
 ### Notas de integración (Robert)
+- Versión de la base: el PM carga y actualiza la base de Railway (README §5), así que no hay que correr la migración. Se revisa con `SELECT * FROM schema_migracion;`: si aparece 1.2.0 está al día; si no, se avisa al PM.
 - Integración con la base: el login y la sesión (`sesion_token`) ya usan la base compartida. `users.py` y `auth_middleware.py` ya leen de la base (22-oct). El JSON ya no autentica a nadie y se deja por ahora, hasta que el PM confirme que se puede quitar.
 - `models.py` coincide con el diagrama del Grupo 1 (G2_Autenticacion.pdf): usuario, rol, permiso, usuario_rol, rol_permiso, sesion_token, archivo y auditoría.
 - El Grupo 1 ya subió su script SQL a la rama `grupo-1` (`01_schema.sql` y `02_seed.sql`, en `grupos/grupo-1-base-de-datos/Docs/sql/`) y `models.py` se revisó contra él: coinciden las tablas y columnas de seguridad. Falta probar la conexión real con tu `.env`.
@@ -131,6 +201,8 @@ Antes, `error_handler.py` respondía `{"status", "error", "meta"}` con `details`
 
 
 ## Planner: qué se puede marcar (23-oct)
+
+*Esta tabla es del 23-oct. Lo vigente al 28-oct está en la sección «Avisos del PM por prioridad».*
 
 Allison revisa lo que se marque como completado en el Planner. Esa lista puede cambiar entre el jueves y el viernes. Marca solo lo que ya esté subido a `grupo-2` y probado.
 
