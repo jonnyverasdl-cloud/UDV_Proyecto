@@ -18,6 +18,7 @@ termina con código 1 si hay algún problema.
 import os
 import sys
 from collections.abc import Mapping
+from pathlib import PurePosixPath
 from urllib.parse import urlsplit
 
 AMBIENTES = ("desarrollo", "demostracion")
@@ -72,6 +73,14 @@ def revisar(variables: Mapping[str, str]) -> list[str]:
 
     if publico and "*" in variables.get("CORS_ORIGINS", ""):
         problemas.append("En demostracion CORS_ORIGINS no puede ser *.")
+
+    # Archivos subidos (G6-37): en el contenedor solo sobrevive lo que está en
+    # un volumen. La ruta tiene que ser absoluta para apuntar a ese volumen.
+    carpeta = variables.get("UPLOAD_DIR", "")
+    if publico and not PurePosixPath(carpeta).is_absolute():
+        problemas.append("En demostracion UPLOAD_DIR debe ser una ruta absoluta en un "
+                         "volumen persistente (por ejemplo /data/archivos); si no, los "
+                         "archivos subidos se pierden al reiniciar.")
     return problemas
 
 

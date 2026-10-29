@@ -17,7 +17,9 @@ from types import SimpleNamespace
 # g2_api lee su configuración al importarse: valores solo para pruebas, igual
 # que en el conftest del G2. La base es un SQLite temporal, nunca MySQL.
 _carpeta = tempfile.mkdtemp()
-os.environ["SECRET_KEY"] = "clave-solo-para-pruebas-g6"
+# La clave tiene 32 caracteres o más, como pide el G6 en demostración: con
+# menos, PyJWT avisa que es insegura (hallazgo 06 del retest de QA).
+os.environ["SECRET_KEY"] = "clave-solo-para-pruebas-del-grupo-6-no-usar"
 os.environ["DATABASE_URL"] = f"sqlite:///{_carpeta}/pruebas_g6.db"
 
 import pytest  # noqa: E402

@@ -8,8 +8,9 @@ Las transiciones de estado (G6-15) las reportan el G3 (tareas y asignaciones)
 y el G5 (versiones de programa); los cambios de catálogos los registra el
 propio G6. Todo se guarda en la tabla `auditoria` del G1, la misma donde sus
 triggers registran tareas, programas y usuarios, y el G2 los inicios de sesión;
-así la consulta muestra el historial completo. Quién puede consultar (solo
-administración) lo decide api.py con el middleware del G2.
+así la consulta muestra el historial completo. Quién puede consultar
+(administración y auditoría, los roles con el permiso audit.read del G1) lo
+decide api.py con el middleware del G2.
 """
 
 import json
@@ -21,6 +22,7 @@ from sqlalchemy import func, insert, select
 from sqlalchemy.orm import Session
 
 from .tablas import auditoria as tabla_auditoria
+from .tablas import usuario as tabla_usuario
 
 # Estados oficiales (CONTRATO_COMUN.md §2). Una transición solo se acepta con
 # estados de esta lista, para que el historial no guarde nombres inventados.
@@ -77,7 +79,12 @@ def como_dict(fila: Any) -> dict[str, Any]:
         detalle = {"valor": detalle}
     detalle = _sin_secretos(detalle)
     registro_id = fila.registro_id
-    return {"id": fila.id, "actor_id": fila.actor_id, "action": fila.accion,
+    # correo, nombres y apellidos solo vienen cuando la consulta une con usuario.
+    nombre = " ".join(p for p in (getattr(fila, "nombres", None),
+                                  getattr(fila, "apellidos", None)) if p)
+    return {"id": fila.id, "actor_id": fila.actor_id,
+            "actor_email": getattr(fila, "correo", None), "actor_name": nombre or None,
+            "action": fila.accion,
             "entity": fila.tabla,
             "entity_id": int(registro_id) if str(registro_id).isdigit() else registro_id,
             "created_at": _iso(fila.creado_en),
@@ -127,10 +134,25 @@ class RepositorioAuditoria:
                 hasta + timedelta(days=1), datetime.min.time()))
         total = self.sesion.execute(
             select(func.count()).select_from(t).where(*condiciones)).scalar_one()
+        u = tabla_usuario
         filas = self.sesion.execute(
-            select(t).where(*condiciones).order_by(t.c.id.desc())
+            select(t, u.c.correo, u.c.nombres, u.c.apellidos)
+            .outerjoin(u, u.c.id == t.c.actor_id)
+            .where(*condiciones).order_by(t.c.id.desc())
             .limit(por_pagina).offset((pagina - 1) * por_pagina))
         return total, [como_dict(f) for f in filas]
+
+    def opciones(self) -> dict[str, list[Any]]:
+        """Valores que existen en la auditoría, para llenar los filtros."""
+        t, u = tabla_auditoria, tabla_usuario
+        entidades = self.sesion.execute(select(t.c.tabla).distinct().order_by(t.c.tabla))
+        acciones = self.sesion.execute(select(t.c.accion).distinct().order_by(t.c.accion))
+        actores = self.sesion.execute(
+            select(t.c.actor_id, u.c.correo).distinct()
+            .outerjoin(u, u.c.id == t.c.actor_id)
+            .where(t.c.actor_id.is_not(None)).order_by(t.c.actor_id))
+        return {"entities": [e for (e,) in entidades], "actions": [a for (a,) in acciones],
+                "users": [{"id": i, "email": c} for i, c in actores]}
 
 
 def _error_de_campo(campo: str, codigo: str, mensaje: str) -> dict[str, str]:
@@ -239,3 +261,6 @@ class ServicioAuditoria:
             entidad=entidad.strip() if entidad else None,
             accion=accion.strip() if accion else None,
             pagina=pagina, por_pagina=por_pagina)
+
+    def opciones(self) -> dict[str, list[Any]]:
+        return self.repositorio.opciones()

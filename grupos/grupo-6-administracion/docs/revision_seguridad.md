@@ -13,6 +13,8 @@ pueden automatizar están en `tests/test_seguridad.py` y corren con cada
 | Auditoría (`GET /api/v1/audit`) | Que no muestre hashes ni tokens aunque estén guardados | Las claves con `contrasena`, `password`, `hash`, `token`, `secret` o `clave` salen como `***`. Los triggers del G1 solo guardan si la contraseña cambió (`true`/`false`) |
 | Registros de errores | Que solo digan el tipo de error | Notificaciones, salud y ambiente registran el tipo (`ConnectionError`), nunca el mensaje ni la URL |
 | `python -m g6_admin.ambiente` | Que no imprima secretos | Muestra `usuario:***@host` |
+| `python -m g6_admin.regresion` | Que no imprima la contraseña de prueba | La pide sin mostrarla o la lee de `G6_REGRESION_CLAVE`; la salida no la incluye (`tests/test_regresion.py`) |
+| Clave de los tokens en las pruebas | Que tenga 32 caracteres o más (retest de QA del 25-oct, hallazgo 06) | Corregido el 28-oct. Desde entonces, una clave corta hace fallar las pruebas (`pytest.ini`) |
 
 ## Lo que queda como decisión del PM
 
