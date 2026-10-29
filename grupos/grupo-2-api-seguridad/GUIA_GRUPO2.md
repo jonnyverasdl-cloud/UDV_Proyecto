@@ -1,16 +1,16 @@
 # Guía del Grupo 2: API y Seguridad
 
-Coordinador: Daniel (dancobs) · Versión 2 · 10-oct-2026 · Estado actualizado al 27-oct-2026
+Coordinador: Daniel (dancobs) · Versión 2 · 10-oct-2026 · Estado actualizado al 28-oct-2026
 
 **Cómo usar esta guía:** busca tu nombre en la sección 2 y mira la semana actual. Ahí está lo que te toca y la fecha de entrega.
 
 ---
 
-## 1. Dónde estamos (estado al 27-oct)
+## 1. Dónde estamos (estado al 28-oct)
 
 **Retest No. 2 de QA (23 y 24-oct):** 34 PASS, 2 FAIL (G2-21 archivos y G2-31 paginación), 1 PARCIAL (G2-33 OpenAPI) y 1 PASS histórico con retest pendiente (G2-32). Lo que falta se explica en la sección 9. `pytest` en `grupo-2`: **93 pasan y 1 xfail**.
 
-**Hoy, viernes 23-oct, QA (Allison) repite las pruebas** sobre lo que se subió a `grupo-2` para el PR del jueves. Revisado el 23-oct contra la rama `grupo-2`: `pytest` completo pasa **33** y falla **1**.
+**Avance de esta semana (hasta el 28-oct):** Daniel dejó el bloqueo por intentos, el 422 con campos vacíos y la auditoría del correo inexistente; Randy subió la paginación de `GET /users` y `tests/test_users.py`; Edgar arregló `registro.py` y las pruebas de errores; Fulvio cerró `POST /files` y `GET /files/{id}` con control de autor y registro en la tabla `archivo` (28-oct); Robert dejó probada la conexión a la base y completó OpenAPI con `tests/test_openapi.py`. Falta el retest de QA sobre G2-21, G2-31 y G2-33.
 
 **Leyenda:** ✅ Hecho y verificable en el repo · 🔵 Implementado, falta validación o retest de QA · 🟡 En proceso (falta algo concreto) · ⏳ Pendiente de implementar
 
@@ -19,7 +19,7 @@ Coordinador: Daniel (dancobs) · Versión 2 · 10-oct-2026 · Estado actualizado
 | ✅ | Migración al repo oficial, rama `grupo-2` | Todos |
 | ✅ | Esqueleto: `main.py`, `config.py`, `database.py`, `models.py`, `requirements.txt` | Robert |
 | ✅ | `main.py` incluye los routers `auth`, `/me`, `users`, `roles` y `files` | Robert |
-| 🔵 | Conexión a la base del Grupo 1 (MySQL 8 con PyMySQL y `DATABASE_URL`): `database.py` (UTC y `fijar_actor`), `models.py` y `.env.example`. Falta probar con tu `.env` en la base compartida | Robert |
+| ✅ | Conexión a la base del Grupo 1 (MySQL 8 con PyMySQL y `DATABASE_URL`): `database.py` (UTC y `fijar_actor`), `models.py` y `.env.example`. Probada con su `.env` en la base compartida: `probar_conexion()` devolvió `True` (28-oct) | Robert |
 | 🔵 | Login (`POST /api/v1/auth/login`): consulta la base compartida, devuelve el JWT y guarda login y login fallido en `registro.py` | Daniel |
 | 🔵 | `POST /auth/logout` y `GET /me`: funcionan con la base; el token cerrado con logout ya da 401 | Daniel |
 | 🔵 | `obtener_usuario_actual()` lee al usuario desde la base y fija `@actor_id` para la auditoría | Daniel |
@@ -27,13 +27,13 @@ Coordinador: Daniel (dancobs) · Versión 2 · 10-oct-2026 · Estado actualizado
 | 🔵 | `users.py` y `roles.py`: leen de la base y usan el rol `admin`; `GET /users/{id}` da 404 si no existe | Randy |
 | 🔵 | Formato de errores (`error_handler.py`): 401, 403 y 404 responden bien (aviso del PM, 22-oct) | Edgar |
 | 🔵 | Pantalla de login (`frontend-login/`) | Fulvio |
-| 🟡 | Login con campos vacíos: si el campo falta da 422, pero con `""` todavía da 401. Falta `min_length=1` en `LoginRequest` (G2-04) | Daniel |
-| 🟡 | `registro.py`: de 4 pruebas fallando quedó 1 (`test_login_fallido_queda_en_auditoria`). Con un correo inexistente o vacío, `registro_id` queda NULL y la base lo rechaza | Edgar |
-| 🟡 | Archivos: `POST /files` ya exige token, pero con un token válido responde **500** (`usuario_actual["correo"]`: el usuario ya no es un diccionario). `GET /files/{id}` da **422** porque la ruta dice `{id}` y la función espera `file_id`. Faltan: registrar en la tabla `archivo`, dejar descargar solo al autor o a un admin y `tests/test_files.py` | Fulvio |
-| ⏳ | Bloqueo por intentos (5 fallos = 15 minutos): el login no llama a `esta_bloqueado()` y siempre da 401 | Daniel |
+| ✅ | Login con campos vacíos: `""` ya da 422 y la contraseña va de 8 a 64 caracteres (23-oct, G2-04) | Daniel |
+| ✅ | `registro.py`: el login fallido con correo inexistente o vacío ya se guarda (23-oct). Queda quitar las funciones que ya no se usan | Edgar |
+| 🔵 | Archivos (28-oct): `POST /files` ya no da 500 y guarda el archivo en la tabla `archivo` con SHA-256 y `autor_id`. `GET /files/{id}` usa `{id}`, da 404 si no existe y 403 si quien pide no es el autor (G2-21). Falta retest de QA, `tests/test_files.py` y confirmar con el PM si un admin también puede descargar | Fulvio |
+| ✅ | Bloqueo por intentos (5 fallos = 429 por 15 minutos): PASS en el retest (G2-34) | Daniel |
 | 🔵 | Paginación en `GET /users` (`page`, `per_page`, `total`, `data`): ya la usa `users.py` (24-oct) y tiene pruebas. Falta retest de QA (G2-31) | Randy |
 | 🔵 | Documentación OpenAPI: `main.py` completa 401, 403, 404, 409 y 422 con el formato común y ejemplos reales (objetos, no `string`). Falta retest de QA (G2-33) | Robert |
-| 🟡 | `pytest` completo: **33 pasan y 1 falla** (la de `registro.py`). El 22-oct el PM contó 28 y 4 fallas | Edgar |
+| ✅ | `pytest` completo en `grupo-2`: **93 pasan y 1 xfail** | Edgar |
 
 **Ojo:** el PM entregó una base compartida (MySQL en Railway). Los datos de acceso se piden al PM y van **solo en tu `.env`**, nunca en el repo ni en `.env.example`. Lo que se borra ahí lo ven los demás grupos. El Grupo 1 ya subió su script SQL a la rama `grupo-1` (`grupos/grupo-1-base-de-datos/Docs/sql/`: `01_schema.sql` y `02_seed.sql`) y se puede montar la base local con `python -m g1_bd crear`. Login, sesión, middleware, `users.py` y `roles.py` ya usan la base. El JSON de prueba (`g2_api/datos_prueba/usuarios_prueba.json`) ya no autentica a nadie, pero `auth.py` todavía lo carga al arrancar sin usarlo; se quita cuando el PM confirme que se puede borrar.
 
@@ -41,7 +41,7 @@ Coordinador: Daniel (dancobs) · Versión 2 · 10-oct-2026 · Estado actualizado
 
 ## 2. Quién hace qué, por semana
 
-**Corte de cada semana: martes a las 23:59.** Lo que no esté subido a `grupo-2` ese día se toma como no entregado. Hoy (viernes 23-oct) es el retest de QA; lo que sigue es la **semana 3, con corte el martes 27-oct**.
+**Corte de cada semana: martes a las 23:59.** Lo que no esté subido a `grupo-2` ese día se toma como no entregado. La semana 3 (corte martes 27-oct) ya pasó; lo que sigue es la **semana 4, con corte el martes 03-nov**.
 
 Cada tarea dice: **archivo → qué haces** y, en *cursiva*, con quién se conecta.
 
@@ -132,6 +132,7 @@ Cada tarea dice: **archivo → qué haces** y, en *cursiva*, con quién se conec
 - `routers/files.py` → `GET /api/v1/files/{id}`: que el parámetro de la función se llame igual que el de la ruta (hoy da 422), descarga solo con token y solo para el autor o un admin; 404 si no existe.
   *Usa el middleware de Randy.*
 - `routers/files.py` → registrar el archivo en la tabla `archivo` y guardar con nombre aleatorio sin salir de la carpeta (G2-22).
+  *(28-oct: subido a `grupo-2`. Falta el retest de QA y decidir si el admin también descarga.)*
 
 **Semana 4 · martes 03-nov**
 - `tests/test_files.py` → pruebas: tipo no permitido, archivo muy grande y descarga sin token (401).
@@ -149,14 +150,14 @@ Cada tarea dice: **archivo → qué haces** y, en *cursiva*, con quién se conec
 - `main.py` → agregar los routers nuevos: `roles` y `files`.
   *Son de Randy y Fulvio.*
 
-**Semana 3 · martes 27-oct** (adelantada: hecha el 22-oct, 🔵 falta probar con tu `.env`)
+**Semana 3 · martes 27-oct** (adelantada: hecha el 22-oct; conexión probada con su `.env` el 28-oct)
 - `.env.example` → formato de `DATABASE_URL` para las tres opciones (Docker, XAMPP y base compartida), sin claves reales.
 - `requirements.txt` → sin cambios: ya trae `PyMySQL` y `cryptography`; se comprobó que instala desde cero.
 - `database.py` → conexión a MySQL 8: cada conexión nueva queda en UTC y `fijar_actor(db, actor_id, ip)` llena `@actor_id` e `@ip_origen` para los triggers del Grupo 1. Las variables se limpian al devolver la conexión al pool.
 - `models.py` → `auditoria.detalle` guarda JSON válido (el Grupo 1 lo exige con `JSON_VALID`).
   *Depende del script del Grupo 1 (ya subido a `grupo-1`). Daniel y Randy llaman a `fijar_actor`; Edgar usa `registrar_accion`.*
-- Probar la conexión real con tu `.env` y avisar al grupo si algo falla.
-- (27-oct) `main.py` completa OpenAPI (401, 403, 404, 409, 422 y ejemplos) y `tests/test_openapi.py` lo verifica (G2-33).
+- ✅ Probar la conexión real con tu `.env`: `probar_conexion()` devolvió `True` (27-oct).
+- (27 y 28-oct) `main.py` completa OpenAPI (401, 403, 404, 409, 422 y ejemplos) y `tests/test_openapi.py` lo verifica (G2-33).
 
 **Semana 4 · martes 03-nov** (adelantada: hecha el 22-oct)
 - `README.md` → títulos y tablas corregidos y nueva sección «Auditoría: quién hizo el cambio».
@@ -234,6 +235,8 @@ Para correr la API: `http://127.0.0.1:8000/api/v1/docs`
 Allison Espaderos (QA) entregó el primer informe y creó las tareas en el Planner (plan «2. Api y Seguridad - Allison»). El detalle por persona está en `PENDIENTES_QA.md` (misma carpeta). Las tarjetas del Planner muestran fecha **21/10**. Según Allison, el texto de cada punto se cortaba en el Planner (tiene un límite de caracteres por línea), así que lo actualiza ahí y también lo pasa por el chat. Ella revisa los puntos que se marquen como completados en el Planner, y esa lista puede cambiar entre el jueves y el viernes.
 
 ### 8.1 Tareas del Planner (texto completo)
+
+*Los estados de esta tabla son del 23-oct. El estado vigente, con los avisos del PM, está en la sección 9.*
 
 Las tres tareas están «No iniciado», con la prioridad en el nombre, etiqueta «Grupo 2» y **sin responsable asignado**: son de todo el grupo.
 
@@ -317,7 +320,7 @@ Misma idea que la 8.2. Las tareas son las de la sección 2; aquí se les pone el
 | Edgar | `error_handler.py`: confirmar `details` con el PM y repetir 401, 403, 404, 409 y 422 | G2-23, 28, 29, 30 |
 | Fulvio | Corregir `POST /files` (500) y `GET /files/{id}` (422): descarga solo con token y solo el autor o un admin | G2-17, 18, 21, 22 |
 | Fulvio | Registrar el archivo en la tabla `archivo`; probar tipo no permitido y tamaño con QA | G2-19, 20, 22 |
-| Robert | Conexión a la base: `.env.example`, `requirements.txt`, `database.py` (hecho el 22-oct; falta probar con tu `.env`) | G2-01, 32, 35 |
+| Robert | Conexión a la base: `.env.example`, `requirements.txt`, `database.py` (hecho el 22-oct; Ya probó con el archivo `.env` (Ese archivo no se sube en el repositorio)) | G2-01, 32, 35 |
 | Robert | `models.py` y `fijar_actor` para la auditoría (hecho el 22-oct) | G2-34, 36 |
 
 ### 8.8 Semana 4 (martes 03-nov) con escenarios
@@ -352,13 +355,24 @@ Resultado: 34 PASS, 2 FAIL, 1 PARCIAL, 1 PASS histórico con retest pendiente. L
 
 | Prioridad | Escenario | Qué pasa | Quién | Archivo | Estado al 27-oct |
 |-|-|-|-|-|-|
-| 🔴 Crítica | G2-21 | Un docente descarga el archivo de un admin (HTTP 200, posible IDOR). El PM pide 403 o 404. | Fulvio | `routers/files.py` | ⏳ Pendiente. Hoy `GET /files/{id}` solo exige token. Falta guardar `autor_id` en la tabla `archivo` y dejar descargar solo al autor o a un admin |
-| 🔴 Alta | G2-36 | Allison dio PASS, pero el PM dice que el login con correo inexistente no queda en auditoría. Además el PM vio el login fallido guardado **dos veces** (`auth.py` y `registro.py`). | Daniel y Edgar | `routers/auth.py`, `utils/registro.py` | ⏳ Dejar un solo registro y repetir G2-36 en la versión que va a `main` |
-| 🟡 Media | G2-33 | Faltaban 409, 403, ejemplos con objetos y el 422 real. | Robert | `main.py` | 🔵 Hecho (27-oct). Falta retest. Swagger de `files` usa `file_id` en query en vez de `{id}`: lo corrige Fulvio al arreglar la ruta |
-| ⚪ Baja | G2-31 | `GET /users` devolvía un arreglo sin paginar. | Randy | `routers/users.py` | 🔵 Ya pagina (24-oct) con pruebas. Falta retest |
+| 🔴 Alta (crítica) | G2-21 | Un docente descarga el archivo de un admin (HTTP 200, posible IDOR). El PM pide 403 o 404. | Fulvio | `routers/files.py` | 🔵 Subido el 28-oct (commit `6982c15`): `GET /files/{id}` pide token, da 404 si no existe y 403 si no es el autor (`autor_id`); `POST /files` guarda en la tabla `archivo`. Falta retest, `tests/test_files.py` y confirmar si un admin también descarga |
+| ⚪ Baja | G2-36 | PASS del PM en el retest del 23-oct. Antes avisó que el login fallido se guardaba **dos veces** (`auth.py` y `registro.py`). | Daniel y Edgar | `routers/auth.py`, `utils/registro.py` | ✅ PASS. Queda revisar que el login fallido quede una sola vez antes del PR a `main` |
+| 🟡 Media | G2-33 | Faltaban 409, 403, ejemplos con objetos y el 422 real. | Robert | `main.py` | 🔵 Hecho (27 y 28-oct): `POST /users`, `GET /me` y `GET /users` documentan sus códigos con ejemplos reales y `tests/test_openapi.py` lo verifica. `files` ya usa `{id}`. Falta retest |
+| ⚪ Baja | G2-31 | `GET /users` devolvía un arreglo sin paginar. | Randy | `routers/users.py` | 🔵 Ya pagina (24-oct) con pruebas en `tests/test_users.py`. Falta retest |
 | ⚪ Baja | G2-32 | Las respuestas de usuarios ya no traen `creado_en` ni `actualizado_en`. | Randy, con el PM | `routers/users.py` | ⏳ Preguntar al PM si se quitaron a propósito. Si deben salir, en ISO 8601 y UTC |
 | ⚪ Baja | G2-34 | Bloqueo de 15 min. | Daniel | `routers/auth.py` | ✅ PASS |
 | Limpieza | PM | `auth.py` todavía carga `usuarios_prueba.json` y nadie lo usa. | Daniel | `routers/auth.py` | ⏳ Quitar la carga y la carpeta `datos_prueba/` |
+
+### 9.1 Avisos del PM por prioridad y qué se puede probar
+
+| Prioridad | Escenario | Aviso del PM (retest del 23-oct) | Qué probar antes de avisar | ¿Se puede comentar en el Planner? |
+|-|-|-|-|-|
+| 🔴 Alta | G2-21 | Un docente descargó con HTTP 200 un PDF cargado por un admin: `GET /files/{id}` pedía token pero no revisaba al dueño. Debe dar 403 o 404 sin revelar el archivo | Subir un PDF con un usuario y copiar el `file_id`; pedir `GET /files/{id}` con otro usuario (debe dar **403**), con el dueño (**200**), con un id que no existe (**404**) y sin token (**401**) | Sí, como «corregido, listo para retest» (commit `6982c15`, 28-oct). No marcarlo completado hasta que Allison repita G2-21 |
+| 🟡 Media | G2-07, G2-12, G2-26 | PASS los tres (`/me`, consulta individual y recursos inexistentes) | Nada más | Ya están cerrados. Se puede comentar «PASS confirmado por el PM» |
+| 🟡 Media | G2-33 | PARCIAL: Swagger no coincidía con `POST /users`, `GET /me` y `GET /users` (faltaban códigos HTTP y los ejemplos JSON eran incorrectos) | En `/api/v1/docs` revisar `POST /users` (201, 401, 403, 409, 422), `GET /me` (200 con objeto y 401), `GET /users` (200 con `page`, `per_page`, `total`, `data`, 401 y 403) y `files` con `{id}`; correr `pytest tests/test_openapi.py` | Sí, listo para retest (Robert, 27 y 28-oct) |
+| ⚪ Baja | G2-34, G2-36 | PASS los dos (bloqueo temporal y registro de auditoría) | Nada más; solo confirmar antes del PR que el login fallido se guarda una vez | Ya están cerrados |
+| ⚪ Baja | G2-31 | FAIL: `GET /users` no paginaba. Debe devolver `page`, `per_page`, `total` y `data` | `GET /users?page=1&per_page=5` con admin: revisar los cuatro campos y el máximo de 100 por página | Sí, listo para retest (Randy, 24-oct, con `tests/test_users.py`) |
+| ⚪ Baja | G2-32 | PASS histórico, retest pendiente: las consultas de usuarios ya no traen `creado_en` ni `actualizado_en` | Confirmar con el PM si se quitaron a propósito. Si deben salir, en ISO 8601 y UTC. Si no, documentar el cambio | Todavía no: primero la respuesta del PM |
 
 **Sobre el PR a `main`:** el PM pidió abrirlo cuanto antes, porque G3, G4 y G6 necesitan el login en `main`. Antes: hacer merge de `main` en `grupo-2` (G1 ya está ahí) y correr `pytest`. El PR lo abre solo Daniel.
 
