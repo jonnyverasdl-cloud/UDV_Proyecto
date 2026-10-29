@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Programa de Curso</title>
+    <link rel="stylesheet" href="estilos/style.css" />
+    <script src="script.js" defer></script>
+  </head>
+
+  <body>
+    <div class="contenedor">
+      <!-- MENÚ LATERAL -->
+      <aside class="menu">
+        <h1>Proyecto</h1>
+        <p>Programación Web</p>
+
+        <nav>
+          <a href="#">Resumen</a>
+          <a href="#">Inbox</a>
+          <a href="#">Crear tarea</a>
+          <a href="#" class="activo">Programa de curso</a>
+          <a href="#">API REST</a>
+        </nav>
+      </aside>
+
+      <!-- CONTENIDO PRINCIPAL -->
+      <main class="contenido">
+        <!-- ENCABEZADO -->
+        <header class="encabezado">
+          <div class="encabezado-titulos">
+            <h2>Programa del curso</h2>
+
+            <div class="titulo-estado">
+              <span id="estado-programa" class="udv-badge badge-draft">
+                BORRADOR
+              </span>
+
+              <span id="numero-version"> Versión 1 </span>
+            </div>
+
+            <p id="estado-guardado">Cambios guardados localmente</p>
+          </div>
+
+          <!-- ROL ACTUAL -->
+          <div class="selector-rol">
+            <label for="rol">Rol actual</label>
+
+            <select id="rol" class="rol">
+              <option value="docente">Docente</option>
+              <option value="coordinador-academico">
+                Coordinador académico
+              </option>
+              <option value="decanatura">Decanatura</option>
+            </select>
+          </div>
+        </header>
+
+        <article id="documento-pdf" class="documento-pdf" hidden></article>
+
+        <!-- RESPONSABLES -->
+        <section class="panel">
+          <h3>Responsables del programa</h3>
+
+          <div class="formulario">
+            <div class="campo">
+              <label for="docente"> Docente </label>
+
+              <input
+                type="text"
+                id="docente"
+                placeholder="Escriba el nombre del docente"
+              />
+            </div>
+
+            <div class="campo">
+              <label for="nombre-decanatura"> Decanatura </label>
+
+              <input
+                type="text"
+                id="nombre-decanatura"
+                placeholder="Escriba el nombre de la decanatura"
+              />
+            </div>
+
+            <div class="campo">
+              <label for="nombre-coordinador"> Coordinador académico </label>
+
+              <input
+                type="text"
+                id="nombre-coordinador"
+                placeholder="Escriba el nombre del coordinador académico"
+              />
+            </div>
+          </div>
+        </section>
+
+        <!-- ÁREA DEL PROGRAMA -->
+        <div class="area-trabajo">
+          <!-- NAVEGACIÓN DE SECCIONES -->
+          <aside class="nav-secciones">
+            <a href="#general" class="activa"> Información general </a>
+
+            <a href="#prerrequisitos"> Prerrequisitos </a>
+
+            <a href="#descripcion"> Descripción </a>
+
+            <a href="#competencias"> Competencias </a>
+
+            <a href="#perfil"> Perfil de egreso </a>
+
+            <a href="#metodologia"> Metodología </a>
+
+            <a href="#contenidos"> Contenidos </a>
+
+            <a href="#bibliografia"> Bibliografía </a>
+
+            <a href="#evaluacion"> Evaluación </a>
+          </aside>
+
+          <!-- PANEL -->
+          <section class="panel">
+            <!-- INFORMACIÓN GENERAL -->
+            <div id="general" class="seccion activa">
+              <h3>Información general</h3>
+
+              <div class="formulario">
+                <div class="campo">
+                  <label for="codigo"> Código </label>
+
+                  <input type="text" id="codigo" value="PW-001" />
+                </div>
+
+                <div class="campo">
+                  <label for="asignatura"> Asignatura </label>
+
+                  <input type="text" id="asignatura" value="Programación Web" />
+                </div>
+
+                <div class="campo">
+                  <label for="programa"> Programa </label>
+
+                  <input
+                    type="text"
+                    id="programa"
+                    value="Ingeniería en Sistemas"
+                  />
+                </div>
+
+                <div class="campo">
+                  <label for="departamento"> Departamento </label>
+
+                  <input type="text" id="departamento" value="Tecnología" />
+                </div>
+
+                <div class="campo">
+                  <label for="facultad"> Facultad </label>
+
+                  <input type="text" id="facultad" value="Ingeniería" />
+                </div>
+
+                <div class="campo">
+                  <label for="area-formacion"> Área de formación </label>
+
+                  <input type="text" id="area-formacion" />
+                </div>
+
+                <div class="campo">
+                  <label for="pensum"> Pensum </label>
+
+                  <input type="text" id="pensum" />
+                </div>
+
+                <div class="campo">
+                  <label for="ciclo"> Ciclo </label>
+
+                  <input type="text" id="ciclo" value="Segundo ciclo" />
+                </div>
+
+                <div class="campo">
+                  <label for="anio"> Año </label>
+
+                  <input type="number" id="anio" value="2026" />
+                </div>
+
+                <div class="campo">
+                  <label for="nivel"> Nivel </label>
+
+                  <select id="nivel">
+                    <option>Licenciatura</option>
+
+                    <option>Técnico</option>
+
+                    <option>Maestría</option>
+                  </select>
+                </div>
+
+                <div class="campo">
+                  <label for="modalidad"> Modalidad </label>
+
+                  <select id="modalidad">
+                    <option>Presencial</option>
+
+                    <option>Virtual</option>
+
+                    <option>Híbrida</option>
+                  </select>
+                </div>
+
+                <div class="campo">
+                  <label for="creditos"> Créditos </label>
+
+                  <input type="number" id="creditos" value="4" />
+                </div>
+
+                <div class="campo">
+                  <label for="horas"> Horas </label>
+
+                  <input type="number" id="horas" value="64" />
+                </div>
+
+                <div class="campo">
+                  <label for="sede"> Sede </label>
+
+                  <input type="text" id="sede" value="Campus Central" />
+                </div>
+              </div>
+            </div>
+
+            <!-- PRERREQUISITOS -->
+            <div id="prerrequisitos" class="seccion">
+              <h3>Prerrequisitos</h3>
+
+              <p>Asignaturas necesarias antes de cursar Programación Web.</p>
+
+              <div class="tabla-contenedor">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Asignatura</th>
+                      <th>Código</th>
+                      <th>Orden</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    <tr>
+                      <td>
+                        <input type="text" value="Programación II" />
+                      </td>
+
+                      <td>
+                        <input type="text" value="PRG-002" />
+                      </td>
+
+                      <td>
+                        <input type="number" value="1" />
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- DESCRIPCIÓN -->
+            <div id="descripcion" class="seccion">
+              <h3>Descripción</h3>
+
+              <div class="formulario">
+                <div class="campo completo">
+                  <label for="descripcion-texto"> Descripción del curso </label>
+
+                  <textarea id="descripcion-texto">
+Curso orientado al desarrollo de aplicaciones web utilizando tecnologías modernas, APIs REST y herramientas para la construcción de sistemas web.</textarea
+                  >
+                </div>
+              </div>
+            </div>
+
+            <!-- COMPETENCIAS -->
+            <div id="competencias" class="seccion">
+              <h3>Competencias</h3>
+
+              <div class="formulario">
+                <div class="campo completo">
+                  <label for="competencia-general"> Competencia general </label>
+
+                  <textarea id="competencia-general">
+Desarrolla aplicaciones web funcionales utilizando buenas prácticas de programación.</textarea
+                  >
+                </div>
+
+                <div class="campo completo">
+                  <label for="competencias-especificas">
+                    Competencias específicas
+                  </label>
+
+                  <textarea id="competencias-especificas">
+Diseña APIs REST, utiliza bases de datos y desarrolla interfaces web.</textarea
+                  >
+                </div>
+              </div>
+            </div>
+
+            <!-- PERFIL -->
+            <div id="perfil" class="seccion">
+              <h3>Perfil de egreso</h3>
+
+              <div class="formulario">
+                <div class="campo">
+                  <label for="perfil-codigo"> Código </label>
+
+                  <input type="text" id="perfil-codigo" value="PE-01" />
+                </div>
+
+                <div class="campo">
+                  <label for="perfil-contribucion"> Contribución </label>
+
+                  <input
+                    type="text"
+                    id="perfil-contribucion"
+                    value="Desarrollo de soluciones tecnológicas"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- METODOLOGÍA -->
+            <div id="metodologia" class="seccion">
+              <h3>Metodología</h3>
+
+              <div class="campo completo">
+                <label for="metodologia-texto">
+                  Metodología de enseñanza
+                </label>
+
+                <textarea id="metodologia-texto">
+Clases prácticas, ejercicios, proyectos y actividades de desarrollo de aplicaciones web.</textarea
+                >
+              </div>
+            </div>
+
+            <!-- CONTENIDOS -->
+            <div id="contenidos" class="seccion">
+              <h3>Contenidos</h3>
+
+              <div class="formulario">
+                <div class="campo completo">
+                  <label for="contenidos-texto">
+                    Unidades y temas (uno por línea)
+                  </label>
+
+                  <textarea id="contenidos-texto"></textarea>
+                </div>
+              </div>
+            </div>
+
+            <!-- BIBLIOGRAFÍA -->
+            <div id="bibliografia" class="seccion">
+              <h3>Bibliografía</h3>
+
+              <div class="formulario">
+                <div class="campo completo">
+                  <label for="bibliografia-texto">
+                    Referencias bibliográficas (una por línea)
+                  </label>
+
+                  <textarea id="bibliografia-texto"></textarea>
+                </div>
+              </div>
+            </div>
+
+            <!-- EVALUACIÓN -->
+            <div id="evaluacion" class="seccion">
+              <h3>Evaluación</h3>
+
+              <div class="formulario">
+                <div class="campo">
+                  <label for="evaluacion-parcial"> Evaluación parcial </label>
+
+                  <input type="text" id="evaluacion-parcial" value="30%" />
+                </div>
+
+                <div class="campo">
+                  <label for="evaluacion-final"> Evaluación final </label>
+
+                  <input type="text" id="evaluacion-final" value="40%" />
+                </div>
+
+                <div class="campo">
+                  <label for="evaluacion-proyecto"> Proyecto </label>
+
+                  <input type="text" id="evaluacion-proyecto" value="30%" />
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <!-- ACCIONES -->
+        <div class="acciones-programa">
+          <button type="button" id="guardar-seccion">Guardar borrador</button>
+          <button type="button" id="crear-version">Crear nueva versión</button>
+          <button type="button" id="enviar-revision" class="guardar">
+            Enviar a revisión
+          </button>
+          <button type="button" id="devolver">Devolver al docente</button>
+          <button type="button" id="aprobar">Aprobar</button>
+          <button type="button" id="autorizar">Autorizar versión</button>
+          <button type="button" id="vista-previa-pdf">Vista previa PDF</button>
+          <button type="button" id="imprimir-pdf" hidden>
+            Descargar PDF
+          </button>
+          <button type="button" id="cerrar-vista-previa" hidden>
+            Volver al editor
+          </button>
+          <button type="button" id="cancelar-cambios">Cancelar cambios</button>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>
