@@ -270,7 +270,7 @@ def test_registrar_login_fallido_guarda_correo_en_detalle(db_mem):
     fila = db_mem.query(_AuditoriaFake).one()
     assert fila.accion      == "LOGIN_FALLIDO"
     assert fila.actor_id    is None                    
-    assert fila.registro_id == 0  # la base no acepta vacio
+    assert fila.registro_id is None                     
     assert fila.detalle     == {"correo": "x@y.com"}    
     assert fila.ip_origen   == "10.0.0.1"
 
@@ -346,3 +346,32 @@ def test_registro_no_rompe_si_models_no_existe():
         assert reg.registrar_accion(_S(), "TEST") is False
     finally:
         builtins.__import__ = original
+
+
+
+def test_fijar_actor_envia_null_cuando_no_hay_actor(monkeypatch):
+    
+    capturados: list[dict] = []
+
+    class _FakeDB:
+        bind = type("B", (), {
+            "dialect": type("D", (), {"name": "mysql"})(),
+        })()
+        def execute(self, _stmt, params):
+            capturados.append(params)
+
+    # None → NULL
+    registro.fijar_actor(_FakeDB(), None)
+    assert capturados[-1] == {"id": None}
+
+    # 0 → NULL (no 0)
+    registro.fijar_actor(_FakeDB(), 0)
+    assert capturados[-1] == {"id": None}
+
+    # id válido 
+    registro.fijar_actor(_FakeDB(), 42)
+    assert capturados[-1] == {"id": 42}
+
+    # Alias  funcionando
+    registro.set_actor_id(_FakeDB(), 7)
+    assert capturados[-1] == {"id": 7}
