@@ -31,7 +31,7 @@ FILE_DOWNLOADED = "FILE_DOWNLOADED"
 # --- Helpers ----------------------------------------------------------------
 
 def _modelo_auditoria():
-    """ si `models.py` aún no está, degradamos sin romper."""
+    """ si `models` aún no está, degradamos sin romper."""
     from g2_api.models import Auditoria  # type: ignore
 
     return Auditoria
@@ -49,22 +49,24 @@ def ip_del_request(request: Request | None) -> str | None:
     cliente = getattr(request, "client", None)
     return getattr(cliente, "host", None) if cliente else None
 
-
-def set_actor_id(db: Session, actor_id: int | None) -> None:
-   
+def fijar_actor(db: Session, actor_id: int | None) -> None:
+    
     try:
         dialecto = ""
         bind = getattr(db, "bind", None)
         if bind is not None and getattr(bind, "dialect", None) is not None:
             dialecto = bind.dialect.name
         if dialecto == "mysql":
-            db.execute(text("SET @actor_id = :id"), {"id": int(actor_id or 0)})
+            valor = int(actor_id) if actor_id is not None and actor_id > 0 else None
+            db.execute(text("SET @actor_id = :id"), {"id": valor})
     except Exception:  # noqa: BLE001
-        logger.exception("No se pudo setear @actor_id para triggers del G1")
+        logger.exception("No se pudo fijar @actor_id para triggers del G1")
 
+
+# Alias de compatibilidad 
+set_actor_id = fijar_actor
 
 # --- Escritura --------------------------------------------------------------
-
 def registrar_accion(
     db: Session,
     accion: str,
@@ -75,8 +77,12 @@ def registrar_accion(
     detalle: Mapping[str, Any] | None = None,
     ip_origen: str | None = None,
 ) -> bool:
-    """ True si se guardó, False si falló."""
+    """True si se guardó, False si falló."""
     try:
+        # 0 no es un id válido: se persiste NULL 
+        if actor_id is not None and actor_id <= 0:
+            actor_id = None
+
         Auditoria = _modelo_auditoria()
         fila = Auditoria(
             accion      = str(accion).upper(),
@@ -139,7 +145,7 @@ def registrar_login_fallido(
         LOGIN_FALLIDO,
         actor_id    = actor_id,
         tabla       = "auth",
-        registro_id = actor_id if actor_id is not None else 0,  # 0 si el correo no existe
+        registro_id = actor_id,                    # INT o NULL
         detalle     = {"correo": correo_norm},     # correo normalizado
         ip_origen   = ip_origen,
     )
