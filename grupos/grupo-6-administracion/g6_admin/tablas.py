@@ -149,7 +149,7 @@ notificacion = Table(
     _creado(),
 )
 
-# ── Lo que se lee de otros grupos para saber a quién avisar (solo lectura) ──
+# ── Lo que se lee de otros grupos (solo lectura): a quién avisar y el panel ─
 
 tarea = Table(
     "tarea", metadata,
@@ -159,7 +159,7 @@ tarea = Table(
     Column("creado_por", Integer),
     Column("revisor_id", Integer),
     Column("fecha_limite", DateTime),
-    Column("eliminado_en", DateTime),
+    Column("eliminado_en", DateTime),  # Eliminación lógica: no cuenta en el panel.
 )
 
 tarea_destinatario = Table(
@@ -193,8 +193,20 @@ usuario_rol = Table(
     Column("rol_id", Integer, primary_key=True),
 )
 
+# En el G1 correo, nombres y apellidos son NOT NULL; aquí se aceptan vacíos
+# para que las pruebas puedan crear usuarios solo con su id.
 usuario = Table(
     "usuario", metadata,
     Column("id", Integer, primary_key=True),
+    Column("correo", String(254)),
+    Column("nombres", String(100)),
+    Column("apellidos", String(100)),
     Column("activo", Boolean, nullable=False, default=True),
+)
+
+# Parámetros del sistema (semilla del G1), por ejemplo dias_aviso_vencimiento.
+parametro = Table(
+    "parametro", metadata,
+    Column("codigo", String(60), primary_key=True),
+    Column("valor", String(500), nullable=False),
 )

@@ -4,8 +4,10 @@ from datetime import datetime, timezone
 
 import pytest
 from fastapi import HTTPException
+from sqlalchemy import insert
 
-from conftest import ADMINISTRACION, DOCENTE
+from conftest import ADMINISTRACION, DOCENTE, _cliente, _usuario
+from g6_admin import tablas
 
 ID_ADMIN = ADMINISTRACION.id
 ID_DOCENTE = DOCENTE.id
@@ -177,6 +179,68 @@ def test_filtros_combinados_y_orden_reciente_primero(con_registros):
     assert [r["id"] for r in todos] == sorted((r["id"] for r in todos), reverse=True)
 
 
+def test_usuario_sin_registros_devuelve_lista_vacia(con_registros):
+    assert consultar(con_registros, "?user_id=999").json() == {
+        "page": 1, "per_page": 20, "total": 0, "data": []}
+
+
+@pytest.fixture
+def en_fechas(fabrica, admin):
+    """Un registro en cada borde del 15-oct (UTC) y uno el 16-oct a medianoche."""
+    with fabrica() as s:
+        s.execute(insert(tablas.auditoria), [
+            {"tabla": "sede", "registro_id": str(i), "accion": "insert", "actor_id": 1,
+             "creado_en": fecha} for i, fecha in enumerate([
+                datetime(2026, 10, 14, 23, 59, 59), datetime(2026, 10, 15, 0, 0, 0),
+                datetime(2026, 10, 15, 23, 59, 59, 999000), datetime(2026, 10, 16, 0, 0, 0)],
+                start=1)])
+        s.commit()
+    return admin
+
+
+@pytest.mark.parametrize("consulta, ids", [
+    ("?from=2026-10-15&to=2026-10-15", [3, 2]),     # Todo el día, nada del día vecino.
+    ("?from=2026-10-15", [4, 3, 2]),                # Solo desde.
+    ("?to=2026-10-15", [3, 2, 1]),                  # Solo hasta, incluido.
+    ("?from=2026-10-14&to=2026-10-16", [4, 3, 2, 1]),
+])
+def test_filtro_de_fecha_respeta_los_bordes_del_dia(en_fechas, consulta, ids):
+    assert [r["entity_id"] for r in consultar(en_fechas, consulta).json()["data"]] == ids
+
+
+def test_cada_registro_dice_quien_hizo_la_accion(fabrica, admin):
+    with fabrica() as s:
+        s.execute(insert(tablas.usuario).values(id=ID_ADMIN, correo="admin@demo.test",
+                                                nombres="Ana", apellidos="Administradora"))
+        s.commit()
+    admin.post("/api/v1/campuses", json={"code": "NORTE", "name": "Sede Norte"})
+    registro = consultar(admin).json()["data"][0]
+    assert (registro["actor_email"], registro["actor_name"]) == (
+        "admin@demo.test", "Ana Administradora")
+
+
+def test_registro_sin_actor_no_falla(fabrica, admin):
+    # Los triggers del G1 y el login fallido del G2 pueden dejar actor_id vacío.
+    with fabrica() as s:
+        s.execute(insert(tablas.auditoria).values(tabla="auth", registro_id="0",
+                                                  accion="LOGIN_FALLIDO"))
+        s.commit()
+    registro = consultar(admin).json()["data"][0]
+    assert (registro["actor_id"], registro["actor_email"], registro["actor_name"]) == (
+        None, None, None)
+
+
+def test_opciones_de_los_filtros_salen_de_la_auditoria(con_registros, fabrica):
+    with fabrica() as s:
+        s.execute(insert(tablas.usuario).values(id=ID_DOCENTE, correo="docente@demo.test"))
+        s.commit()
+    opciones = con_registros.get("/api/v1/audit/filters").json()
+    assert opciones == {
+        "entities": ["area", "sede", "tarea_destinatario"],
+        "actions": ["insert", "transition"],
+        "users": [{"id": ID_ADMIN, "email": None}, {"id": ID_DOCENTE, "email": "docente@demo.test"}]}
+
+
 @pytest.mark.parametrize("consulta", ["?from=2026-02-30", "?from=2026-10-10&to=2026-10-01",
                                       "?user_id=0", "?per_page=101"])
 def test_filtros_invalidos_dan_422(admin, consulta):
@@ -203,6 +267,21 @@ def test_sin_sesion_responde_401(sin_sesion):
     respuesta = consultar(sin_sesion)
     assert respuesta.status_code == 401
     assert respuesta.json()["error"]["code"] == "UNAUTHORIZED"
+    assert sin_sesion.get("/api/v1/audit/filters").status_code == 401
+
+
+def test_el_rol_auditor_tambien_consulta(con_registros, fabrica):
+    # En la semilla del G1 el permiso audit.read lo tienen admin y auditor.
+    auditor = _cliente(fabrica, _usuario(7, "auditoria@ejemplo.test", "auditor"))
+    assert consultar(auditor).json()["total"] == 4
+    assert auditor.get("/api/v1/audit/filters").status_code == 200
+
+
+@pytest.mark.parametrize("rol", ["coordinator", "reviewer", "authority"])
+def test_otros_roles_no_consultan_la_auditoria(fabrica, rol):
+    cliente = _cliente(fabrica, _usuario(9, "x@ejemplo.test", rol))
+    assert consultar(cliente).status_code == 403
+    assert cliente.get("/api/v1/audit/filters").status_code == 403
 
 
 def test_openapi_incluye_la_ruta_del_contrato(admin):
