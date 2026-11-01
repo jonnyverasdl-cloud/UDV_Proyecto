@@ -118,11 +118,16 @@ async def descargar_archivo(
             detail="Archivo no encontrado"
         )
 
-    if registro.autor_id != usuario_actual.id:
+    es_admin = any(
+    rol.codigo == "admin"
+    for rol in usuario_actual.roles
+    )
+
+    if registro.autor_id != usuario_actual.id and not es_admin:
         raise HTTPException(
-            status_code=403,
-            detail="No tienes permiso para acceder a este archivo"
-        )
+        status_code=403,
+        detail="No tienes permiso para acceder a este archivo"
+    )
 
     ruta = Path(registro.ubicacion)
 
