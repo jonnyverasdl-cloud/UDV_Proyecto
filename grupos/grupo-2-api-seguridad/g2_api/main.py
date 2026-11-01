@@ -136,4 +136,5 @@ def _completar_openapi():
     app.openapi_schema = esquema
     return esquema
 
+
 app.openapi = _completar_openapi
