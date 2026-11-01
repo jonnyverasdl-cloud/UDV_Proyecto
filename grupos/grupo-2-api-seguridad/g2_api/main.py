@@ -41,7 +41,7 @@ app.include_router(roles.router) # Persona 2: /roles.
 app.include_router(files.router) # Persona 4: /files.
 
 
-# --- OpenAPI (G2-33) ---------------------------------------------------------
+# --- OpenAPI (G2-33) ----------------------------------------------------------------
 # Swagger debe mostrar lo mismo que responde la API. Los routers son de otras personas,
 # asi que aqui se completan los codigos HTTP y los ejemplos sin tocar sus archivos.
 _ERRORES = {
@@ -52,17 +52,20 @@ _ERRORES = {
     409: ("CONFLICT", "El correo ya está registrado."),
     422: ("VALIDATION_ERROR", "Datos de entrada inválidos."),
 }
+# Las fechas son de solo lectura, en ISO 8601 y con zona horaria.
 _USUARIO = {
     "id": 12, "correo": "docente@udv.edu.gt", "nombres": "Ana", "apellidos": "López",
     "activo": True, "roles": ["teacher"],
+    "creado_en": "2026-10-29T15:30:00-06:00", "actualizado_en": "2026-10-29T15:30:00-06:00",
 }
 
-
-def _resp_error(codigo: int):
+def _resp_error(codigo: int, mensaje: str | None = None):
     code, msg = _ERRORES[codigo]
+    msg = mensaje or msg
     detalles = {}
     if codigo == 422:
-        detalles = {"campos": {"correo": {"message": "Input should be a valid string", "type": "string_type"}}}
+        # Los detalles son un objeto con un campo por llave.
+        detalles = {"correo": "Formato de correo inválido", "password": "Mínimo 8 caracteres"}
     return {
         "description": msg,
         "content": {"application/json": {
@@ -71,13 +74,11 @@ def _resp_error(codigo: int):
         }},
     }
 
-
 def _resp_ok(descripcion: str, ejemplo, esquema: dict | None = None):
     cuerpo = {"example": ejemplo}
     if esquema:
         cuerpo["schema"] = esquema
     return {"description": descripcion, "content": {"application/json": cuerpo}}
-
 
 def _completar_openapi():
     if app.openapi_schema:
@@ -92,7 +93,7 @@ def _completar_openapi():
             "properties": {
                 "code": {"type": "string", "example": "VALIDATION_ERROR"},
                 "message": {"type": "string"},
-                "details": {"type": "object"},
+                "details": {"type": "object", "description": "Un campo por llave; vacío ({}) si no hay detalle."},
             },
         }},
     }
@@ -112,6 +113,11 @@ def _completar_openapi():
                 r["409"] = _resp_error(409)
             if ruta.endswith("/files") and metodo == "post":
                 r["400"] = _resp_error(400)
+            if ruta.endswith("/files/{id}") and metodo == "get":
+                # Solo el dueño del archivo o un admin lo descarga.
+                r["403"] = _resp_error(403, "No tienes permiso para acceder a este archivo")
+                if "200" in r:
+                    r["200"]["description"] = "Archivo descargado (solo su dueño o un admin)."
             if "422" in r:
                 r["422"] = _resp_error(422)
             # Ejemplos reales (antes Swagger mostraba un "string" generico).
@@ -125,9 +131,9 @@ def _completar_openapi():
                 r["200"] = _resp_ok("Usuario autenticado con sus roles y permisos.",
                                     {**_USUARIO, "permisos": ["users.read"]})
             elif ruta.endswith("/files") and metodo == "post":
-                r["200"] = _resp_ok("Archivo aceptado.", {"file_id": "3f2a9c1e-0000-4000-8000-000000000000"})
+                r["200"] = _resp_ok("Archivo aceptado.", {
+                    "file_id": 177, "nombre_interno": "3f2a9c1e-0000-4000-8000-000000000000.pdf"})
     app.openapi_schema = esquema
     return esquema
-
 
 app.openapi = _completar_openapi
