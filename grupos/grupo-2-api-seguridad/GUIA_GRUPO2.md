@@ -19,7 +19,7 @@ Coordinador: Daniel (dancobs) · Versión 2 · 10-oct-2026 · Estado actualizado
 | ✅ | Migración al repo oficial, rama `grupo-2` | Todos |
 | ✅ | Esqueleto: `main.py`, `config.py`, `database.py`, `models.py`, `requirements.txt` | Robert |
 | ✅ | `main.py` incluye los routers `auth`, `/me`, `users`, `roles` y `files` | Robert |
-| ✅ | Conexión a la base del Grupo 1 (MySQL 8 con PyMySQL y `DATABASE_URL`): `database.py` (UTC y `fijar_actor`), `models.py` y `.env.example`. Probada con su `.env` en la base compartida: `probar_conexion()` devolvió `True` (28-oct) | Robert |
+| ✅ | Conexión a la base del Grupo 1 (MySQL 8 con PyMySQL y `DATABASE_URL`): `database.py` (UTC y `fijar_actor`), `models.py` y `.env.example`. Probada con su `.env` en la base compartida: `probar_conexion()` devolvió `True` (27-oct) | Robert |
 | 🔵 | Login (`POST /api/v1/auth/login`): consulta la base compartida, devuelve el JWT y guarda login y login fallido en `registro.py` | Daniel |
 | 🔵 | `POST /auth/logout` y `GET /me`: funcionan con la base; el token cerrado con logout ya da 401 | Daniel |
 | 🔵 | `obtener_usuario_actual()` lee al usuario desde la base y fija `@actor_id` para la auditoría | Daniel |
