@@ -6,7 +6,7 @@ Prioridad: **Alta** → **Media** → **Baja**. El Planner de Allison tiene tres
 
 ## Retest No. 2 (23 y 24-oct) · estado al 01-nov
 
-34 PASS, 2 FAIL, 1 PARCIAL y 1 PASS histórico con retest pendiente. `pytest` en `grupo-2` (01-nov): 96 pasan, 1 falla y 2 xfail; la falla es `test_login_fallido_queda_en_auditoria` (`registro.py`, Edgar).
+34 PASS, 2 FAIL, 1 PARCIAL y 1 PASS histórico con retest pendiente. `pytest` en `grupo-2` (02-nov): 97 pasan, 0 fallan y 2 xfail (esperados: contraseña 8-64 al crear usuario y `details` del 422).
 
 | Escenario | Resultado de QA | Quién | Archivo | Estado al 01-nov |
 |-|-|-|-|-|
@@ -14,8 +14,8 @@ Prioridad: **Alta** → **Media** → **Baja**. El Planner de Allison tiene tres
 | G2-31 | FAIL: `GET /users` sin paginación | Randy | `routers/users.py` | 🔵 Ya pagina desde el 24-oct. Falta retest |
 | G2-33 | PARCIAL: faltaban 409, 403 y ejemplos reales | Robert | `main.py` | 🔵 Hecho el 27 y 28-oct y probado en `tests/test_openapi.py`; ejemplos al día con el PM el 01-nov (fechas, `details` como objeto, 403 en archivos). Falta retest |
 | G2-32 | PASS histórico, retest pendiente: ya no salen `creado_en` ni `actualizado_en` | Randy y PM | `routers/users.py` | ⏳ El PM respondió (01-nov): se incluyen, solo de lectura, en ISO 8601 con zona horaria (por ejemplo `2026-10-29T15:30:00-06:00`). Randy los agrega en `users.py` |
-| G2-36 | PASS de QA y del PM (retest del 23-oct). Antes el PM avisó que el login fallido se guardaba dos veces | Daniel y Edgar | `routers/auth.py`, `utils/registro.py` | 🟡 PASS de QA, pero hoy falla una prueba: tras el cambio del 30-oct el correo inexistente guarda `registro_id` NULL. Corregir y revisar que se guarde una sola vez en la versión de `main` |
-| Limpieza | Aviso del PM | Daniel | `routers/auth.py` | ⏳ El PM confirmó (01-nov) que se borran: quitar la carga de `usuarios_prueba.json` (línea 28, `_ruta_json`) y la carpeta `datos_prueba/` |
+| G2-36 | PASS de QA y del PM (retest del 23-oct). Antes el PM avisó que el login fallido se guardaba dos veces | Daniel y Edgar | `routers/auth.py`, `utils/registro.py` | ✅ PASS de QA. 02-nov: `registro_id = 0` otra vez con correo inexistente (Daniel); la prueba vuelve a pasar |
+| Limpieza | Aviso del PM | Daniel | `routers/auth.py` | ✅ Hecho (02-nov): se quitó la carga de `usuarios_prueba.json` y la carpeta `datos_prueba/` |
 | Aviso del Grupo 1 (28-oct) | `set_actor_id()` en `registro.py` (línea 61) manda `@actor_id = 0` cuando no hay usuario y la llave foránea hace fallar la auditoría. Hoy ninguna ruta la llama | Edgar | `utils/registro.py` | ✅ Corregido el 30-oct: manda NULL (`f5b2d35`). Aparte, `users.py` (líneas 109 y 130) llama `fijar_actor` sin IP: Randy pasa `request.client.host` |
 
 Antes de abrir el PR a `main` (solo Daniel): merge de `main` en `grupo-2` y `pytest` completo. G2 ya está en `main` sin `/files`; este PR lleva las correcciones (G2-21, fechas, `details` y JSON de prueba).

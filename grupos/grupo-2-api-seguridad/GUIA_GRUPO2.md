@@ -8,7 +8,7 @@ Coordinador: Daniel (dancobs) · Versión 2 · 10-oct-2026 · Estado actualizado
 
 ## 1. Dónde estamos (estado al 01-nov)
 
-**Retest No. 2 de QA (23 y 24-oct):** 34 PASS, 2 FAIL (G2-21 archivos y G2-31 paginación), 1 PARCIAL (G2-33 OpenAPI) y 1 PASS histórico con retest pendiente (G2-32). Lo que falta se explica en la sección 9. `pytest` en `grupo-2` (01-nov): **96 pasan, 1 falla y 2 xfail**; la falla es `test_login_fallido_queda_en_auditoria` (`registro.py`, Edgar).
+**Retest No. 2 de QA (23 y 24-oct):** 34 PASS, 2 FAIL (G2-21 archivos y G2-31 paginación), 1 PARCIAL (G2-33 OpenAPI) y 1 PASS histórico con retest pendiente (G2-32). Lo que falta se explica en la sección 9. `pytest` en `grupo-2` (02-nov): **97 pasan, 0 fallan y 2 xfail** (esperados: contraseña 8-64 al crear usuario y `details` del 422).
 
 **Avance de esta semana (hasta el 01-nov):** Daniel dejó el bloqueo por intentos, el 422 con campos vacíos y la auditoría del correo inexistente; Randy subió la paginación de `GET /users` y `tests/test_users.py`; Edgar arregló `registro.py` y las pruebas de errores; Fulvio cerró `POST /files` y `GET /files/{id}` con control de autor y registro en la tabla `archivo` (28-oct); Robert dejó probada la conexión a la base y completó OpenAPI con `tests/test_openapi.py` (ejemplos al día con las respuestas del PM, 01-nov). Edgar dejó `set_actor_id()` en NULL (30-oct) y Fulvio agregó el acceso del admin a `GET /files/{id}` (31-oct). El PM respondió las dudas del grupo (01-nov): ver secciones 7 y 9. Falta el retest de QA sobre G2-21, G2-31 y G2-33.
 
@@ -28,16 +28,16 @@ Coordinador: Daniel (dancobs) · Versión 2 · 10-oct-2026 · Estado actualizado
 | 🟡 | Formato de errores (`error_handler.py`): 401, 403 y 404 responden bien (aviso del PM, 22-oct). Falta que `details` sea un objeto con un campo por llave (hoy en 422 sale `{"campos": [...]}`) y `{}` cuando no hay detalle, como confirmó el PM (01-nov); ajustar también `tests/test_errores.py` | Edgar |
 | 🔵 | Pantalla de login (`frontend-login/`) | Fulvio |
 | ✅ | Login con campos vacíos: `""` ya da 422 y la contraseña va de 8 a 64 caracteres (23-oct, G2-04) | Daniel |
-| 🟡 | `registro.py`: el login fallido con correo inexistente o vacío se guardaba (23-oct), pero tras el cambio del 30-oct `registro_id` sale NULL y la base lo rechaza (falla `test_login_fallido_queda_en_auditoria`). Volver a guardar `registro_id = 0` en ese caso. Queda quitar las funciones que ya no se usan | Edgar |
+| ✅ | `registro.py`: el login fallido con correo inexistente o vacío se guarda con `registro_id = 0` (corregido otra vez el 02-nov por Daniel: el NULL del Grupo 1 es solo para `actor_id`; `registro_id` es NOT NULL en `01_schema.sql`). Queda quitar las funciones que ya no se usan | Edgar |
 | ✅ | `registro.py`: `set_actor_id()` ya no manda `@actor_id = 0`: manda NULL cuando no hay usuario (aviso del Grupo 1, 28-oct; corregido el 30-oct) | Edgar |
 | ⏳ | `users.py` (líneas 109 y 130): `fijar_actor(db, actual.id)` se llama sin IP, así que al crear o editar un usuario los triggers dejan `ip_origen` vacío. Agregar `request: Request` y pasar `request.client.host` como tercer parámetro | Randy |
 | 🔵 | Archivos (28-oct): `POST /files` ya no da 500 y guarda el archivo en la tabla `archivo` con SHA-256 y `autor_id`. `GET /files/{id}` usa `{id}`, da 404 si no existe y 403 si quien pide no es el dueño ni un admin (G2-21; admin agregado el 31-oct, `7ffa69c`). El PM confirmó (01-nov) que descargan el dueño o un admin y que el límite de 5 MB aplica solo a `/files`. Falta retest de QA y `tests/test_files.py` | Fulvio |
 | ✅ | Bloqueo por intentos (5 fallos = 429 por 15 minutos): PASS en el retest (G2-34) | Daniel |
 | 🔵 | Paginación en `GET /users` (`page`, `per_page`, `total`, `data`): ya la usa `users.py` (24-oct) y tiene pruebas. Falta retest de QA (G2-31) | Randy |
 | 🔵 | Documentación OpenAPI: `main.py` completa 401, 403, 404, 409 y 422 con el formato común y ejemplos reales (objetos, no `string`). Al día con el PM (01-nov): `creado_en` y `actualizado_en` en ISO 8601, `details` como objeto, 403 en `GET /files/{id}` y `file_id` numérico en `POST /files`; para que coincida con la API, Randy (fechas) y Edgar (`details`) deben subir lo suyo. Falta retest de QA (G2-33) | Robert |
-| 🟡 | `pytest` completo en `grupo-2` (01-nov): **96 pasan, 1 falla y 2 xfail**; la falla es la de `registro.py` | Edgar |
+| ✅ | `pytest` completo en `grupo-2` (02-nov): **97 pasan, 0 fallan y 2 xfail** | Edgar |
 
-**Ojo:** el PM entregó una base compartida (MySQL en Railway). Los datos de acceso se piden al PM y van **solo en tu `.env`**, nunca en el repo ni en `.env.example`. Lo que se borra ahí lo ven los demás grupos. El Grupo 1 ya subió su script SQL a la rama `grupo-1` (`grupos/grupo-1-base-de-datos/Docs/sql/`: `01_schema.sql` y `02_seed.sql`) y se puede montar la base local con `python -m g1_bd crear`. Login, sesión, middleware, `users.py` y `roles.py` ya usan la base. El JSON de prueba (`g2_api/datos_prueba/usuarios_prueba.json`) ya no autentica a nadie, pero `auth.py` todavía lo carga al arrancar sin usarlo; el PM confirmó (01-nov) que se borra: Daniel quita esas líneas de `auth.py` (línea 28, `_ruta_json`) y la carpeta `datos_prueba/`, y las pruebas usan sus propios datos.
+**Ojo:** el PM entregó una base compartida (MySQL en Railway). Los datos de acceso se piden al PM y van **solo en tu `.env`**, nunca en el repo ni en `.env.example`. Lo que se borra ahí lo ven los demás grupos. El Grupo 1 ya subió su script SQL a la rama `grupo-1` (`grupos/grupo-1-base-de-datos/Docs/sql/`: `01_schema.sql` y `02_seed.sql`) y se puede montar la base local con `python -m g1_bd crear`. Login, sesión, middleware, `users.py` y `roles.py` ya usan la base. El JSON de prueba ya se borró (02-nov): `auth.py` ya no lo carga y la carpeta `datos_prueba/` no existe.
 
 ---
 
@@ -67,7 +67,7 @@ Cada tarea dice: **archivo → qué haces** y, en *cursiva*, con quién se conec
 - `routers/auth.py` → `min_length=1` en los campos del login para que `""` dé 422, no 401 (G2-04).
 - `routers/auth.py` → contraseña de 8 a 64 caracteres.
   *Los números salen del `.env`.*
-- `routers/auth.py` → quitar la carga del JSON de prueba (el PM confirmó el 01-nov): las líneas de `_ruta_json` (línea 28) y la carpeta `datos_prueba/`.
+- ✅ `routers/auth.py` → se quitó la carga del JSON de prueba y la carpeta `datos_prueba/` (02-nov).
 
 **Semana 4 · martes 03-nov**
 - `tests/test_auth.py` → pruebas: login bien, login mal (401), logout y `/me` sin token (401).
@@ -370,7 +370,7 @@ Fuentes: Update No. 2 e Informe de Retest No. 2 de Allison (el detalle de los 38
 | ⚪ Baja | G2-31 | `GET /users` devolvía un arreglo sin paginar. | Randy | `routers/users.py` | 🔵 Ya pagina (24-oct) con pruebas en `tests/test_users.py`. Falta retest |
 | ⚪ Baja | G2-32 | Las respuestas de usuarios ya no traen `creado_en` ni `actualizado_en`. | Randy, con el PM | `routers/users.py` | ⏳ El PM respondió (01-nov): se incluyen, solo de lectura, en ISO 8601 con zona horaria (por ejemplo `2026-10-29T15:30:00-06:00`). Randy los agrega en `users.py` |
 | ⚪ Baja | G2-34 | Bloqueo de 15 min. | Daniel | `routers/auth.py` | ✅ PASS |
-| Limpieza | PM | `auth.py` todavía carga `usuarios_prueba.json` y nadie lo usa. | Daniel | `routers/auth.py` | ⏳ El PM confirmó (01-nov) que se borran: quitar la carga (línea 28, `_ruta_json`) y la carpeta `datos_prueba/` |
+| Limpieza | PM | `auth.py` cargaba `usuarios_prueba.json` y nadie lo usaba. | Daniel | `routers/auth.py` | ✅ Hecho (02-nov): se quitó la carga y la carpeta `datos_prueba/` |
 
 ### 9.1 Avisos del PM por prioridad y qué se puede probar
 

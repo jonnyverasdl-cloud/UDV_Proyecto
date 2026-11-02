@@ -145,7 +145,7 @@ def registrar_login_fallido(
         LOGIN_FALLIDO,
         actor_id    = actor_id,
         tabla       = "auth",
-        registro_id = actor_id,                    # INT o NULL
+        registro_id = actor_id if actor_id is not None else 0,  # la base no acepta NULL aqui (01_schema.sql)
         detalle     = {"correo": correo_norm},     # correo normalizado
         ip_origen   = ip_origen,
     )

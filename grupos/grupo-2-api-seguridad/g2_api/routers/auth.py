@@ -4,8 +4,6 @@
 # me: muestra quien soy, mis roles y permisos
 # bloqueo: despues de 5 intentos fallidos la cuenta se bloquea 15 minutos
 
-import json
-import os
 import math
 from datetime import datetime, timedelta, timezone
 
@@ -22,12 +20,6 @@ from g2_api.utils.registro import LOGIN_OK, LOGOUT, registrar_accion, registrar_
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Autenticacion"])
 me_router = APIRouter(prefix="/api/v1", tags=["Autenticacion"])
-
-
-# temporal: users.py y auth_middleware.py todavia usan esta lista
-_ruta_json = os.path.join(os.path.dirname(__file__), "..", "datos_prueba", "usuarios_prueba.json")
-with open(_ruta_json, "r", encoding="utf-8") as _archivo:
-    usuarios = json.load(_archivo)["usuarios"]
 
 
 # hora actual en UTC
