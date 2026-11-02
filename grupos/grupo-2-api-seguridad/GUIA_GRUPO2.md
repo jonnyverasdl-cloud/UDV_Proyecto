@@ -219,7 +219,6 @@ grupos/grupo-2-api-seguridad/
 └── g2_api/
     ├── main.py, config.py, database.py, models.py   ← Robert
     ├── seguridad.py       ← Daniel (token JWT)
-    ├── datos_prueba/      ← JSON temporal hasta tener MariaDB
     ├── routers/           ← auth.py (Daniel), users.py y roles.py (Randy), files.py (Fulvio)
     ├── middleware/        ← auth_middleware.py (Randy), error_handler.py (Edgar)
     └── utils/             ← paginacion.py y registro.py (Edgar)
