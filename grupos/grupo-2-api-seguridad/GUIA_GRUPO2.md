@@ -223,7 +223,6 @@ grupos/grupo-2-api-seguridad/
     ├── middleware/        ← auth_middleware.py (Randy), error_handler.py (Edgar)
     └── utils/             ← paginacion.py y registro.py (Edgar)
 ```
-`
 
 Para correr la API: `http://127.0.0.1:8000/api/v1/docs`
 
