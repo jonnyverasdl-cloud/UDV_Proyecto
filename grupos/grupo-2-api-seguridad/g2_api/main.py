@@ -58,7 +58,6 @@ _USUARIO = {
     "creado_en": "2026-10-29T15:30:00-06:00", "actualizado_en": "2026-10-29T15:30:00-06:00",
 }
 
-
 def _resp_error(codigo: int, mensaje: str | None = None):
     code, msg = _ERRORES[codigo]
     msg = mensaje or msg
@@ -73,7 +72,6 @@ def _resp_error(codigo: int, mensaje: str | None = None):
             "example": {"error": {"code": code, "message": msg, "details": detalles}},
         }},
     }
-
 
 def _resp_ok(descripcion: str, ejemplo, esquema: dict | None = None):
     cuerpo = {"example": ejemplo}
@@ -138,3 +136,4 @@ def _completar_openapi():
     return esquema
 
 app.openapi = _completar_openapi
+
