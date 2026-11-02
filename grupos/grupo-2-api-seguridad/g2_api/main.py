@@ -40,7 +40,7 @@ app.include_router(users.router) # Persona 2: /users.
 app.include_router(roles.router) # Persona 2: /roles.
 app.include_router(files.router) # Persona 4: /files.
 
-# --- OpenAPI (G2-33) ---------------------------------------------------------
+# --- OpenAPI (G2-33) -----------------------------------------------------------------
 # Swagger debe mostrar lo mismo que responde la API. Los routers son de otras personas,
 # asi que aqui se completan los codigos HTTP y los ejemplos sin tocar sus archivos.
 _ERRORES = {
@@ -51,12 +51,13 @@ _ERRORES = {
     409: ("CONFLICT", "El correo ya está registrado."),
     422: ("VALIDATION_ERROR", "Datos de entrada inválidos."),
 }
-# Las fechas son de solo lectura, en iso 8601 y con zona horaria.
+# Las fechas son de solo lectura, en ISO 8601 y con zona horaria.
 _USUARIO = {
     "id": 12, "correo": "docente@udv.edu.gt", "nombres": "Ana", "apellidos": "López",
     "activo": True, "roles": ["teacher"],
     "creado_en": "2026-10-29T15:30:00-06:00", "actualizado_en": "2026-10-29T15:30:00-06:00",
 }
+
 
 def _resp_error(codigo: int, mensaje: str | None = None):
     code, msg = _ERRORES[codigo]
@@ -72,6 +73,7 @@ def _resp_error(codigo: int, mensaje: str | None = None):
             "example": {"error": {"code": code, "message": msg, "details": detalles}},
         }},
     }
+
 
 def _resp_ok(descripcion: str, ejemplo, esquema: dict | None = None):
     cuerpo = {"example": ejemplo}
@@ -135,6 +137,4 @@ def _completar_openapi():
     app.openapi_schema = esquema
     return esquema
 
-
 app.openapi = _completar_openapi
-
