@@ -388,5 +388,3 @@ Fuentes: Update No. 2 e Informe de Retest No. 2 de Allison (el detalle de los 38
 
 **Semana 4 de Robert:** hecha (`README.md`, `tests/conftest.py`, `tests/test_openapi.py` y los ejemplos de `main.py`, al día el 01-nov). La semana 5 (revisión final de OpenAPI y README) espera a que Randy y Edgar suban sus cambios y al retest de QA.
 
-
-**Semana 4 de Robert:** ya está hecha (`README.md`, `tests/conftest.py`, `tests/test_openapi.py`). No hay nada más que adelantar fuera de sus archivos.
