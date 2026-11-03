@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import logging
@@ -63,17 +62,13 @@ def api_error(
     headers: dict[str, str] | None = None,
 ) -> HTTPException:
     """
-
     Ejemplo:
-        raise api_error(
-            409, "Correo ya registrado",
-            details={"campo": "correo"},
-        )
+        raise api_error(409, "DUPLICATE_EMAIL", "Correo ya registrado",
+                        details={"campo": "correo"})
     """
     if isinstance(details, Mapping):
         det: dict[str, Any] = dict(details)
     elif isinstance(details, Iterable) and not isinstance(details, (str, bytes)):
-        # 
         det = {"items": list(details)}
     else:
         det = {}
@@ -90,7 +85,7 @@ def _payload(
     message: str,
     details: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """  {"error": {"code", "message", "details"}}."""
+    """Solo {"error": {"code", "message", "details"}}."""
     return {
         "error": {
             "code": code,
@@ -127,7 +122,6 @@ async def _http_exception_handler(request: Request, exc: StarletteHTTPException)
     details: dict[str, Any] = {}
 
     if isinstance(detail, Mapping):
-        # Viene de api_error()
         code    = str(detail.get("code", code))
         message = str(detail.get("message", message))
         raw = detail.get("details")
@@ -139,7 +133,6 @@ async def _http_exception_handler(request: Request, exc: StarletteHTTPException)
         if exc.status_code < 500:
             message = detail
         else:
-            
             logger.warning(
                 "HTTPException %s en %s %s con detail string (no expuesto): %s",
                 exc.status_code, request.method, request.url.path, detail,
@@ -155,30 +148,28 @@ async def _http_exception_handler(request: Request, exc: StarletteHTTPException)
 
 
 async def _validation_exception_handler(request: Request, exc: RequestValidationError):
-    """422 con el detalle de CADA campo inválido."""
-    campos: list[dict[str, str]] = []
+    """422 con `details`
+    """
+    detalles: dict[str, str] = {}
     for err in exc.errors():
         loc = [
             str(p)
             for p in err.get("loc", ())
             if p not in ("body", "query", "path", "header")
         ]
-        campos.append({
-            "campo":   ".".join(loc) if loc else "cuerpo",
-            "mensaje": str(err.get("msg", "Valor inválido.")),
-            "tipo":    str(err.get("type", "value_error")),
-        })
+        campo = ".".join(loc) if loc else "cuerpo"
+        mensaje = str(err.get("msg", "Valor inválido."))
+        detalles.setdefault(campo, mensaje)
 
     return error_response(
-        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         code=ErrorCode.VALIDATION_ERROR,
         message="Datos de entrada inválidos.",
-        details={"campos": campos},
+        details=detalles,
     )
 
 
 async def _unhandled_exception_handler(request: Request, exc: Exception):
-    # Traza / SQL / rutas internas: SOLO al log del servidor.
     logger.exception("Error no controlado en %s %s", request.method, request.url.path)
     return error_response(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -190,11 +181,10 @@ async def _unhandled_exception_handler(request: Request, exc: Exception):
 # --- Registro -------------------------------------------------------------
 
 def register_error_handlers(app: FastAPI) -> None:
-    """Engancha los tres manejadores. Nombre que usa main.py ."""
+    """Engancha los tres manejadores. Nombre que usa main.py."""
     app.add_exception_handler(StarletteHTTPException, _http_exception_handler)
     app.add_exception_handler(RequestValidationError, _validation_exception_handler)
     app.add_exception_handler(Exception, _unhandled_exception_handler)
 
 
-# Alias para compatibilidad con los tests (buscan `registrar_manejadores`).
 registrar_manejadores = register_error_handlers
