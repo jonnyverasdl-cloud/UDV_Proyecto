@@ -12,7 +12,7 @@ from g2_api.middleware.auth_middleware import requerir_rol
 
 
 
-router = APIRouter(prefix="/api/v1/rolces", tags=["Roles"])
+router = APIRouter(prefix="/api/v1/roles", tags=["Roles"])
 
 class RolCreate(BaseModel):
     codigo: str
