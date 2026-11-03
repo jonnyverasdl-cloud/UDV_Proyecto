@@ -37,7 +37,7 @@ def test_422_documenta_details_como_objeto_con_un_campo_por_llave():
 def test_ejemplo_de_usuario_trae_fechas_iso_con_zona_horaria():
     ejemplo = _resp("/api/v1/users/{usuario_id}", "get")["200"]["content"]["application/json"]["example"]
     for campo in ("creado_en", "actualizado_en"):
-        assert datetime.fromisoformat(ejemplo[campo]).tzinfo is not None
+        assert datetime.fromisoformat(ejemplo[campo].replace("Z", "+00:00")).tzinfo is not None
 
 def test_rutas_con_id_documentan_404():
     assert "404" in _resp("/api/v1/users/{usuario_id}", "get")
@@ -54,4 +54,3 @@ def test_422_real_devuelve_details_como_objeto_con_un_campo_por_llave(client):
     assert r.status_code == 422
     detalles = r.json()["error"]["details"]
     assert "correo" in detalles and isinstance(detalles["correo"], str)
-    
