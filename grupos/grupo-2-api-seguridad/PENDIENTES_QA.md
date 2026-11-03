@@ -6,7 +6,7 @@ Prioridad: **Alta** → **Media** → **Baja**. El Planner de Allison tiene tres
 
 ## Retest No. 2 (23 y 24-oct) · estado al 02-nov
 
-34 PASS, 2 FAIL, 1 PARCIAL y 1 PASS histórico con retest pendiente. `pytest` en `grupo-2` (02-nov): 98 pasan, 0 fallan, 1 xfail y 1 xpass (el xfail esperado es el `details` del 422; la contraseña de 8 a 64 al crear usuario ya pasa).
+34 PASS, 2 FAIL, 1 PARCIAL y 1 PASS histórico con retest pendiente. `pytest` en `grupo-2` (03-nov): 99 pasan, 1 falla y 1 xpass. La falla es `test_campo_obligatorio_faltante_422` en `tests/test_users.py` (Randy): todavía lee el `details` viejo con `campos`; hay que cambiarla a un objeto con un campo por llave. El `details` del 422 ya sale como objeto y el xfail de `tests/test_openapi.py` se quitó; la contraseña de 8 a 64 al crear usuario ya pasa.
 
 | Escenario | Resultado de QA | Quién | Archivo | Estado al 02-nov |
 |-|-|-|-|-|
@@ -14,7 +14,7 @@ Prioridad: **Alta** → **Media** → **Baja**. El Planner de Allison tiene tres
 | G2-31 | FAIL: `GET /users` sin paginación | Randy | `routers/users.py` | 🔵 Ya pagina desde el 24-oct. Falta retest |
 | G2-33 | PARCIAL: faltaban 409, 403 y ejemplos reales | Robert | `main.py` | 🔵 Hecho el 27 y 28-oct y probado en `tests/test_openapi.py`; ejemplos al día con el PM el 01-nov (fechas, `details` como objeto, 403 en archivos). Falta retest |
 | G2-32 | PASS histórico, retest pendiente: ya no salen `creado_en` ni `actualizado_en` | Randy y PM | `routers/users.py` | 🔵 Subido el 02-nov (`9205344`): salen de solo lectura, en ISO 8601 y en UTC con `Z` (por ejemplo `2026-10-29T21:30:00Z`), como pidió el PM (01-nov). Falta retest |
-| G2-36 | PASS de QA y del PM (retest del 23-oct). Antes el PM avisó que el login fallido se guardaba dos veces | Daniel y Edgar | `routers/auth.py`, `utils/registro.py` | ✅ PASS de QA. 02-nov: `registro_id = 0` otra vez con correo inexistente (Daniel); la prueba vuelve a pasar |
+| G2-36 | PASS de QA y del PM (retest del 23-oct). Antes el PM avisó que el login fallido se guardaba dos veces | Daniel y Edgar | `routers/auth.py`, `utils/registro.py` | ✅ PASS de QA. 02-nov: `registro_id = 0` otra vez con correo inexistente (Daniel); 03-nov: queda igual en `registro.py` (Edgar) |
 | Limpieza | Aviso del PM | Daniel | `routers/auth.py` | ✅ Hecho (02-nov): se quitó la carga de `usuarios_prueba.json` y la carpeta `datos_prueba/` |
 | Aviso del Grupo 1 (28-oct) | `set_actor_id()` en `registro.py` (línea 61) manda `@actor_id = 0` cuando no hay usuario y la llave foránea hace fallar la auditoría. Hoy ninguna ruta la llama | Edgar | `utils/registro.py` | ✅ Corregido el 30-oct: manda NULL (`f5b2d35`). Aparte, `users.py` ya pasa `request.client.host` a `fijar_actor` (Randy, 02-nov) |
 
@@ -134,8 +134,8 @@ El middleware de usuarios y roles todavía lee el encabezado `usuario-actual` y 
 | Escenario | Prioridad | Qué falta | Archivo | Estado |
 |-|-|-|-|-|
 | Pruebas | Alta | `error_handler.py` ya quedó arreglado: los 401, 403 y 404 responden bien (PM, 22-oct) y pasan 28 pruebas. Con los cambios del 23-oct pasan 33 y falla 1: el login fallido con correo inexistente no se guarda porque `registro_id` queda NULL. Corre `pytest` otra vez después de corregir. | `utils/registro.py`, `tests/test_errores.py` | ✅ `pytest` 40 de 40 (23-oct). Queda quitar las funciones que ya no se usan |
-| G2-36 | Baja | `registro.py` ya usa `tabla`, `registro_id` e `ip_origen` (20-oct). Login, login fallido y logout ya lo llaman. En los registros de `pytest` aparece «No se pudo registrar la accion»: la causa es que `tabla` y `registro_id` no pueden ir vacíos en la base (NOT NULL) y que `detalle` debe ser JSON válido (ya lo cubre `models.py`). El PM pidió escribir a mano solo login, login fallido y logout. | `utils/registro.py` | 🟡 Se guardaba (23-oct), pero el cambio del 30-oct dejó `registro_id` NULL y la base lo rechaza: volver a `registro_id = 0` |
-| G2-30 | Media | Dio PASS con el formato anterior. El manejador ahora responde `{"error": {...}}` como el contrato común: repetir 401, 403, 404, 409 y 422. El PM confirmó (01-nov) que `details` es un objeto con un campo por llave (no una lista); hoy sale `{"campos": [...]}`: ajustar. | `middleware/error_handler.py` | 🟡 Ajustar `error_handler.py` y `tests/test_errores.py`; después retest QA |
+| G2-36 | Baja | `registro.py` ya usa `tabla`, `registro_id` e `ip_origen` (20-oct). Login, login fallido y logout ya lo llaman. En los registros de `pytest` aparece «No se pudo registrar la accion»: la causa es que `tabla` y `registro_id` no pueden ir vacíos en la base (NOT NULL) y que `detalle` debe ser JSON válido (ya lo cubre `models.py`). El PM pidió escribir a mano solo login, login fallido y logout. | `utils/registro.py` | ✅ Corregido (02 y 03-nov): con correo inexistente o vacío guarda `registro_id = 0` y la base lo acepta |
+| G2-30 | Media | Dio PASS con el formato anterior. El manejador ahora responde `{"error": {...}}` como el contrato común: repetir 401, 403, 404, 409 y 422. El PM confirmó (01-nov) que `details` es un objeto con un campo por llave (no una lista); ya lo ajustó Edgar. | `middleware/error_handler.py` | 🔵 Hecho el 03-nov: `details` sale como objeto (`{"correo": "..."}`) y `{}` sin detalle; `tests/test_errores.py` al día. Falta retest QA |
 
 ### Fulvio · Persona 4 · Archivos y frontend
 | Escenario | Prioridad | Qué falta | Archivo | Estado |
@@ -154,7 +154,7 @@ El middleware de usuarios y roles todavía lee el encabezado `usuario-actual` y 
 | 3 | G2-34 | Las columnas `intentos_fallidos` y `bloqueado_hasta` coinciden con el script del Grupo 1 | `models.py` | ✅ Revisado contra `01_schema.sql`. Falta que el login las use (Daniel) |
 | 3 | G2-36 | `auditoria.detalle` guarda JSON válido (`JSON_VALID` de G1) y `fijar_actor(db, actor_id, ip)` llena `@actor_id` e `@ip_origen` | `models.py`, `database.py` | 🔵 Hecho el 22-oct. Daniel y Randy tienen que llamar a `fijar_actor` |
 | 3 | G2-32 | Fechas en UTC: cada conexión nueva a MySQL usa `time_zone = '+00:00'` | `database.py` | 🔵 Hecho el 22-oct |
-| 4 | G2-33 | `README.md` con títulos y tablas; revisar `/api/v1/docs` cuando todos terminen | `README.md`, `main.py` | 🔵 README corregido el 22-oct. Ejemplos de `main.py` al día con el PM el 01-nov. Falta la revisión final de OpenAPI (semana 5), cuando Randy y Edgar suban sus cambios |
+| 4 | G2-33 | `README.md` con títulos y tablas; revisar `/api/v1/docs` cuando todos terminen | `README.md`, `main.py` | 🔵 README corregido el 22-oct. Ejemplos de `main.py` al día con el PM el 01-nov. Revisión final de OpenAPI (semana 5) hecha el 03-nov, con Randy y Edgar ya subidos: se quitó el xfail y `tests/test_openapi.py` pasa 9 de 9. Falta el retest de QA |
 | 4 | G2-35 | El README explica `.env`, la base compartida y la auditoría, sin ningún dato real | `README.md` | 🔵 Hecho el 22-oct |
 | 4 | Pruebas | `pytest` corre para todos con SQLite temporal | `tests/conftest.py` | ✅ Sin cambios. Revisado el 23-oct: pasan 40 de 40 |
 | QA | G2-35 | Que el repositorio no tenga contraseñas ni variables sensibles | `.gitignore` | PASS de QA. Para mantenerlo: `grupo-2.txt` y `.env` nunca se suben, y `.env.example` solo lleva el formato |
@@ -174,7 +174,7 @@ El middleware de usuarios y roles todavía lee el encabezado `usuario-actual` y 
 | Quién | Archivo | Qué cambia |
 |-|-|-|
 | Edgar | `utils/registro.py` | `registrar_accion()` usaba columnas que no existen (`entidad`, `entidad_id`, `ip`). Ya quedó con `tabla`, `registro_id` e `ip_origen` (20-oct). Falta que login y logout lo llamen; sin eso el conteo de intentos sigue en 0. |
-| Edgar | `middleware/error_handler.py`, `tests/test_errores.py` | Ya responde bien (PM, 22-oct). Falta corregir `registro.py` para que las 4 pruebas que fallan pasen y confirmar con el PM si `details` es lista de objetos o diccionario. |
+| Edgar | `middleware/error_handler.py`, `tests/test_errores.py` | Ya responde bien (PM, 22-oct). `registro.py` ya quedó (`registro_id = 0`) y `details` es un objeto, como confirmó el PM (01-nov); todo hecho el 03-nov. |
 | Randy | `middleware/auth_middleware.py` | Lee el token Bearer, valida firma, vencimiento y sesión no revocada; 401 si falla, 403 si no tiene rol. |
 | Randy | `routers/users.py`, `routers/roles.py` | Pasan a la base; `GET /users/{id}` con 404; paginación; roles con los códigos del Grupo 1 (`admin`, `teacher`…); 401, 403, 404 y 409 documentados. |
 | Daniel | `routers/auth.py` | `POST /auth/logout`, `GET /me`, bloqueo de 5 intentos por 15 minutos, auditoría y 422 con campos vacíos. |
@@ -187,7 +187,7 @@ El middleware de usuarios y roles todavía lee el encabezado `usuario-actual` y 
 - Después de subir todo, la lista JSON de prueba (`datos_prueba/usuarios_prueba.json`) ya no se usa y se puede borrar.
 
 ### Formato de errores frente al contrato común (Edgar)
-Antes, `error_handler.py` respondía `{"status", "error", "meta"}` con `details` como lista, y el CONTRATO_COMUN pide `{"error": {"code", "message", "details": {}}}`. Con el cambio del 20-oct el manejador ya responde en el formato del contrato (`details` como diccionario), así que la decisión con el PM queda en cambiar el manejador, no el contrato. Como el PASS de G2-30 fue con el formato anterior, hay que repetirlo. Respuesta posterior del PM: se queda el formato actual de G2 (`error.code`, `error.message` y `error.details`, más `status` y `meta`), con `details` como lista de objetos por campo (`field`, `code`, `message`), y él actualiza el `CONTRATO_COMUN`. Respuesta final del PM (01-nov): `details` es un objeto (diccionario) con un campo por llave, como el `CONTRATO_COMUN`, y `{}` cuando no hay detalle (nunca null); la lista de objetos queda sin efecto. El código de hoy devuelve `{"campos": [...]}`: Edgar lo ajusta.
+Antes, `error_handler.py` respondía `{"status", "error", "meta"}` con `details` como lista, y el CONTRATO_COMUN pide `{"error": {"code", "message", "details": {}}}`. Con el cambio del 20-oct el manejador ya responde en el formato del contrato (`details` como diccionario), así que la decisión con el PM queda en cambiar el manejador, no el contrato. Como el PASS de G2-30 fue con el formato anterior, hay que repetirlo. Respuesta posterior del PM: se queda el formato actual de G2 (`error.code`, `error.message` y `error.details`, más `status` y `meta`), con `details` como lista de objetos por campo (`field`, `code`, `message`), y él actualiza el `CONTRATO_COMUN`. Respuesta final del PM (01-nov): `details` es un objeto (diccionario) con un campo por llave, como el `CONTRATO_COMUN`, y `{}` cuando no hay detalle (nunca null); la lista de objetos queda sin efecto. Edgar lo ajustó el 03-nov: hoy devuelve `{"correo": "..."}` (un campo por llave).
 
 ### Pruebas automáticas y auditoría
 - `pytest` completo: el 22-oct (aviso del PM) pasaban 28 y fallaban 4 (antes 15). Revisado el 23-oct: pasan 33 y falla 1, la de `registro.py` con el correo inexistente.
@@ -202,7 +202,7 @@ Antes, `error_handler.py` respondía `{"status", "error", "meta"}` con `details`
 - `semilla_local.py` ya no aparece en el repo (copia del 22-oct) y está en el `.gitignore`. Si lo tienes en tu carpeta local, no lo agregues con `git add`.
 
 
-## Planner: qué se puede marcar (estado al 02-nov)
+## Planner: qué se puede marcar (estado al 03-nov)
 
 *Esta tabla es del 02-nov y reemplaza a la del 23-oct. El detalle de cada aviso del PM está en la sección «Avisos del PM por prioridad».*
 
@@ -216,7 +216,7 @@ Allison revisa lo que se marque como completado en el Planner. Marca solo lo que
 | 🟡 Media | 1. Consulta del usuario autenticado: implementar el endpoint `/me` para recuperar la identidad y los roles del usuario autenticado | G2-07 | Ya cerrado: PASS confirmado por el PM |
 | 🟡 Media | 2. Consulta individual de usuarios: revisar la disponibilidad del endpoint GET por ID y devolver HTTP 404 cuando el usuario no exista | G2-12 (y G2-11) | Ya cerrado: PASS confirmado por el PM |
 | 🟡 Media | 3. Manejo de recursos inexistentes: revisar las rutas requeridas para garantizar respuestas HTTP apropiadas cuando un recurso no exista | G2-26 | Ya cerrado: PASS confirmado por el PM |
-| 🟡 Media | 4. Documentación OpenAPI/Swagger: actualizar la documentación de los endpoints, sus esquemas y las respuestas HTTP 401, 409 y demás códigos aplicables | G2-33 | Sí, como «listo para retest» (Robert, 27 y 28-oct; fechas del ejemplo en UTC el 02-nov). Falta que Edgar suba `details` como objeto para que coincida del todo |
+| 🟡 Media | 4. Documentación OpenAPI/Swagger: actualizar la documentación de los endpoints, sus esquemas y las respuestas HTTP 401, 409 y demás códigos aplicables | G2-33 | Sí, como «listo para retest» (Robert, 27 y 28-oct; fechas del ejemplo en UTC el 02-nov). Edgar ya subió `details` como objeto (03-nov), así que coincide del todo |
 | ⚪ Baja | 1. Paginación de usuarios: revisar la implementación de paginación en el listado de usuarios | G2-31 | Sí, como «listo para retest» (Randy, 24-oct, con `tests/test_users.py`) |
 | ⚪ Baja | 2. Fechas `creado_en` y `actualizado_en`: confirmar si se incluyen en las respuestas de usuarios y su formato | G2-32 | Sí, como «listo para retest» (Randy, 02-nov, `9205344`): solo lectura, ISO 8601 en UTC con `Z`, como confirmó el PM (01-nov) |
 | ⚪ Baja | 3. Bloqueo por intentos fallidos: integrar el bloqueo de 15 minutos después de cinco intentos fallidos de autenticación | G2-34 | Ya cerrado: PASS del PM y del QA |
