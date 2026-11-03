@@ -6,6 +6,7 @@ import pytest
 
 from g2_api.models import Rol, Usuario, UsuarioRol
 from g2_api.seguridad import hashear_contrasena
+from datetime import datetime
 
 URL = "/api/v1/users"
 LOGIN = "/api/v1/auth/login"
@@ -422,3 +423,12 @@ def test_usuario_desactivado_pierde_el_acceso(client, headers_admin):
     
     assert client.get(URL, headers=headers_usuario).status_code == 401
     
+def test_de_las_respuestas_con_fecha(client, headers_admin):
+    usuario= _crear(client, headers_admin)
+    for campo in ("creado_en",  "actualizado_en"):
+        valor= usuario[campo]
+        assert valor.endswith("Z")
+        datetime.fromisoformat(valor.replace("Z", "+00:00"))
+        
+    enlista = client.get(URL, headers=headers_admin).json()["data"][0]
+    assert "creado_en" in enlista and "actualizado_en" in enlista
