@@ -1,8 +1,6 @@
 # Pruebas de OpenAPI (G2-33, Persona 5): Swagger debe coincidir con lo que responde la API.
 from datetime import datetime
 
-import pytest
-
 from g2_api.main import app
 
 def _resp(ruta, metodo):
@@ -37,7 +35,7 @@ def test_422_documenta_details_como_objeto_con_un_campo_por_llave():
 def test_ejemplo_de_usuario_trae_fechas_iso_con_zona_horaria():
     ejemplo = _resp("/api/v1/users/{usuario_id}", "get")["200"]["content"]["application/json"]["example"]
     for campo in ("creado_en", "actualizado_en"):
-        assert datetime.fromisoformat(ejemplo[campo]).tzinfo is not None
+        assert datetime.fromisoformat(ejemplo[campo].replace("Z", "+00:00")).tzinfo is not None
 
 def test_rutas_con_id_documentan_404():
     assert "404" in _resp("/api/v1/users/{usuario_id}", "get")
@@ -48,10 +46,8 @@ def test_descarga_de_archivos_documenta_403_y_subida_devuelve_file_id_numerico()
     ejemplo = _resp("/api/v1/files", "post")["200"]["content"]["application/json"]["example"]
     assert isinstance(ejemplo["file_id"], int)
 
-@pytest.mark.xfail(reason="Edgar debe cambiar details a objeto con un campo por llave (PM).", strict=False)
 def test_422_real_devuelve_details_como_objeto_con_un_campo_por_llave(client):
     r = client.post("/api/v1/auth/login", json={"correo": "", "password": ""})
     assert r.status_code == 422
     detalles = r.json()["error"]["details"]
     assert "correo" in detalles and isinstance(detalles["correo"], str)
-    

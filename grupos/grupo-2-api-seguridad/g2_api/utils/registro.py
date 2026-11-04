@@ -1,5 +1,3 @@
-
-
 from __future__ import annotations
 
 import logging
@@ -31,26 +29,28 @@ FILE_DOWNLOADED = "FILE_DOWNLOADED"
 # --- Helpers ----------------------------------------------------------------
 
 def _modelo_auditoria():
-    """ si `models` aún no está, degradamos sin romper."""
+    """Si `models` aún no está, degradamos sin romper."""
     from g2_api.models import Auditoria  # type: ignore
 
     return Auditoria
 
 
 def _ahora() -> datetime:
-    """(compatible con DATETIME de MySQL y con SQLite)."""
+    """UTC naive (compatible con DATETIME de MySQL y con SQLite)."""
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 def ip_del_request(request: Request | None) -> str | None:
-    """ para routers:"""
+    """Helper para routers: obtiene la IP del cliente."""
     if request is None:
         return None
     cliente = getattr(request, "client", None)
     return getattr(cliente, "host", None) if cliente else None
 
+
 def fijar_actor(db: Session, actor_id: int | None) -> None:
-    
+    """CONTRATO_COMUN
+    """
     try:
         dialecto = ""
         bind = getattr(db, "bind", None)
@@ -63,10 +63,11 @@ def fijar_actor(db: Session, actor_id: int | None) -> None:
         logger.exception("No se pudo fijar @actor_id para triggers del G1")
 
 
-# Alias de compatibilidad 
 set_actor_id = fijar_actor
 
+
 # --- Escritura --------------------------------------------------------------
+
 def registrar_accion(
     db: Session,
     accion: str,
@@ -77,18 +78,20 @@ def registrar_accion(
     detalle: Mapping[str, Any] | None = None,
     ip_origen: str | None = None,
 ) -> bool:
-    """True si se guardó, False si falló."""
+    """Inserta una fila en `auditoria`. True si se guardó, False si falló.
+    """
     try:
-        # 0 no es un id válido: se persiste NULL 
-        if actor_id is not None and actor_id <= 0:
-            actor_id = None
+        reg_id = int(registro_id) if registro_id is not None else 0
+
+        # actor_id: 0 no es id válido → NULL (FK del G1).
+        act_id = actor_id if (actor_id is not None and actor_id > 0) else None
 
         Auditoria = _modelo_auditoria()
         fila = Auditoria(
             accion      = str(accion).upper(),
-            actor_id    = actor_id,
-            tabla       = tabla,
-            registro_id = int(registro_id) if registro_id is not None else None,
+            actor_id    = act_id,
+            tabla       = tabla or "",
+            registro_id = reg_id,
             detalle     = dict(detalle) if detalle else None,
             ip_origen   = ip_origen,
             creado_en   = _ahora(),
@@ -108,7 +111,9 @@ def registrar_login_ok(
     db: Session, actor_id: int, *, ip_origen: str | None = None
 ) -> bool:
     return registrar_accion(
-        db, LOGIN_OK, actor_id=actor_id, tabla="auth", ip_origen=ip_origen
+        db, LOGIN_OK,
+        actor_id=actor_id, tabla="auth", registro_id=actor_id,
+        ip_origen=ip_origen,
     )
 
 
@@ -116,7 +121,9 @@ def registrar_logout(
     db: Session, actor_id: int, *, ip_origen: str | None = None
 ) -> bool:
     return registrar_accion(
-        db, LOGOUT, actor_id=actor_id, tabla="auth", ip_origen=ip_origen
+        db, LOGOUT,
+        actor_id=actor_id, tabla="auth", registro_id=actor_id,
+        ip_origen=ip_origen,
     )
 
 
@@ -128,35 +135,35 @@ def registrar_login_fallido(
     correo_norm = (correo or "").strip().lower()
     actor_id: int | None = None
     try:
-        from g2_api.models import Usuario  # type: ignore
+        if correo_norm:
+            from g2_api.models import Usuario  # type: ignore
 
-        u = (
-            db.query(Usuario)
-            .filter(Usuario.correo == correo_norm)
-            .first()
-        )
-        if u is not None:
-            actor_id = getattr(u, "id_usuario", None) or getattr(u, "id", None)
+            u = (
+                db.query(Usuario)
+                .filter(Usuario.correo == correo_norm)
+                .first()
+            )
+            if u is not None:
+                actor_id = getattr(u, "id_usuario", None) or getattr(u, "id", None)
     except Exception:  # noqa: BLE001
         actor_id = None
 
+    registro_id = actor_id if actor_id is not None else 0
+
     return registrar_accion(
-        db,
-        LOGIN_FALLIDO,
-        actor_id    = actor_id,
+        db, LOGIN_FALLIDO,
+        actor_id    = actor_id,          # NULL permitido
         tabla       = "auth",
-        registro_id = actor_id if actor_id is not None else 0,  # la base no acepta NULL aqui (01_schema.sql)
-        detalle     = {"correo": correo_norm},     # correo normalizado
+        registro_id = registro_id,       # 0 cuando no hay usuario
+        detalle     = {"correo": correo_norm},
         ip_origen   = ip_origen,
     )
 
 
-# --- Consultas  -----------------------------------------
+# --- Consultas -----------------------------------------
 
 def contar_intentos_fallidos(db: Session, correo: str, minutos: int) -> int:
     """Cuenta LOGIN_FALLIDO del mismo correo en la ventana de `minutos`.
-
-    Filtra por `detalle.correo` ).
     """
     try:
         Auditoria = _modelo_auditoria()
@@ -191,7 +198,7 @@ def esta_bloqueado(
 
 
 def limpiar_intentos(db: Session, correo: str) -> None:
-    """Borra los LOGIN_FALLIDO del correo tras un login exitoso (opcional)."""
+    """Borra los LOGIN_FALLIDO del correo tras un login exitoso ."""
     try:
         Auditoria = _modelo_auditoria()
         correo_norm = (correo or "").strip().lower()
