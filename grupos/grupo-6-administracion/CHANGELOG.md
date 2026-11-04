@@ -8,6 +8,9 @@ La versión es la de `g6_admin/__init__.py` y la que muestra
 - **G6-15:** `GET /api/v1/audit` también muestra el historial de asignaciones
   del G3 (tabla `tarea_transicion`) como acción `transition`. Cada registro
   dice de dónde sale en `source`. El G3 no tiene que escribirlo dos veces.
+- **Planner No.3:** prueba de punta a punta `tests/integracion/test_flujo_e2e.py`
+  con el workflow real del G3 (G6-04 a G6-16 y G6-18). Evidencia en
+  `docs/evidencia_planner3.md`.
 - Los errores 422 aceptan el nuevo formato de `details` del G2
   (`{"campo": "mensaje"}`) en las pruebas y en la pantalla de catálogos.
 

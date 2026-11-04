@@ -173,6 +173,8 @@ triggers reales del G1.
 | `test_seguridad.py` | G6-20, G6-36 |
 | `test_persistencia.py` | G6-37 |
 | `test_regresion.py` | G6-40 |
+| `integracion/test_mysql_g1.py` | Catálogos, panel, auditoría y permisos contra MySQL con el login real |
+| `integracion/test_flujo_e2e.py` | G6-04 a G6-16 y G6-18 de punta a punta: la app completa (`main.py`, con el G3) recorre una tarea y revisa avisos y auditoría en cada paso |
 | `integracion/test_mysql_g1.py` | Todo lo anterior contra MySQL y el login del G2; el panel contra la vista `v_panel_tarea` |
 
 ## Cómo se integra a la aplicación
