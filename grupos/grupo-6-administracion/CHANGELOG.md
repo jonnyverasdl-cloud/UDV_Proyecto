@@ -3,6 +3,14 @@
 La versión es la de `g6_admin/__init__.py` y la que muestra
 `GET /api/v1/health` si no se define `APP_VERSION`.
 
+## 0.4.1 (04-nov-2026), retest de QA
+
+- **G6-15:** `GET /api/v1/audit` también muestra el historial de asignaciones
+  del G3 (tabla `tarea_transicion`) como acción `transition`. Cada registro
+  dice de dónde sale en `source`. El G3 no tiene que escribirlo dos veces.
+- Los errores 422 aceptan el nuevo formato de `details` del G2
+  (`{"campo": "mensaje"}`) en las pruebas y en la pantalla de catálogos.
+
 ## 0.4.0 (28-oct-2026), Planner No.2
 
 - **Panel de indicadores** `GET /api/v1/dashboard` y pantalla `panel.html`:

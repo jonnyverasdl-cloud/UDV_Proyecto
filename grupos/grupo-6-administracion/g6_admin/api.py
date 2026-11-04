@@ -137,6 +137,8 @@ class PaginaNotificaciones(BaseModel):
 
 class RegistroAuditoriaSalida(BaseModel):
     id: int
+    source: str = Field(description="audit (tabla auditoria) o assignment_history "
+                                    "(historial de asignaciones del G3); el id es de esa tabla")
     actor_id: int | None
     actor_email: str | None
     actor_name: str | None

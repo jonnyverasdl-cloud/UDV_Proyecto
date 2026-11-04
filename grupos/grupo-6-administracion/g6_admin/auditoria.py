@@ -4,11 +4,13 @@ Cada acción importante deja un registro con quién la hizo, cuándo, sobre qué
 entidad y qué cambió. Los registros solo se agregan: no hay forma de editarlos
 ni de borrarlos (CONTRATO_COMUN.md §1, "Auditoría").
 
-Las transiciones de estado (G6-15) las reportan el G3 (tareas y asignaciones)
-y el G5 (versiones de programa); los cambios de catálogos los registra el
-propio G6. Todo se guarda en la tabla `auditoria` del G1, la misma donde sus
-triggers registran tareas, programas y usuarios, y el G2 los inicios de sesión;
-así la consulta muestra el historial completo. Quién puede consultar
+Los cambios de catálogos los registra el propio G6 en la tabla `auditoria` del
+G1, la misma donde sus triggers registran tareas, programas y usuarios, y el G2
+los inicios de sesión. Las transiciones de las asignaciones (G6-15) las guarda
+el G3 en `tarea_transicion`; la consulta las une a la auditoría como acción
+"transition", así muestra el historial completo sin que el G3 las escriba dos
+veces. Otro módulo que no tenga historial propio, como el G5 con las versiones
+de programa, usa registrar_transicion. Quién puede consultar
 (administración y auditoría, los roles con el permiso audit.read del G1) lo
 decide api.py con el middleware del G2.
 """
@@ -18,10 +20,11 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 from g2_api.middleware.error_handler import ErrorCode, api_error
-from sqlalchemy import func, insert, select
+from sqlalchemy import func, insert, literal, null, select, union_all
 from sqlalchemy.orm import Session
 
 from .tablas import auditoria as tabla_auditoria
+from .tablas import tarea_transicion as tabla_transicion
 from .tablas import usuario as tabla_usuario
 
 # Estados oficiales (CONTRATO_COMUN.md §2). Una transición solo se acepta con
@@ -43,6 +46,10 @@ ACCION_MAXIMA = 20   # auditoria.accion es VARCHAR(20)
 ENTIDAD_MAXIMA = 64  # auditoria.tabla es VARCHAR(64)
 COMENTARIO_MAXIMO = 1000
 _CLAVES_TRANSICION = ("estado_anterior", "estado_nuevo", "comentario")
+# De dónde sale cada registro de la consulta.
+ORIGEN_AUDITORIA = "audit"
+ORIGEN_HISTORIAL = "assignment_history"
+ENTIDAD_HISTORIAL = "tarea_destinatario"
 
 
 def _iso(valor: Any) -> str | None:
@@ -66,26 +73,38 @@ def _sin_secretos(valor: Any) -> Any:
 
 
 def como_dict(fila: Any) -> dict[str, Any]:
-    """Fila de la tabla auditoria del G1 → JSON de la API.
+    """Fila de la tabla auditoria del G1 (o de tarea_transicion) → JSON de la API.
 
-    Sirve igual para lo que registra el G6 y para lo que registran los
-    triggers del G1 (tarea, programa_version, usuario) y el login del G2.
+    Sirve igual para lo que registra el G6, para lo que registran los
+    triggers del G1 (tarea, programa_version, usuario) y el login del G2, y
+    para el historial de asignaciones del G3, que llega con sus estados en
+    columnas propias en lugar de dentro de detalle.
     """
+    origen = getattr(fila, "origen", ORIGEN_AUDITORIA)
+    if origen == ORIGEN_HISTORIAL:
+        tabla, accion, registro_id = (ENTIDAD_HISTORIAL, ACCION_TRANSICION,
+                                      fila.tarea_destinatario_id)
+        detalle_historial = {"estado_anterior": fila.estado_anterior,
+                             "estado_nuevo": fila.estado_nuevo,
+                             "comentario": fila.comentario}
+    else:
+        tabla, accion, registro_id = fila.tabla, fila.accion, fila.registro_id
     try:
         detalle = json.loads(fila.detalle) if fila.detalle else {}
     except ValueError:
         detalle = {"texto": fila.detalle}
     if not isinstance(detalle, dict):
         detalle = {"valor": detalle}
+    if origen == ORIGEN_HISTORIAL:
+        detalle = detalle_historial
     detalle = _sin_secretos(detalle)
-    registro_id = fila.registro_id
     # correo, nombres y apellidos solo vienen cuando la consulta une con usuario.
     nombre = " ".join(p for p in (getattr(fila, "nombres", None),
                                   getattr(fila, "apellidos", None)) if p)
-    return {"id": fila.id, "actor_id": fila.actor_id,
+    return {"id": fila.id, "source": origen, "actor_id": fila.actor_id,
             "actor_email": getattr(fila, "correo", None), "actor_name": nombre or None,
-            "action": fila.accion,
-            "entity": fila.tabla,
+            "action": accion,
+            "entity": tabla,
             "entity_id": int(registro_id) if str(registro_id).isdigit() else registro_id,
             "created_at": _iso(fila.creado_en),
             "from_state": detalle.get("estado_anterior"),
@@ -119,39 +138,77 @@ class RepositorioAuditoria:
     def consultar(self, *, actor_id: int | None, desde: date | None, hasta: date | None,
                   entidad: str | None, accion: str | None,
                   pagina: int, por_pagina: int) -> tuple[int, list[dict[str, Any]]]:
-        t = tabla_auditoria
-        condiciones = []
-        if actor_id is not None:
-            condiciones.append(t.c.actor_id == actor_id)
-        if entidad:
-            condiciones.append(t.c.tabla == entidad)
-        if accion:
-            condiciones.append(t.c.accion == accion)
-        if desde:
-            condiciones.append(t.c.creado_en >= datetime.combine(desde, datetime.min.time()))
-        if hasta:
-            condiciones.append(t.c.creado_en < datetime.combine(
-                hasta + timedelta(days=1), datetime.min.time()))
+        consulta = self._registros(actor_id=actor_id, desde=desde, hasta=hasta,
+                                   entidad=entidad, accion=accion).subquery()
         total = self.sesion.execute(
-            select(func.count()).select_from(t).where(*condiciones)).scalar_one()
+            select(func.count()).select_from(consulta)).scalar_one()
         u = tabla_usuario
         filas = self.sesion.execute(
-            select(t, u.c.correo, u.c.nombres, u.c.apellidos)
-            .outerjoin(u, u.c.id == t.c.actor_id)
-            .where(*condiciones).order_by(t.c.id.desc())
+            select(consulta, u.c.correo, u.c.nombres, u.c.apellidos)
+            .outerjoin(u, u.c.id == consulta.c.actor_id)
+            .order_by(consulta.c.creado_en.desc(), consulta.c.origen, consulta.c.id.desc())
             .limit(por_pagina).offset((pagina - 1) * por_pagina))
         return total, [como_dict(f) for f in filas]
 
+    def _registros(self, *, actor_id: int | None = None, desde: date | None = None,
+                   hasta: date | None = None, entidad: str | None = None,
+                   accion: str | None = None):
+        """La tabla auditoria y el historial del G3, con los mismos filtros.
+
+        Cada lado trae sus propias columnas y deja en NULL las del otro: unir
+        textos de las dos tablas en una misma columna falla en MySQL si sus
+        collations no coinciden. La entidad y la acción del historial las pone
+        como_dict.
+        """
+        t, h = tabla_auditoria, tabla_transicion
+        de_auditoria = select(
+            literal(ORIGEN_AUDITORIA).label("origen"), t.c.id, t.c.actor_id, t.c.creado_en,
+            t.c.tabla, t.c.registro_id, t.c.accion, t.c.detalle,
+            null().label("tarea_destinatario_id"), null().label("estado_anterior"),
+            null().label("estado_nuevo"), null().label("comentario"))
+        de_historial = select(
+            literal(ORIGEN_HISTORIAL).label("origen"), h.c.id, h.c.actor_id, h.c.creado_en,
+            null().label("tabla"), null().label("registro_id"), null().label("accion"),
+            null().label("detalle"), h.c.tarea_destinatario_id, h.c.estado_anterior,
+            h.c.estado_nuevo, h.c.comentario)
+        if actor_id is not None:
+            de_auditoria = de_auditoria.where(t.c.actor_id == actor_id)
+            de_historial = de_historial.where(h.c.actor_id == actor_id)
+        if desde:
+            inicio = datetime.combine(desde, datetime.min.time())
+            de_auditoria = de_auditoria.where(t.c.creado_en >= inicio)
+            de_historial = de_historial.where(h.c.creado_en >= inicio)
+        if hasta:
+            fin = datetime.combine(hasta + timedelta(days=1), datetime.min.time())
+            de_auditoria = de_auditoria.where(t.c.creado_en < fin)
+            de_historial = de_historial.where(h.c.creado_en < fin)
+        if entidad:
+            de_auditoria = de_auditoria.where(t.c.tabla == entidad)
+        if accion:
+            de_auditoria = de_auditoria.where(t.c.accion == accion)
+        partes = [de_auditoria]
+        if self._incluye_historial(entidad, accion):
+            partes.append(de_historial)
+        return union_all(*partes)
+
+    @staticmethod
+    def _incluye_historial(entidad: str | None, accion: str | None) -> bool:
+        return entidad in (None, "", ENTIDAD_HISTORIAL) and accion in (None, "", ACCION_TRANSICION)
+
     def opciones(self) -> dict[str, list[Any]]:
         """Valores que existen en la auditoría, para llenar los filtros."""
-        t, u = tabla_auditoria, tabla_usuario
-        entidades = self.sesion.execute(select(t.c.tabla).distinct().order_by(t.c.tabla))
-        acciones = self.sesion.execute(select(t.c.accion).distinct().order_by(t.c.accion))
+        t, h, u = tabla_auditoria, tabla_transicion, tabla_usuario
+        entidades = set(self.sesion.execute(select(t.c.tabla).distinct()).scalars())
+        acciones = set(self.sesion.execute(select(t.c.accion).distinct()).scalars())
+        if self.sesion.execute(select(h.c.id).limit(1)).first() is not None:
+            entidades.add(ENTIDAD_HISTORIAL)
+            acciones.add(ACCION_TRANSICION)
+        r = self._registros().subquery()
         actores = self.sesion.execute(
-            select(t.c.actor_id, u.c.correo).distinct()
-            .outerjoin(u, u.c.id == t.c.actor_id)
-            .where(t.c.actor_id.is_not(None)).order_by(t.c.actor_id))
-        return {"entities": [e for (e,) in entidades], "actions": [a for (a,) in acciones],
+            select(r.c.actor_id, u.c.correo).distinct()
+            .outerjoin(u, u.c.id == r.c.actor_id)
+            .where(r.c.actor_id.is_not(None)).order_by(r.c.actor_id))
+        return {"entities": sorted(entidades), "actions": sorted(acciones),
                 "users": [{"id": i, "email": c} for i, c in actores]}
 
 
