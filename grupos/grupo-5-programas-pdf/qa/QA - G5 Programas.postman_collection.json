@@ -1,0 +1,403 @@
+{
+  "info": {
+    "_postman_id": "54d5b67d-4b97-49ed-b447-7d67b3e14bb5",
+    "name": "QA - G5 Programas",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "59070311",
+    "_collection_link": "https://go.postman.co/collection/59070311-54d5b67d-4b97-49ed-b447-7d67b3e14bb5?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "A. Flujo de Negocio",
+      "item": [
+        {
+          "name": "G5-01A - Crear programa base",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status es 201', function () { pm.response.to.have.status(201); });",
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.id) { pm.collectionVariables.set('programa_id', jsonData.id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo_curso\": \"ING101\",\n  \"nombre\": \"Matemática Aplicada\",\n  \"periodo\": \"2027-1\",\n  \"sede\": \"Central\"\n}"
+            },
+            "url": {
+              "raw": "{{url_base}}/course-programs",
+              "host": [
+                "{{url_base}}"
+              ],
+              "path": [
+                "course-programs"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "G5-01B - Crear versión borrador (draft)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201 y estado draft', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.state || jsonData.estado).to.eql('draft');",
+                  "    if (jsonData.id) { pm.collectionVariables.set('version_id', jsonData.id); }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accion\": \"crear_nueva\"\n}"
+            },
+            "url": {
+              "raw": "{{url_base}}/course-programs/{{programa_id}}/versions",
+              "host": [
+                "{{url_base}}"
+              ],
+              "path": [
+                "course-programs",
+                "{{programa_id}}",
+                "versions"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "G5-02A - Guardar evaluación válida (100%)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status es 200', function () { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"zonas\": [\n    {\"actividad\": \"Parcial 1\", \"ponderacion\": 20},\n    {\"actividad\": \"Parcial 2\", \"ponderacion\": 30},\n    {\"actividad\": \"Examen Final\", \"ponderacion\": 50}\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{url_base}}/program-versions/{{version_id}}/sections/evaluacion",
+              "host": [
+                "{{url_base}}"
+              ],
+              "path": [
+                "program-versions",
+                "{{version_id}}",
+                "sections",
+                "evaluacion"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "G5-02B - Enviar a revisión (submit)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{url_base}}/program-versions/{{version_id}}/submit",
+              "host": [
+                "{{url_base}}"
+              ],
+              "path": [
+                "program-versions",
+                "{{version_id}}",
+                "submit"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "G5-02C - Tomar revisión (review)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{url_base}}/program-versions/{{version_id}}/review",
+              "host": [
+                "{{url_base}}"
+              ],
+              "path": [
+                "program-versions",
+                "{{version_id}}",
+                "review"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "G5-02D - Aprobar contenido (approve)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{url_base}}/program-versions/{{version_id}}/approve",
+              "host": [
+                "{{url_base}}"
+              ],
+              "path": [
+                "program-versions",
+                "{{version_id}}",
+                "approve"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "G5-02E - Autorizar versión (authorize)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{url_base}}/program-versions/{{version_id}}/authorize",
+              "host": [
+                "{{url_base}}"
+              ],
+              "path": [
+                "program-versions",
+                "{{version_id}}",
+                "authorize"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "G5-08 - Descargar PDF Oficial",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{url_base}}/program-versions/{{version_id}}/pdf",
+              "host": [
+                "{{url_base}}"
+              ],
+              "path": [
+                "program-versions",
+                "{{version_id}}",
+                "pdf"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "B. Reglas Duras y Vulnerabilidades",
+      "item": [
+        {
+          "name": "G5-04 - Ataque Inmutabilidad (Editar versión bloqueada)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Rechaza edición con 409 o 403', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([403, 409]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"modificacion_ilegal\": \"Intentando editar versión autorizada\"\n}"
+            },
+            "url": {
+              "raw": "{{url_base}}/program-versions/{{version_id}}",
+              "host": [
+                "{{url_base}}"
+              ],
+              "path": [
+                "program-versions",
+                "{{version_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "G5-05 - Transición Fantasma (Saltar de draft a approve)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Bloquea salto de estado con 409', function () {",
+                  "    pm.response.to.have.status(409);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{url_base}}/program-versions/{{version_id}}/approve",
+              "host": [
+                "{{url_base}}"
+              ],
+              "path": [
+                "program-versions",
+                "{{version_id}}",
+                "approve"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "G5-06 - Ataque Matemático (Zonas suman 110%)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Rechaza suma incorrecta con 422', function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"zonas\": [\n    {\"actividad\": \"Parcial 1\", \"ponderacion\": 30},\n    {\"actividad\": \"Parcial 2\", \"ponderacion\": 30},\n    {\"actividad\": \"Examen Final\", \"ponderacion\": 50}\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{url_base}}/program-versions/{{version_id}}/sections/evaluacion",
+              "host": [
+                "{{url_base}}"
+              ],
+              "path": [
+                "program-versions",
+                "{{version_id}}",
+                "sections",
+                "evaluacion"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "G5-07 - Bloqueo de PDF Prematuro (En estado draft)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Bloquea PDF no autorizado con 403 o 409', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([403, 409]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{url_base}}/program-versions/{{version_id}}/pdf",
+              "host": [
+                "{{url_base}}"
+              ],
+              "path": [
+                "program-versions",
+                "{{version_id}}",
+                "pdf"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "url_base",
+      "value": "http://localhost:8000/api/v1"
+    },
+    {
+      "key": "programa_id",
+      "value": "1"
+    },
+    {
+      "key": "version_id",
+      "value": "1"
+    },
+    {
+      "key": "token",
+      "value": ""
+    }
+  ]
+}
