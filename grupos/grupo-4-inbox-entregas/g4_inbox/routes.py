@@ -40,6 +40,28 @@ if USAR_MYSQL:
 
 router = APIRouter(prefix="/api/v1", tags=["G4 - Inbox y entregas"])
 
+# Roles que pueden ver asignaciones que NO son suyas (los demás docentes no).
+# Son los códigos de la tabla rol de G1. Si el PM decide que admin, authority
+# o auditor también, se agregan aquí y nada más cambia.
+ROLES_CON_ACCESO_GLOBAL = {"reviewer", "coordinator"}
+
+
+def _exigir_acceso(asignacion: dict, usuario: Usuario, solo_dueno: bool = False) -> None:
+    """Corta con 403 si el usuario no tiene que ver esta asignación.
+
+    - El docente destinatario siempre puede.
+    - Revisor y coordinador pueden VER (y comentar), salvo que solo_dueno=True.
+    - solo_dueno=True se usa para lo que modifica la entrega del docente
+      (borrador, archivos): ahí ni el revisor ni el coordinador deben tocar.
+    """
+    if asignacion["assignee_id"] == usuario.id:
+        return
+    if not solo_dueno:
+        roles = {r.codigo for r in (usuario.roles or [])}
+        if roles & ROLES_CON_ACCESO_GLOBAL:
+            return
+    raise HTTPException(status_code=403, detail="No tienes acceso a esta asignación")
+
 
 # ============================================================================
 # "BASE DE DATOS" EN MEMORIA (reemplaza temporalmente a G1 si USAR_MYSQL=0)
@@ -141,8 +163,10 @@ class ArchivoIn(BaseModel):
 def inbox(q: str = "", status: Optional[str] = None, page: int = 1, per_page: int = 20,
            usuario: Usuario = Depends(obtener_usuario_actual)):
     try:
+        orden = database.fetch_orden_prioridades() if USAR_MYSQL else None
         return listar_inbox(_asignaciones_para_inbox(), usuario.id,
-                             q=q, status=status, page=page, per_page=per_page)
+                             q=q, status=status, page=page, per_page=per_page,
+                             )#orden_prioridad=orden
     except ErrorValidacion as e:
         raise HTTPException(status_code=422, detail=e.details)
 
@@ -160,6 +184,7 @@ def detalle_asignacion(assignment_id: int, usuario: Usuario = Depends(obtener_us
     a = buscar_asignacion(assignment_id)
     if not a:
         raise HTTPException(status_code=404, detail="Asignación no encontrada")
+    _exigir_acceso(a, usuario, solo_dueno=False)
     return {**a, "allowed_actions": acciones_permitidas(a)}
 
 
@@ -172,6 +197,7 @@ def guardar_borrador(assignment_id: int, borrador: BorradorIn,
     a = buscar_asignacion(assignment_id)
     if not a:
         raise HTTPException(status_code=404, detail="Asignación no encontrada")
+    _exigir_acceso(a, usuario, solo_dueno=True)
     a["draft_comment"] = borrador.comment
     return {"status": "borrador guardado", "draft_comment": a["draft_comment"]}
 
@@ -184,6 +210,7 @@ def listar_comentarios(assignment_id: int, usuario: Usuario = Depends(obtener_us
     a = buscar_asignacion(assignment_id)
     if not a:
         raise HTTPException(status_code=404, detail="Asignación no encontrada")
+    _exigir_acceso(a, usuario, solo_dueno=False)
     return a["comments"]
 
 
@@ -193,6 +220,7 @@ def crear_comentario(assignment_id: int, comentario: ComentarioIn,
     a = buscar_asignacion(assignment_id)
     if not a:
         raise HTTPException(status_code=404, detail="Asignación no encontrada")
+    _exigir_acceso(a, usuario, solo_dueno=False)
     nuevo = {"author": str(usuario.id), "text": comentario.text}
     a["comments"].append(nuevo)
     return nuevo
@@ -207,5 +235,6 @@ def vincular_archivo(assignment_id: int, archivo: ArchivoIn,
     a = buscar_asignacion(assignment_id)
     if not a:
         raise HTTPException(status_code=404, detail="Asignación no encontrada")
+    _exigir_acceso(a, usuario, solo_dueno=True)
     a["files"].append({"file_id": archivo.file_id, "name": archivo.name})
     return {"status": "archivo vinculado", "files": a["files"]}

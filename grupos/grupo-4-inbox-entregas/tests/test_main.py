@@ -14,16 +14,22 @@ from g4_inbox.main import app
 from g2_api.routers.auth import obtener_usuario_actual
 
 
+class RolFalso:
+    def __init__(self, codigo):
+        self.codigo = codigo
+
+
 class UsuarioFalso:
     """No es el Usuario real de G2 (ese viene de la base) — solo necesita
-    tener un atributo .id, que es lo único que nuestro código usa."""
-    def __init__(self, id):
+    .id y .roles (lista de objetos con .codigo), que es lo que usamos."""
+    def __init__(self, id, roles=()):
         self.id = id
+        self.roles = [RolFalso(r) for r in roles]
 
 
-def autenticar_como(id_usuario):
+def autenticar_como(id_usuario, roles=("teacher",)):
     """Reemplaza, solo durante la prueba, 'quién es el usuario actual'."""
-    app.dependency_overrides[obtener_usuario_actual] = lambda: UsuarioFalso(id_usuario)
+    app.dependency_overrides[obtener_usuario_actual] = lambda: UsuarioFalso(id_usuario, roles)
 
 
 cliente = TestClient(app)
@@ -71,6 +77,51 @@ def test_acciones_no_estan_en_el_router_principal():
     rutas_del_router_principal = {r.path for r in modulo_routes.router.routes}
     assert "/api/v1/assignments/{assignment_id}/start" not in rutas_del_router_principal
     assert "/api/v1/assignments/{assignment_id}/approve" not in rutas_del_router_principal
+
+
+
+# ============================================================================
+# ACCESO A UNA ASIGNACIÓN AJENA — el hallazgo del 28/10 del PM:
+# docente2 abrió GET /assignments/1 (de docente1) y recibió 200.
+# ============================================================================
+def test_docente_no_puede_ver_el_detalle_de_otro_docente():
+    autenticar_como(2)  # docente 2
+    respuesta = cliente.get("/api/v1/assignments/1")  # la 1 es de docente 1
+    assert respuesta.status_code == 403
+
+
+def test_el_dueno_si_puede_ver_su_detalle():
+    autenticar_como(1)
+    assert cliente.get("/api/v1/assignments/1").status_code == 200
+
+
+def test_revisor_puede_ver_el_detalle_de_otro():
+    autenticar_como(5, roles=("teacher", "reviewer"))
+    assert cliente.get("/api/v1/assignments/1").status_code == 200
+
+
+def test_coordinador_puede_ver_el_detalle_de_otro():
+    autenticar_como(2, roles=("coordinator",))
+    assert cliente.get("/api/v1/assignments/1").status_code == 200
+
+
+def test_docente_no_puede_leer_ni_escribir_comentarios_ajenos():
+    autenticar_como(2)
+    assert cliente.get("/api/v1/assignments/1/comments").status_code == 403
+    assert cliente.post("/api/v1/assignments/1/comments", json={"text": "hola"}).status_code == 403
+
+
+def test_docente_no_puede_tocar_borrador_ni_archivos_ajenos():
+    autenticar_como(2)
+    assert cliente.put("/api/v1/assignments/1/submission-draft", json={"comment": "x"}).status_code == 403
+    assert cliente.post("/api/v1/assignments/1/files",
+                         json={"file_id": "f-x", "name": "x.pdf"}).status_code == 403
+
+
+def test_revisor_puede_comentar_pero_no_tocar_el_borrador_del_docente():
+    autenticar_como(5, roles=("teacher", "reviewer"))
+    assert cliente.post("/api/v1/assignments/1/comments", json={"text": "observación"}).status_code == 200
+    assert cliente.put("/api/v1/assignments/1/submission-draft", json={"comment": "x"}).status_code == 403
 
 
 # ============================================================================
