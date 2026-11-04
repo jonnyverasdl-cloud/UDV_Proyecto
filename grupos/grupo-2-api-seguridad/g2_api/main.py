@@ -53,7 +53,7 @@ _ERRORES = {
 }
 # Las fechas son de solo lectura, en ISO 8601 y en UTC (terminan en Z).
 _USUARIO = {
-    "id": 12, "correo": "docente@udv.edu.gt", "nombres": "Ana", "apellidos": "López",
+    "id": 12, "correo": "docente@udv.edu.gt", "nombres": "Carlos", "apellidos": "Maeda",
     "activo": True, "roles": ["teacher"],
     "creado_en": "2026-10-29T21:30:00Z", "actualizado_en": "2026-10-29T21:30:00Z",
 }
