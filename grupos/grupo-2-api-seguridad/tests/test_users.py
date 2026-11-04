@@ -277,8 +277,9 @@ def test_campo_obligatorio_faltante_422(client, headers_admin, campo):
     del cuerpo[campo]
     r = client.post(URL, json=cuerpo, headers=headers_admin)
     _assert_error(r, 422, "VALIDATION_ERROR")
-    campos = r.json()["error"]["details"]["campos"]
-    assert any(campo in c["campo"] for c in campos)     
+    detalles = r.json()["error"]["details"]
+    assert isinstance(detalles, dict)
+    assert campo in detalles    
 
 
 def test_tipo_de_dato_incorrecto_422(client, headers_admin):
