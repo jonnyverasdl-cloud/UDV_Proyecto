@@ -1,7 +1,7 @@
 
 
 import uuid
-
+import json
 import pytest
 
 from g2_api.models import Rol, Usuario, UsuarioRol
@@ -276,20 +276,26 @@ def test_campo_obligatorio_faltante_422(client, headers_admin, campo):
     cuerpo = _cuerpo()
     del cuerpo[campo]
     r = client.post(URL, json=cuerpo, headers=headers_admin)
+    _assert_error(r, 422, "VALIDATION_ERROR")    
+    detalles = r.json()["error"]["details"]
+    assert isinstance(detalles, dict)           
+    assert campo in json.dumps(detalles) 
+
+@pytest.mark.parametrize("password", ["1234567", "x" * 65])      
+def test_password_fuera_de_largo_422(client, headers_admin, password):
+    r = client.post(URL, json=_cuerpo(password=password), headers=headers_admin)
     _assert_error(r, 422, "VALIDATION_ERROR")
-    campos = r.json()["error"]["details"]["campos"]
-    assert any(campo in c["campo"] for c in campos)     
-
-
+ 
+    detalles = r.json()["error"]["details"]
+    assert isinstance(detalles, dict)
+    assert "password" in json.dumps(detalles)
+    
+    
 def test_tipo_de_dato_incorrecto_422(client, headers_admin):
     r = client.post(URL, json=_cuerpo(activo="quizas"), headers=headers_admin)
     _assert_error(r, 422, "VALIDATION_ERROR")
 
 
-@pytest.mark.xfail(
-    reason="Pasarán cuando UsuarioCreate use Field(min_length=...) y EmailStr",
-    strict=False,
-)
 @pytest.mark.parametrize(
     "campo, valor",
     [
