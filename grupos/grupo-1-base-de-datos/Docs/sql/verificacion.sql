@@ -2,13 +2,16 @@
    verificacion.sql | Pruebas de las restricciones
    Ejecutar despues de 01_schema.sql y 02_seed.sql. Todo corre dentro de una transaccion
    que se deshace al final: los datos semilla quedan intactos.
-   Resultado esperado: la primera fila dice 'pasan 75, fallan 0'.
+   Resultado esperado: la primera fila dice 'pasan 78, fallan 0'.
    ===================================================================== */
 USE db_udv;
 SET NAMES utf8mb4;
+SET time_zone = '+00:00';   -- fechas en UTC (la API del G2 tambien conecta en UTC)
 
-DROP TABLE IF EXISTS tmp_resultado_prueba;
-CREATE TABLE tmp_resultado_prueba (
+-- Tabla TEMPORAL: solo existe en esta conexion y se borra sola al cerrarla, asi no queda nada en db_udv.
+DROP TEMPORARY TABLE IF EXISTS tmp_resultado_prueba;
+DROP TABLE IF EXISTS tmp_resultado_prueba;   -- borra la que dejaban las versiones anteriores de este script
+CREATE TEMPORARY TABLE tmp_resultado_prueba (
     n          INT AUTO_INCREMENT PRIMARY KEY,
     prueba     VARCHAR(120),
     esperado   VARCHAR(5),
@@ -40,6 +43,7 @@ END$$
 DELIMITER ;
 
 START TRANSACTION;
+SET @actor_id = NULL, @ip_origen = NULL;
 
 -- Usuarios y asignaciones
 CALL sp_prueba('Correo duplicado (otra capitalizacion)', 'error',
@@ -177,9 +181,19 @@ UPDATE tarea SET alcance = 'curso', rol_destino_id = NULL, curso_id = 1, periodo
 CALL sp_prueba('Publicar tarea a los docentes de un curso', 'ok', "CALL sp_publicar_tarea(3, 2)");
 SET @pub_curso = (SELECT COUNT(*) FROM tarea_destinatario WHERE tarea_id = 3);
 SET @evt_publicada = (SELECT COUNT(*) FROM evento WHERE clave_unica = 'task.published:3');
+SET @evt_actor = (SELECT actor_id FROM evento WHERE clave_unica = 'task.published:3');
+SET @actor_restaurado = (@actor_id IS NULL);
 CALL sp_generar_eventos_vencimiento(@creados1);
 CALL sp_generar_eventos_vencimiento(@creados2);
 SET @evt_vence = (SELECT COUNT(*) FROM evento WHERE nombre = 'assignment.due_soon');
+
+-- Version 1.2.1: @actor_id = 0 (API sin usuario) no debe romper la auditoria
+SET @aud_antes = (SELECT COUNT(*) FROM auditoria WHERE tabla = 'usuario' AND registro_id = '3');
+SET @actor_id = 0;
+CALL sp_prueba('Cambio con @actor_id = 0 no rompe la auditoria', 'ok', "UPDATE usuario SET telefono = '5555' WHERE id = 3");
+SET @audit_actor0 = (SELECT COUNT(*) = @aud_antes + 1 AND MAX(id) = MAX(IF(actor_id IS NULL, id, NULL))
+                     FROM auditoria WHERE tabla = 'usuario' AND registro_id = '3');
+SET @actor_id = NULL;
 
 ROLLBACK;
 
@@ -201,6 +215,10 @@ SELECT 'Publicar por curso asigna a los 3 docentes del curso', 'ok', 'ok', IF(@p
 UNION ALL
 SELECT 'Publicar genera el evento task.published', 'ok', 'ok', IF(@evt_publicada = 1, 'PASA', 'FALLA')
 UNION ALL
+SELECT 'task.published guarda el actor de sp_publicar_tarea', 'ok', 'ok', IF(@evt_actor = 2 AND @actor_restaurado = 1, 'PASA', 'FALLA')
+UNION ALL
+SELECT 'Con @actor_id = 0 la auditoria queda con actor NULL', 'ok', 'ok', IF(@audit_actor0 = 1, 'PASA', 'FALLA')
+UNION ALL
 -- vencen en 3 dias o menos: las 3 asignaciones de la tarea 3 y la prorroga de Daniel (15/10) si aun no pasa
 SELECT 'Avisos de vencimiento sin duplicados', 'ok', 'ok',
        IF(@evt_vence = 3 + (SELECT COUNT(*) FROM tarea_destinatario WHERE id = 4
@@ -217,11 +235,12 @@ SELECT 'La prorroga individual se ve en el inbox', 'ok', 'ok',
 DROP PROCEDURE sp_prueba;
 
 -- Resultado final. Es la ULTIMA instruccion del archivo para que phpMyAdmin la muestre.
--- La primera fila es el resumen: debe decir "pasan 73, fallan 0".
-SELECT 0 AS n,
-       CONCAT('pasan ', SUM(resultado = 'PASA'), ', fallan ', SUM(resultado = 'FALLA')) AS resultado,
-       'RESUMEN' AS prueba, NULL AS esperado, NULL AS obtenido, NULL AS mensaje
-FROM tmp_resultado_prueba
+-- La tabla temporal desaparece al cerrar la conexion.
+-- La primera fila es el resumen: debe decir "pasan 78, fallan 0".
+-- (MySQL no deja leer una tabla temporal dos veces en la misma consulta: el resumen va en una variable.)
+SET @resumen = (SELECT CONCAT('pasan ', SUM(resultado = 'PASA'), ', fallan ', SUM(resultado = 'FALLA'))
+                FROM tmp_resultado_prueba);
+SELECT 0 AS n, CONVERT(@resumen USING utf8mb4) COLLATE utf8mb4_unicode_ci AS resultado, 'RESUMEN' AS prueba, NULL AS esperado, NULL AS obtenido, NULL AS mensaje
 UNION ALL
 SELECT n, resultado, prueba, esperado, obtenido, mensaje FROM tmp_resultado_prueba
 ORDER BY n;

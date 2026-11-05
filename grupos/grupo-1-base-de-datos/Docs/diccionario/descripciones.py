@@ -1,4 +1,4 @@
-# descripciones.py | Textos del diccionario de datos de db_udv (version 1.2.0).
+# descripciones.py | Textos del diccionario de datos de db_udv (version 1.2.1).
 # Si se agrega una tabla o columna, se describe aqui y se vuelve a correr generar_diccionario.py.
 # TABLAS: nombre -> (bloque, recurso API segun los CONTRATO.md de cada grupo, descripcion)
 BLOQUES = ["Académico", "Seguridad", "Workflow", "Tareas", "Programas", "Contenido", "Colaboración", "Aprobación y auditoría", "Administración", "Vistas"]
@@ -61,7 +61,7 @@ TABLAS = {
  "programa_pdf": ("Aprobación y auditoría", "/program-versions/{id}/pdf", "Historial de PDF institucionales generados para versiones autorizadas."),
  "auditoria": ("Aprobación y auditoría", "/audit", "Registro de solo inserción: altas, cambios, eliminaciones lógicas e intentos de login, con actor e IP."),
  # Admin
- "schema_migracion": ("Administración", "(sin endpoint)", "Versiones del esquema aplicadas. Hoy 1.0.0 y 1.1.0."),
+ "schema_migracion": ("Administración", "(sin endpoint)", "Versiones del esquema aplicadas. Hoy 1.0.0, 1.1.0, 1.2.0 y 1.2.1."),
  "parametro": ("Administración", "/settings", "Parámetros configurables (zona horaria, días de aviso de vencimiento, tamaño máximo de archivo...)."),
  # Vistas
  "v_inbox": ("Vistas", "GET /inbox, GET /inbox/summary", "Inbox del docente: sus asignaciones de tareas publicadas, con plazo (incluye prórroga), si está vencida y comentarios."),
@@ -201,7 +201,7 @@ COLUMNAS = {
  "auditoria": {"tabla": "Tabla afectada.", "registro_id": "Id del registro afectado ('0' si el usuario no existe en un login fallido).",
                "accion": "insert, update, soft_delete, login o login_failed.", "actor_id": "Quién lo hizo; NULL si no se conoce.", "ip_origen": "IP de origen.",
                "detalle": "JSON con valores antes y después."},
- "schema_migracion": {"version": "Versión del esquema, ej. 1.1.0.", "descripcion": "Qué incluyó.", "aplicada_en": "Cuándo se aplicó."},
+ "schema_migracion": {"version": "Versión del esquema, ej. 1.2.1.", "descripcion": "Qué incluyó.", "aplicada_en": "Cuándo se aplicó."},
  "parametro": {"codigo": "Nombre del parámetro.", "valor": "Valor actual.", "actualizado_por": "Quién lo cambió por última vez."},
 }
 
