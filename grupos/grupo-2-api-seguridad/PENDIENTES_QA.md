@@ -6,13 +6,13 @@ Prioridad: **Alta** → **Media** → **Baja**. El Planner de Allison tiene tres
 
 ## Retest No. 2 (23 y 24-oct) · estado al 02-nov
 
-34 PASS, 2 FAIL, 1 PARCIAL y 1 PASS histórico con retest pendiente. `pytest` en `grupo-2` (03-nov): 99 pasan, 1 falla y 1 xpass. La falla es `test_campo_obligatorio_faltante_422` en `tests/test_users.py` (Randy): todavía lee el `details` viejo con `campos`; hay que cambiarla a un objeto con un campo por llave. El `details` del 422 ya sale como objeto y el xfail de `tests/test_openapi.py` se quitó; la contraseña de 8 a 64 al crear usuario ya pasa.
+34 PASS, 2 FAIL, 1 PARCIAL y 1 PASS histórico con retest pendiente. `pytest` en `grupo-2` (04-nov): 103 pasan, sin fallas. `test_campo_obligatorio_faltante_422` en `tests/test_users.py` ya lee `details` como objeto con un campo por llave (Randy y Robert, 04-nov; Randy también agregó `test_password_fuera_de_largo_422` y quitó el `xfail`). El `details` del 422 ya sale como objeto y el xfail de `tests/test_openapi.py` se quitó; la contraseña de 8 a 64 al crear usuario ya pasa.
 
 | Escenario | Resultado de QA | Quién | Archivo | Estado al 02-nov |
 |-|-|-|-|-|
 | G2-21 | FAIL (crítico): un docente descarga el archivo de un admin | Fulvio | `routers/files.py` | 🔵 Subido el 28-oct (`6982c15`): `GET /files/{id}` da 403 si no es el dueño ni un admin y 404 si no existe; el archivo se registra en la tabla `archivo`. 31-oct (`7ffa69c`): el admin también descarga, como confirmó el PM (01-nov). Falta retest y el PR a `main`, donde el PM activa `/files` |
 | G2-31 | FAIL: `GET /users` sin paginación | Randy | `routers/users.py` | 🔵 Ya pagina desde el 24-oct. Falta retest |
-| G2-33 | PARCIAL: faltaban 409, 403 y ejemplos reales | Robert | `main.py` | 🔵 Hecho el 27 y 28-oct y probado en `tests/test_openapi.py`; ejemplos al día con el PM el 01-nov (fechas, `details` como objeto, 403 en archivos). Falta retest |
+| G2-33 | PARCIAL: faltaban 409, 403 y ejemplos reales | Robert | `main.py` | 🔵 Hecho el 27 y 28-oct y probado en `tests/test_openapi.py`; ejemplos al día con el PM el 01-nov (fechas, `details` como objeto, 403 en archivos). 04-nov: el usuario de ejemplo pasó a `Carlos Maeda` (`e593976`). Falta retest |
 | G2-32 | PASS histórico, retest pendiente: ya no salen `creado_en` ni `actualizado_en` | Randy y PM | `routers/users.py` | 🔵 Subido el 02-nov (`9205344`): salen de solo lectura, en ISO 8601 y en UTC con `Z` (por ejemplo `2026-10-29T21:30:00Z`), como pidió el PM (01-nov). Falta retest |
 | G2-36 | PASS de QA y del PM (retest del 23-oct). Antes el PM avisó que el login fallido se guardaba dos veces | Daniel y Edgar | `routers/auth.py`, `utils/registro.py` | ✅ PASS de QA. 02-nov: `registro_id = 0` otra vez con correo inexistente (Daniel); 03-nov: queda igual en `registro.py` (Edgar) |
 | Limpieza | Aviso del PM | Daniel | `routers/auth.py` | ✅ Hecho (02-nov): se quitó la carga de `usuarios_prueba.json` y la carpeta `datos_prueba/` |
@@ -202,7 +202,7 @@ Antes, `error_handler.py` respondía `{"status", "error", "meta"}` con `details`
 - `semilla_local.py` ya no aparece en el repo (copia del 22-oct) y está en el `.gitignore`. Si lo tienes en tu carpeta local, no lo agregues con `git add`.
 
 
-## Planner: qué se puede marcar (estado al 03-nov)
+## Planner: qué se puede marcar (estado al 04-nov)
 
 *Esta tabla es del 02-nov y reemplaza a la del 23-oct. El detalle de cada aviso del PM está en la sección «Avisos del PM por prioridad».*
 
