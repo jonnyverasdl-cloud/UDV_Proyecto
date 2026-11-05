@@ -630,11 +630,14 @@
   }
 
   function pintarErroresDeCampos(detalles) {
-    // El G2 manda el detalle de dos formas: {items: [{field, message}]} para
-    // los errores de cada grupo y {campos: [{campo, mensaje}]} para los de tipo.
+    // El G2 manda {items: [{field, message}]} para los errores de cada grupo, y
+    // para los de tipo {campos: [{campo, mensaje}]} o, desde su cambio,
+    // {campo: mensaje}.
     const lista = Array.isArray(detalles) ? detalles
-      : [...(detalles?.items || []),
-         ...(detalles?.campos || []).map((d) => ({ field: d.campo, message: d.mensaje ?? d.message }))];
+      : (detalles?.items || detalles?.campos)
+        ? [...(detalles.items || []),
+           ...(detalles.campos || []).map((d) => ({ field: d.campo, message: d.mensaje ?? d.message }))]
+        : Object.entries(detalles || {}).map(([field, message]) => ({ field, message }));
     let primero = null;
     for (const { field: campo, message: mensaje } of lista) {
       const entrada = $(campo);

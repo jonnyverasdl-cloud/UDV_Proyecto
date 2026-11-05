@@ -52,12 +52,15 @@ def modificar(cliente, registro_id, datos, recurso="campuses"):
 
 def campos_con_error(respuesta) -> set[str]:
     detalles = respuesta.json()["error"]["details"]
-    # El G2 usa dos formas: los errores que arma cada grupo llegan como
-    # {"items": [{"field": ...}]} y los de Pydantic (tipo de dato, campo no
-    # reconocido) como {"campos": [{"campo": ...}]}.
+    # Los errores que arma cada grupo llegan como {"items": [{"field": ...}]}.
+    # Los de Pydantic (tipo de dato, campo no reconocido) llegaban como
+    # {"campos": [{"campo": ...}]} y con el cambio del G2 llegan como
+    # {"campo": "mensaje"}. Se aceptan las tres formas.
     if isinstance(detalles, dict):
-        return ({d["field"] for d in detalles.get("items", [])}
-                | {d["campo"] for d in detalles.get("campos", [])})
+        if "items" in detalles or "campos" in detalles:
+            return ({d["field"] for d in detalles.get("items", [])}
+                    | {d["campo"] for d in detalles.get("campos", [])})
+        return set(detalles)
     return {d["field"] for d in detalles}
 
 

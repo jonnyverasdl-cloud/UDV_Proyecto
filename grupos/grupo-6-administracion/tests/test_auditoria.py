@@ -102,6 +102,59 @@ def test_transicion_registra_lo_que_pide_el_contrato(auditoria, admin):
     assert registro["comment"] == "Entrego la planificación."
 
 
+def historial_g3(sesion, *, actor_id=ID_DOCENTE, asignacion=58, anterior="returned",
+                 nuevo="submitted", comentario=None, cuando=None):
+    """Una fila como las que escribe el G3 en tarea_transicion."""
+    datos = {"tarea_destinatario_id": asignacion, "actor_id": actor_id,
+             "estado_anterior": anterior, "estado_nuevo": nuevo, "comentario": comentario}
+    if cuando:
+        datos["creado_en"] = cuando
+    sesion.execute(insert(tablas.tarea_transicion).values(**datos))
+    sesion.commit()
+
+
+def test_el_historial_del_g3_aparece_como_transicion(sesion, admin):
+    # El G3 guarda su historial en tarea_transicion y no llama a registrar_transicion.
+    sesion.execute(insert(tablas.usuario).values(id=ID_DOCENTE, correo="docente@demo.test"))
+    historial_g3(sesion, anterior="under_review", nuevo="returned", comentario="Corrige la rúbrica.")
+    admin.post("/api/v1/campuses", json={"code": "norte", "name": "Sede Norte"})
+
+    datos = consultar(admin, "?action=transition").json()
+
+    assert datos["total"] == 1
+    registro = datos["data"][0]
+    assert registro["source"] == "assignment_history"
+    assert (registro["entity"], registro["entity_id"]) == ("tarea_destinatario", 58)
+    assert (registro["actor_id"], registro["actor_email"]) == (ID_DOCENTE, "docente@demo.test")
+    assert (registro["from_state"], registro["to_state"]) == ("under_review", "returned")
+    assert registro["comment"] == "Corrige la rúbrica."
+    assert registro["changes"] == {}
+    assert registro["created_at"].startswith(HOY)
+
+
+def test_el_historial_del_g3_se_une_a_la_auditoria(sesion, auditoria, admin):
+    historial_g3(sesion, cuando=datetime(2026, 10, 1, 8))
+    admin.post("/api/v1/campuses", json={"code": "norte", "name": "Sede Norte"})
+    transicion(auditoria, **TRANSICION)
+
+    todos = consultar(admin).json()
+    # Los más nuevos primero, de las dos tablas.
+    assert todos["total"] == 3
+    assert [r["source"] for r in todos["data"]] == ["audit", "audit", "assignment_history"]
+    assert consultar(admin, "?action=transition").json()["total"] == 2
+    assert consultar(admin, "?entity=tarea_destinatario").json()["total"] == 2
+    assert consultar(admin, "?entity=sede").json()["total"] == 1
+    assert consultar(admin, "?action=insert").json()["total"] == 1
+    assert consultar(admin, f"?user_id={ID_ADMIN}").json()["total"] == 1
+    assert consultar(admin, "?from=2026-10-01&to=2026-10-01").json()["total"] == 1
+    assert consultar(admin, "?per_page=2&page=2").json()["data"][0]["source"] == "assignment_history"
+
+    filtros = admin.get("/api/v1/audit/filters").json()
+    assert {"tarea_destinatario", "sede"} <= set(filtros["entities"])
+    assert "transition" in filtros["actions"]
+    assert ID_DOCENTE in {u["id"] for u in filtros["users"]}
+
+
 def test_transicion_de_programa_usa_los_estados_de_programa(auditoria):
     auditoria.registrar_transicion(actor_id=ID_ADMIN, entidad="programa_version",
                                    entidad_id=3, estado_anterior="approved",

@@ -172,6 +172,19 @@ tarea_destinatario = Table(
     Column("revisor_id", Integer),
 )
 
+# Historial de cada asignación que escribe el G3 (solo INSERT, igual que
+# auditoria). La auditoría del G6 lo muestra como acción "transition" (G6-15).
+tarea_transicion = Table(
+    "tarea_transicion", metadata,
+    Column("id", _ID_LARGO, primary_key=True),
+    Column("tarea_destinatario_id", Integer, nullable=False),
+    Column("actor_id", Integer, nullable=False),
+    Column("estado_anterior", String(20)),
+    Column("estado_nuevo", String(20), nullable=False),
+    Column("comentario", String(1000)),
+    _creado(),
+)
+
 programa_version = Table(
     "programa_version", metadata,
     Column("id", Integer, primary_key=True),

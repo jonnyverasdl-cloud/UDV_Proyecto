@@ -113,20 +113,27 @@ Para un evento que no sale de un trigger, se puede usar
 
 ## Cómo registran sus transiciones el G3 y el G5 (G6-15)
 
-La tabla `tarea_transicion` del G1 ya guarda el historial de las tareas. Si
-además quieren dejarlo en la auditoría transversal, usan la misma sesión de
-su operación y hacen un solo commit:
+**El G3 no tiene que hacer nada.** Su historial de asignaciones ya queda en la
+tabla `tarea_transicion` del G1, y `GET /api/v1/audit` lo muestra junto con lo
+demás, como acción `transition` y entidad `tarea_destinatario`, con quién lo
+hizo, cuándo, los estados y el comentario. Esos registros traen
+`"source": "assignment_history"`; los de la tabla `auditoria` traen
+`"source": "audit"`. El `id` es el de su tabla.
+
+Un módulo sin historial propio (por ejemplo, el G5 con las versiones de
+programa) lo deja en la auditoría con la misma sesión de su operación y un solo
+commit:
 
 ```python
 from g6_admin.api import auditoria_para
 
 auditoria_para(db).registrar_transicion(
     actor_id=12,                     # quién hizo el cambio
-    entidad="tarea_destinatario",    # tarea, tarea_destinatario o programa_version
+    entidad="programa_version",      # tarea, tarea_destinatario o programa_version
     entidad_id=58,
-    estado_anterior="in_progress",
-    estado_nuevo="submitted",
-    comentario="Entrego la planificación.",  # opcional, hasta 1000 caracteres
+    estado_anterior="submitted",
+    estado_nuevo="under_review",
+    comentario="Paso a revisión.",   # opcional, hasta 1000 caracteres
 )
 db.commit()
 ```
@@ -134,7 +141,8 @@ db.commit()
 Solo se aceptan los estados oficiales de CONTRATO_COMUN.md §2. La consulta
 `GET /api/v1/audit` muestra todo lo de la tabla `auditoria`: lo que registra
 el G6 (altas y cambios de catálogos), lo de los triggers del G1 (tareas,
-programas y usuarios) y los inicios de sesión del G2. `entity` es el nombre de
+programas y usuarios) y los inicios de sesión del G2, más el historial de
+asignaciones del G3. `entity` es el nombre de
 la tabla (`sede`, `curso`, `tarea`, `usuario`...) y `action` puede ser
 `insert`, `update`, `soft_delete`, `transition`, `LOGIN_OK`, etc.
 
@@ -165,6 +173,8 @@ triggers reales del G1.
 | `test_seguridad.py` | G6-20, G6-36 |
 | `test_persistencia.py` | G6-37 |
 | `test_regresion.py` | G6-40 |
+| `integracion/test_mysql_g1.py` | Catálogos, panel, auditoría y permisos contra MySQL con el login real |
+| `integracion/test_flujo_e2e.py` | G6-04 a G6-16 y G6-18 de punta a punta: la app completa (`main.py`, con el G3) recorre una tarea y revisa avisos y auditoría en cada paso |
 | `integracion/test_mysql_g1.py` | Todo lo anterior contra MySQL y el login del G2; el panel contra la vista `v_panel_tarea` |
 
 ## Cómo se integra a la aplicación
