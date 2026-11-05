@@ -1,6 +1,6 @@
 # Grupo 1 · Base de datos
 
-Base de datos del sistema de solicitudes a docentes (`db_udv`, versión 1.2.0). Motor: MySQL 8.0 o superior, o MariaDB 10.4 o superior (el que trae XAMPP).
+Base de datos del sistema de solicitudes a docentes (`db_udv`, versión 1.2.1). Motor: MySQL 8.0 o superior, o MariaDB 10.4 o superior (el que trae XAMPP).
 
 ## Contenido
 
@@ -12,7 +12,8 @@ Docs/
 │  ├─ 02_seed.sql           datos semilla (catálogos, roles, usuarios demo, ejemplos)
 │  ├─ triggers.sql          solo los triggers y procedimientos (para consulta)
 │  ├─ verificacion.sql      pruebas de las restricciones
-│  └─ migracion_1.2.0.sql   pasa una base 1.1.0 a 1.2.0 sin perder datos
+│  ├─ migracion_1.2.0.sql   pasa una base 1.1.0 a 1.2.0 sin perder datos
+│  └─ migracion_1.2.1.sql   pasa una base 1.2.0 a 1.2.1 sin perder datos
 ├─ Diagramas/               diagramas entidad-relación en PDF
 └─ diccionario/
    ├─ diccionario_db_udv.html   diccionario de datos (abrir en el navegador)
@@ -48,7 +49,7 @@ python -m g1_bd crear --host localhost --port 3306 --user root --password <clave
 python -m g1_bd verificar --host localhost --port 3306 --user root --password <clave>
 ```
 
-`crear` corre `01_schema.sql` y `02_seed.sql` y muestra cuántas tablas, vistas, triggers y procedimientos quedaron. `verificar` corre `verificacion.sql` y debe terminar con `pasan 75, fallan 0`. Si existe la variable `DATABASE_URL` (`mysql+pymysql://usuario:clave@host:puerto/db_udv`), se puede omitir `--host` y lo demás.
+`crear` corre `01_schema.sql` y `02_seed.sql` y muestra cuántas tablas, vistas, triggers, procedimientos y funciones quedaron (50 tablas, 7 vistas, 60 triggers, 3 procedimientos y 1 función). `verificar` corre `verificacion.sql` y debe terminar con `pasan 78, fallan 0`. Si existe la variable `DATABASE_URL` (`mysql+pymysql://usuario:clave@host:puerto/db_udv`), se puede omitir `--host` y lo demás.
 
 ### Con la consola
 
@@ -72,7 +73,7 @@ SELECT * FROM v_inbox WHERE usuario_id = 3;                     -- 2 tareas
 
 ### Pruebas de las restricciones
 
-`verificacion.sql` intenta cosas que la base debe rechazar (correo repetido, dos versiones vigentes, modificar una versión autorizada, borrar historial, transiciones que no existen, etc.) y otras que debe aceptar. Corre todo dentro de una transacción y al final la deshace, así que no cambia los datos.
+`verificacion.sql` intenta cosas que la base debe rechazar (correo repetido, dos versiones vigentes, modificar una versión autorizada, borrar historial, transiciones que no existen, etc.) y otras que debe aceptar. Corre todo dentro de una transacción y al final la deshace, así que no cambia los datos ni deja tablas: los resultados van en una tabla temporal que se borra al cerrar la conexión.
 
 En phpMyAdmin: seleccionar `db_udv`, pestaña **SQL**, pegar el contenido del archivo y pulsar **Continuar**. Desde la consola:
 
@@ -80,7 +81,7 @@ En phpMyAdmin: seleccionar `db_udv`, pestaña **SQL**, pegar el contenido del ar
 mysql -u root db_udv < verificacion.sql
 ```
 
-La primera fila del resultado debe decir `pasan 75, fallan 0`. Las demás filas muestran cada prueba con su resultado.
+La primera fila del resultado debe decir `pasan 78, fallan 0`. Las demás filas muestran cada prueba con su resultado.
 
 ## Usuarios de prueba
 
@@ -138,8 +139,9 @@ Para cambiar el esquema más adelante:
 | Versión | Script | Cambio |
 |---|---|---|
 | 1.2.0 | `migracion_1.2.0.sql` | Catálogo `prioridad_tarea` (low, medium, high, urgent). `tarea.prioridad` pasa de un `CHECK` a una llave foránea (`fk_tarea_prioridad`). Las vistas `v_inbox`, `v_panel_tarea` y `v_historial_tarea` agregan `prioridad_nombre`. |
+| 1.2.1 | `migracion_1.2.1.sql` | Sin tablas ni columnas nuevas. Los scripts trabajan en UTC (`SET time_zone = '+00:00'`). Los triggers de auditoría y eventos tratan `@actor_id = 0` como `NULL` (antes fallaba `fk_auditoria_actor`). `sp_publicar_tarea` registra `p_actor_id` en el evento `task.published` si la API no fijó `@actor_id`. |
 
-Quien ya tiene la base 1.1.0 montada corre `mysql -u root db_udv < migracion_1.2.0.sql`. Quien la monta desde cero no lo necesita: `01_schema.sql` y `02_seed.sql` ya traen el cambio.
+Las migraciones se aplican en orden. Quien tiene la base 1.1.0 corre `migracion_1.2.0.sql` y luego `migracion_1.2.1.sql`; quien tiene la 1.2.0 corre solo `migracion_1.2.1.sql`. Quien la monta desde cero no las necesita: `01_schema.sql` y `02_seed.sql` ya traen los cambios. Para saber qué versión tiene una base: `SELECT * FROM schema_migracion;`. La base compartida de Railway la actualiza el PM (README raíz §5).
 
 ## Eliminación lógica
 
@@ -176,7 +178,8 @@ Con el Docker del proyecto el puerto es `3307`. Hay que usar `root` u otro usuar
 - Roles: `admin`, `coordinator`, `teacher`, `reviewer`, `authority`, `auditor`.
 - Prioridades de tarea: `low`, `medium`, `high`, `urgent`, del catálogo `prioridad_tarea`. Una prioridad que no esté en el catálogo se rechaza. Las vistas traen además `prioridad_nombre` (Baja, Media, Alta, Urgente).
 - Nada con historial se borra con `DELETE`: se marca `eliminado_en` y `eliminado_por`.
-- Después de autenticar, la API ejecuta `SET @actor_id = <id del usuario>;` en la conexión. Así la auditoría guarda quién hizo cada cambio.
+- Después de autenticar, la API ejecuta `SET @actor_id = <id del usuario>;` en la conexión. Así la auditoría guarda quién hizo cada cambio. Sin usuario se manda `NULL` (un `0` también se toma como `NULL`).
+- Las fechas se guardan en UTC. La conexión de la API debe usar `SET time_zone = '+00:00'`; la zona institucional (`America/Guatemala`) es solo para mostrar.
 - Los errores de las reglas usan `SQLSTATE 45000` y el mensaje indica el código HTTP que corresponde (409 o 422).
 
 | Grupo | Qué usa |

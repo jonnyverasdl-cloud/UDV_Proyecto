@@ -1,9 +1,10 @@
--- 02_seed.sql | Grupo 1 - Base de datos | Workflow docente UDV | version 1.2.0
+-- 02_seed.sql | Grupo 1 - Base de datos | Workflow docente UDV | version 1.2.1
 -- Datos semilla: catalogos, roles, permisos, workflow, usuarios demo, tareas y un programa de ejemplo.
 -- Ejecutar despues de 01_schema.sql. Usuarios demo: contrasena Demo2026!
 
 USE db_udv;
 SET NAMES utf8mb4;
+SET time_zone = '+00:00';   -- fechas en UTC (la API del G2 tambien conecta en UTC)
 
 -- Catalogos academicos
 insert into facultad (id, codigo, nombre, activo) values

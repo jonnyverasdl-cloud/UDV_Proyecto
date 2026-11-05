@@ -8,7 +8,8 @@ CONTEO = """
 SELECT (SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'db_udv' AND table_type = 'BASE TABLE'),
        (SELECT COUNT(*) FROM information_schema.views WHERE table_schema = 'db_udv'),
        (SELECT COUNT(*) FROM information_schema.triggers WHERE trigger_schema = 'db_udv'),
-       (SELECT COUNT(*) FROM information_schema.routines WHERE routine_schema = 'db_udv')"""
+       (SELECT COUNT(*) FROM information_schema.routines WHERE routine_schema = 'db_udv' AND routine_type = 'PROCEDURE'),
+       (SELECT COUNT(*) FROM information_schema.routines WHERE routine_schema = 'db_udv' AND routine_type = 'FUNCTION')"""
 
 
 def crear(con):
@@ -17,8 +18,9 @@ def crear(con):
         print(f"{archivo}: {n} sentencias")
     with con.cursor() as cur:
         cur.execute(CONTEO)
-        tablas, vistas, triggers, rutinas = cur.fetchone()
-    print(f"db_udv creada: {tablas} tablas, {vistas} vistas, {triggers} triggers, {rutinas} procedimientos y funciones")
+        tablas, vistas, triggers, procedimientos, funciones = cur.fetchone()
+    print(f"db_udv creada: {tablas} tablas, {vistas} vistas, {triggers} triggers, "
+          f"{procedimientos} procedimientos y {funciones} {'función' if funciones == 1 else 'funciones'}")
     return 0
 
 

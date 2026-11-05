@@ -1,10 +1,11 @@
--- 01_schema.sql | Grupo 1 - Base de datos | Workflow docente UDV | version 1.2.0
+-- 01_schema.sql | Grupo 1 - Base de datos | Workflow docente UDV | version 1.2.1
 -- MySQL 8.0+ y MariaDB 10.4+, utf8mb4. Borra y recrea la base db_udv: tablas, triggers, procedimientos y vistas.
 -- Despues de este archivo se ejecuta 02_seed.sql (datos semilla).
 
 -- ==================== TABLAS ====================
 DROP DATABASE IF EXISTS db_udv;
 SET NAMES utf8mb4;
+SET time_zone = '+00:00';   -- fechas en UTC (la API del G2 tambien conecta en UTC)
 CREATE DATABASE db_udv CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE db_udv;
 
@@ -830,7 +831,8 @@ ALTER TABLE programa_version
 INSERT INTO schema_migracion (version, descripcion) VALUES
 ('1.0.0', 'Esquema inicial (01_schema.sql)'),
 ('1.1.0', 'Aportes del esquema de Pablo: modalidad, area, docente_curso, flujo_programa, perfil de egreso, seleccion, borrador, evento, programa_pdf'),
-('1.2.0', 'Catalogo prioridad_tarea (low, medium, high, urgent) y FK en tarea.prioridad');
+('1.2.0', 'Catalogo prioridad_tarea (low, medium, high, urgent) y FK en tarea.prioridad'),
+('1.2.1', 'Fechas en UTC; @actor_id = 0 se trata como NULL en auditoria y eventos; actor de task.published desde sp_publicar_tarea');
 -- ==================== TRIGGERS Y PROCEDIMIENTOS ====================
 
 DELIMITER $$
@@ -1220,6 +1222,7 @@ BEGIN
   DECLARE v_curso INT; DECLARE v_periodo INT;
   DECLARE v_wd_inicial INT;
   DECLARE v_total INT;
+  DECLARE v_actor_previo INT;
   DECLARE v_propia TINYINT(1) DEFAULT 0;
   DECLARE EXIT HANDLER FOR SQLEXCEPTION
   BEGIN
@@ -1311,7 +1314,11 @@ BEGIN
 
   UPDATE tarea_destinatario SET estado_codigo = 'assigned', asignado_en = CURRENT_TIMESTAMP(3)
   WHERE tarea_id = p_tarea_id;
+  -- El evento task.published toma el actor de @actor_id; si la API no lo fijo, se usa p_actor_id.
+  SET v_actor_previo = @actor_id;
+  SET @actor_id = COALESCE(NULLIF(@actor_id, 0), p_actor_id);
   UPDATE tarea SET estado_codigo = 'assigned', publicada_en = CURRENT_TIMESTAMP(3) WHERE id = p_tarea_id;
+  SET @actor_id = v_actor_previo;
   IF v_propia THEN COMMIT; END IF;
 END$$
 
@@ -1369,11 +1376,11 @@ CREATE TRIGGER trg_tarea_evento AFTER UPDATE ON tarea FOR EACH ROW
 BEGIN
   IF OLD.estado_codigo = 'draft' AND NEW.estado_codigo = 'assigned' THEN
     INSERT INTO evento (nombre, clave_unica, tarea_id, actor_id, payload)
-    VALUES ('task.published', CONCAT('task.published:', NEW.id), NEW.id, @actor_id,
+    VALUES ('task.published', CONCAT('task.published:', NEW.id), NEW.id, NULLIF(@actor_id, 0),
             JSON_OBJECT('titulo', NEW.titulo, 'fecha_limite', NEW.fecha_limite));
   ELSEIF NEW.estado_codigo = 'cancelled' AND OLD.estado_codigo <> 'cancelled' THEN
     INSERT INTO evento (nombre, clave_unica, tarea_id, actor_id, payload)
-    VALUES ('task.cancelled', CONCAT('task.cancelled:', NEW.id), NEW.id, @actor_id,
+    VALUES ('task.cancelled', CONCAT('task.cancelled:', NEW.id), NEW.id, NULLIF(@actor_id, 0),
             JSON_OBJECT('titulo', NEW.titulo));
   END IF;
 END$$
@@ -1411,14 +1418,14 @@ END$$
 CREATE TRIGGER trg_tarea_audit_ai AFTER INSERT ON tarea FOR EACH ROW
 BEGIN
   INSERT INTO auditoria (tabla, registro_id, accion, actor_id, ip_origen, detalle)
-  VALUES ('tarea', NEW.id, 'insert', @actor_id, @ip_origen,
+  VALUES ('tarea', NEW.id, 'insert', NULLIF(@actor_id, 0), @ip_origen,
           JSON_OBJECT('despues', JSON_OBJECT('titulo', NEW.titulo, 'estado', NEW.estado_codigo, 'fecha_limite', NEW.fecha_limite, 'revisor_id', NEW.revisor_id)));
 END$$
 CREATE TRIGGER trg_tarea_audit_au AFTER UPDATE ON tarea FOR EACH ROW
 BEGIN
   INSERT INTO auditoria (tabla, registro_id, accion, actor_id, ip_origen, detalle)
   VALUES ('tarea', NEW.id, IF(OLD.eliminado_en IS NULL AND NEW.eliminado_en IS NOT NULL, 'soft_delete', 'update'),
-          COALESCE(NEW.eliminado_por, @actor_id), @ip_origen,
+          COALESCE(NEW.eliminado_por, NULLIF(@actor_id, 0)), @ip_origen,
           JSON_OBJECT('antes',   JSON_OBJECT('titulo', OLD.titulo, 'estado', OLD.estado_codigo, 'fecha_limite', OLD.fecha_limite, 'revisor_id', OLD.revisor_id, 'eliminado_en', OLD.eliminado_en),
                       'despues', JSON_OBJECT('titulo', NEW.titulo, 'estado', NEW.estado_codigo, 'fecha_limite', NEW.fecha_limite, 'revisor_id', NEW.revisor_id, 'eliminado_en', NEW.eliminado_en)));
 END$$
@@ -1426,13 +1433,13 @@ END$$
 CREATE TRIGGER trg_pv_audit_ai AFTER INSERT ON programa_version FOR EACH ROW
 BEGIN
   INSERT INTO auditoria (tabla, registro_id, accion, actor_id, ip_origen, detalle)
-  VALUES ('programa_version', NEW.id, 'insert', COALESCE(@actor_id, NEW.creado_por), @ip_origen,
+  VALUES ('programa_version', NEW.id, 'insert', COALESCE(NULLIF(@actor_id, 0), NEW.creado_por), @ip_origen,
           JSON_OBJECT('despues', JSON_OBJECT('programa_curso_id', NEW.programa_curso_id, 'numero_version', NEW.numero_version, 'estado', NEW.estado_codigo, 'version_origen_id', NEW.version_origen_id)));
 END$$
 CREATE TRIGGER trg_pv_audit_au AFTER UPDATE ON programa_version FOR EACH ROW
 BEGIN
   INSERT INTO auditoria (tabla, registro_id, accion, actor_id, ip_origen, detalle)
-  VALUES ('programa_version', NEW.id, 'update', @actor_id, @ip_origen,
+  VALUES ('programa_version', NEW.id, 'update', NULLIF(@actor_id, 0), @ip_origen,
           JSON_OBJECT('antes',   JSON_OBJECT('nombre', OLD.nombre, 'estado', OLD.estado_codigo, 'pdf_hash', OLD.pdf_hash),
                       'despues', JSON_OBJECT('nombre', NEW.nombre, 'estado', NEW.estado_codigo, 'pdf_hash', NEW.pdf_hash)));
 END$$
@@ -1440,7 +1447,7 @@ END$$
 CREATE TRIGGER trg_usuario_audit_ai AFTER INSERT ON usuario FOR EACH ROW
 BEGIN
   INSERT INTO auditoria (tabla, registro_id, accion, actor_id, ip_origen, detalle)
-  VALUES ('usuario', NEW.id, 'insert', @actor_id, @ip_origen,
+  VALUES ('usuario', NEW.id, 'insert', NULLIF(@actor_id, 0), @ip_origen,
           JSON_OBJECT('despues', JSON_OBJECT('correo', NEW.correo, 'activo', NEW.activo)));
 END$$
 CREATE TRIGGER trg_usuario_audit_au AFTER UPDATE ON usuario FOR EACH ROW
@@ -1448,7 +1455,7 @@ BEGIN
 
   INSERT INTO auditoria (tabla, registro_id, accion, actor_id, ip_origen, detalle)
   VALUES ('usuario', NEW.id, IF(OLD.eliminado_en IS NULL AND NEW.eliminado_en IS NOT NULL, 'soft_delete', 'update'),
-          COALESCE(NEW.eliminado_por, @actor_id), @ip_origen,
+          COALESCE(NEW.eliminado_por, NULLIF(@actor_id, 0)), @ip_origen,
           JSON_OBJECT('antes',   JSON_OBJECT('correo', OLD.correo, 'activo', OLD.activo, 'eliminado_en', OLD.eliminado_en),
                       'despues', JSON_OBJECT('correo', NEW.correo, 'activo', NEW.activo, 'eliminado_en', NEW.eliminado_en),
                       'cambio_contrasena', OLD.hash_contrasena <> NEW.hash_contrasena));
