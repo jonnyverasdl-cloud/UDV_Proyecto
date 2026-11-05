@@ -104,7 +104,7 @@ El middleware de usuarios y roles todavía lee el encabezado `usuario-actual` y 
   2. `auth_middleware.py` (Randy): ya no lee el JSON. Usa `obtener_usuario_actual()` de `auth.py` (commit del 22-oct). Sin token da 401, con el header `usuario-actual` también da 401 y sin rol da 403.
   3. `users.py` y `roles.py` (Randy): ya usan el rol `admin` y leen de la base. `GET /users/{id}` da 404 si no existe.
 - **Daniel** (`auth.py`): login, logout y `/me` funcionan con la base. El token cerrado con logout ya no entra (401). El login con campos ausentes da 422, pero con cadenas vacías (`""`) todavía da 401: falta `min_length=1` en los campos del login (G2-04).
-- **Robert** (cuenta `Davids107`): `main.py`, `database.py` (UTC y `fijar_actor`), `models.py`, `.env.example` y `README.md` quedaron listos el 20 y 22-oct.
+- **Robert**: `main.py`, `database.py` (UTC y `fijar_actor`), `models.py`, `.env.example` y `README.md` quedaron listos el 20 y 22-oct.
 - **Siguen pendientes:** paginación en `GET /users`, contraseña de 8 a 64 al crear usuarios, documentación OpenAPI (401 y 409 en `POST /users`), `test_users.py` (Randy) y `GET /files/{id}`, tabla `archivo` y `test_files.py` (Fulvio).
 
 ## Por persona
