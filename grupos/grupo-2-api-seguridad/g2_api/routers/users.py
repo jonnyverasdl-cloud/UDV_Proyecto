@@ -1,6 +1,6 @@
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from pydantic import BaseModel, Field
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 from g2_api.database import get_db
@@ -11,6 +11,7 @@ from g2_api.models import Rol, Usuario, UsuarioRol
 from g2_api.routers.auth import obtener_usuario_actual
 from g2_api.database import fijar_actor
 from g2_api.utils.paginacion import params_paginacion, Paginacion, paginar
+from datetime import timezone
 
 router = APIRouter(prefix="/api/v1/users", tags=["Users"])
 
@@ -18,7 +19,7 @@ class UsuarioCreate(BaseModel):
     nombres: str
     apellidos: str
     correo: str
-    password: str
+    password: str = Field(min_length=8, max_length=64)
     rol: str
     activo:bool = True
 
@@ -26,11 +27,18 @@ class UsuarioUpdate(BaseModel):
     nombres: Optional[str] = None
     apellidos: Optional[str] = None
     correo: Optional[str] = None
-    password: Optional[str] = None
+    password: Optional[str] = Field(default=None, min_length=8, max_length=64)
     rol: Optional[str] = None
     activo: Optional[bool] = None
-    
-    
+
+def _fecha(f):
+    if f is None:
+        return None
+    return f.replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z")
+
+def _ip(request: Request):
+    return request.client.host if request.client else None
+
 def diccionario(u: Usuario) -> dict:
     return {
         "id": u.id,
@@ -38,7 +46,9 @@ def diccionario(u: Usuario) -> dict:
         "nombres": u.nombres,
         "apellidos": u.apellidos,
         "activo": u.activo,
-        "roles": [i.codigo for i in u.roles]
+        "roles": [i.codigo for i in u.roles],
+        "creado_en": _fecha(u.creado_en),
+        "actualizado_en": _fecha(u.actualizado_en)
     }
 
 
@@ -91,7 +101,7 @@ def obtiene_usuario(usuario_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, dependencies=[Depends(requerir_rol(["admin"]))]) #Crea usuarios 
-def crear_usuario(datos: UsuarioCreate, db: Session = Depends(get_db), actual: Usuario = Depends(obtener_usuario_actual)): #recibe parámetro tipo class
+def crear_usuario(datos: UsuarioCreate, request: Request, db: Session = Depends(get_db), actual: Usuario = Depends(obtener_usuario_actual)): #recibe parámetro tipo class
     if db.query(Usuario).filter(Usuario.correo == datos.correo).first():
         raise _correo_repetido()
     
@@ -106,7 +116,7 @@ def crear_usuario(datos: UsuarioCreate, db: Session = Depends(get_db), actual: U
         activo=datos.activo
     )
     
-    fijar_actor(db, actual.id)
+    fijar_actor(db, actual.id, _ip(request))
     
     try:
         db.add(nuevo)
@@ -124,10 +134,10 @@ def crear_usuario(datos: UsuarioCreate, db: Session = Depends(get_db), actual: U
         
 
 @router.patch("/{usuario_id}", dependencies=[Depends(requerir_rol(["admin"]))]) 
-def actualizar_o_desactivar_usuario(usuario_id: int, datos: UsuarioUpdate, db: Session = Depends(get_db), 
+def actualizar_o_desactivar_usuario(usuario_id: int, datos: UsuarioUpdate, request: Request, db: Session = Depends(get_db), 
                                     actual: Usuario = Depends(obtener_usuario_actual)):
     
-    fijar_actor(db, actual.id)
+    fijar_actor(db, actual.id, _ip(request))
     u = _buscar_usuario(db, usuario_id)
     
     cambios = datos.model_dump(exclude_unset=True, exclude_none=True)

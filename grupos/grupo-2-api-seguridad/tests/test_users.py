@@ -1,11 +1,12 @@
 
 
 import uuid
-
+import json
 import pytest
 
 from g2_api.models import Rol, Usuario, UsuarioRol
 from g2_api.seguridad import hashear_contrasena
+from datetime import datetime
 
 URL = "/api/v1/users"
 LOGIN = "/api/v1/auth/login"
@@ -275,20 +276,26 @@ def test_campo_obligatorio_faltante_422(client, headers_admin, campo):
     cuerpo = _cuerpo()
     del cuerpo[campo]
     r = client.post(URL, json=cuerpo, headers=headers_admin)
+    _assert_error(r, 422, "VALIDATION_ERROR")    
+    detalles = r.json()["error"]["details"]
+    assert isinstance(detalles, dict)           
+    assert campo in json.dumps(detalles) 
+
+@pytest.mark.parametrize("password", ["1234567", "x" * 65])      
+def test_password_fuera_de_largo_422(client, headers_admin, password):
+    r = client.post(URL, json=_cuerpo(password=password), headers=headers_admin)
     _assert_error(r, 422, "VALIDATION_ERROR")
-    campos = r.json()["error"]["details"]["campos"]
-    assert any(campo in c["campo"] for c in campos)     
-
-
+ 
+    detalles = r.json()["error"]["details"]
+    assert isinstance(detalles, dict)
+    assert "password" in json.dumps(detalles)
+    
+    
 def test_tipo_de_dato_incorrecto_422(client, headers_admin):
     r = client.post(URL, json=_cuerpo(activo="quizas"), headers=headers_admin)
     _assert_error(r, 422, "VALIDATION_ERROR")
 
 
-@pytest.mark.xfail(
-    reason="Pasarán cuando UsuarioCreate use Field(min_length=...) y EmailStr",
-    strict=False,
-)
 @pytest.mark.parametrize(
     "campo, valor",
     [
@@ -422,3 +429,12 @@ def test_usuario_desactivado_pierde_el_acceso(client, headers_admin):
     
     assert client.get(URL, headers=headers_usuario).status_code == 401
     
+def test_de_las_respuestas_con_fecha(client, headers_admin):
+    usuario= _crear(client, headers_admin)
+    for campo in ("creado_en",  "actualizado_en"):
+        valor= usuario[campo]
+        assert valor.endswith("Z")
+        datetime.fromisoformat(valor.replace("Z", "+00:00"))
+        
+    enlista = client.get(URL, headers=headers_admin).json()["data"][0]
+    assert "creado_en" in enlista and "actualizado_en" in enlista

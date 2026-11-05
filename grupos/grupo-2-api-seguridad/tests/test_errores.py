@@ -16,9 +16,11 @@ from g2_api.utils.paginacion import (
 
 
 
+# App de prueba
+
 
 class _FakeQuery:
-    """probar `paginar`."""
+    """Sustituto mínimo de sqlalchemy.orm.Query para probar `paginar`."""
 
     def __init__(self, total: int = 250) -> None:
         self._total = total
@@ -88,9 +90,9 @@ def client() -> TestClient:
     return TestClient(_crear_app(), raise_server_exceptions=False)
 
 
-# --------------------------------------------------------------------------
+
 # Formato común de error
-# --------------------------------------------------------------------------
+
 
 def _assert_formato(body: dict) -> None:
     assert set(body.keys()) == {"error"}
@@ -144,9 +146,6 @@ def test_error_500_no_filtra_informacion_interna(client):
         assert prohibido not in texto
 
 
-# --------------------------------------------------------------------------
-# 422 con detalle por campo
-# --------------------------------------------------------------------------
 
 def test_422_trae_detalle_por_campo(client):
     r = client.get("/validar")  # faltan correo y edad
@@ -154,19 +153,29 @@ def test_422_trae_detalle_por_campo(client):
     body = r.json()
     _assert_formato(body)
     assert body["error"]["code"] == "VALIDATION_ERROR"
-    campos = body["error"]["details"]["campos"]
-    nombres = {c["campo"] for c in campos}
-    assert {"correo", "edad"} <= nombres
-    for c in campos:
-        assert c["mensaje"]
-        assert c["tipo"]
+    detalles = body["error"]["details"]
+    assert isinstance(detalles, dict)
+    assert {"correo", "edad"} <= set(detalles.keys())
+    for campo, mensaje in detalles.items():
+        assert isinstance(campo, str) and campo
+        assert isinstance(mensaje, str) and mensaje
 
 
 def test_422_campo_fuera_de_rango(client):
     r = client.get("/validar", params={"correo": "abc", "edad": 999})
     assert r.status_code == 422
-    campos = r.json()["error"]["details"]["campos"]
-    assert any(c["campo"] == "edad" for c in campos)
+    detalles = r.json()["error"]["details"]
+    assert "edad" in detalles
+    assert isinstance(detalles["edad"], str) and detalles["edad"]
+
+
+def test_422_real_devuelve_details_como_objeto_con_un_campo_por_llave(client):
+    """Antes xfail: ahora `details` es dict por campo (PM, 01-nov)."""
+    r = client.get("/validar", params={"correo": "", "edad": 999})
+    assert r.status_code == 422
+    detalles = r.json()["error"]["details"]
+    assert isinstance(detalles, dict)
+    assert "correo" in detalles and isinstance(detalles["correo"], str)
 
 
 # --------------------------------------------------------------------------
@@ -205,6 +214,9 @@ def test_paginacion_per_page_excede_maximo_da_422(client):
     assert r.json()["error"]["code"] == "VALIDATION_ERROR"
 
 
+# --------------------------------------------------------------------------
+# Registro / auditoría
+# --------------------------------------------------------------------------
 
 from datetime import datetime  # noqa: E402
 
@@ -224,14 +236,14 @@ _AuditBase = declarative_base()
 
 
 class _AuditoriaFake(_AuditBase):
-    """Refleja las columnas reales de la tabla `auditoria` (contrato §1)."""
+    """Columnas reales de `auditoria` ."""
 
     __tablename__ = "auditoria"
     id          = Column(Integer, primary_key=True, autoincrement=True)
-    tabla       = Column(String(50),  nullable=True)
-    registro_id = Column(Integer,     nullable=True, index=True)   
+    tabla       = Column(String(50),  nullable=False)
+    registro_id = Column(Integer,     nullable=False, index=True)   # NOT NULL
     accion      = Column(String(50),  nullable=False, index=True)
-    actor_id    = Column(Integer,     nullable=True)
+    actor_id    = Column(Integer,     nullable=True)                # NULL ok
     ip_origen   = Column(String(45),  nullable=True)
     detalle     = Column(JSON,        nullable=True)
     creado_en   = Column(DateTime,    nullable=False, index=True)
@@ -251,27 +263,27 @@ def db_mem(monkeypatch):
 def test_registrar_accion_guarda_fila(db_mem):
     ok = registro.registrar_accion(
         db_mem, "LOGIN_OK",
-        actor_id=7, tabla="auth", ip_origen="127.0.0.1",
+        actor_id=7, tabla="auth", registro_id=7, ip_origen="127.0.0.1",
     )
     assert ok is True
     fila = db_mem.query(_AuditoriaFake).one()
     assert fila.accion      == "LOGIN_OK"
     assert fila.actor_id    == 7
     assert fila.tabla       == "auth"
+    assert fila.registro_id == 7
     assert fila.ip_origen   == "127.0.0.1"
-    assert fila.registro_id is None
     assert isinstance(fila.creado_en, datetime)
 
 
-def test_registrar_login_fallido_guarda_correo_en_detalle(db_mem):
-    """El correo va en `detalle.correo`, NO en `registro_id` (contrato §1)."""
+def test_registrar_login_fallido_guarda_registro_id_cero(db_mem):
+    """Correo inexistente → registro_id = 0 (NOT NULL), actor_id = NULL."""
     ok = registro.registrar_login_fallido(db_mem, "  X@Y.COM ", ip_origen="10.0.0.1")
     assert ok is True
     fila = db_mem.query(_AuditoriaFake).one()
     assert fila.accion      == "LOGIN_FALLIDO"
-    assert fila.actor_id    is None                    
-    assert fila.registro_id == 0  # la base no acepta vacio
-    assert fila.detalle     == {"correo": "x@y.com"}    
+    assert fila.actor_id    is None
+    assert fila.registro_id == 0
+    assert fila.detalle     == {"correo": "x@y.com"}
     assert fila.ip_origen   == "10.0.0.1"
 
 
@@ -310,28 +322,22 @@ def test_limpiar_intentos_borra_fallos_del_correo(db_mem):
 
 
 def test_set_actor_id_no_rompe_en_sqlite(db_mem):
-    """En SQLite es solo se verifica que no lance ni cambie nada."""
+    """En SQLite es no-op; solo verifica que no lance ni cambie nada."""
     registro.set_actor_id(db_mem, 42)
     registro.set_actor_id(db_mem, None)
-
     assert db_mem.query(_AuditoriaFake).count() == 0
 
 
 def test_registro_no_rompe_si_models_no_existe():
-    """registrar_accion debe devolver False ."""
+    """registrar_accion debe devolver False si no hay modelo."""
 
     class _S:
         def add(self, _):
             raise RuntimeError("sin modelo")
-
-        def commit(self):
-            pass
-
-        def rollback(self):
-            pass
+        def commit(self): pass
+        def rollback(self): pass
 
     from g2_api.utils import registro as reg
-
     import builtins
 
     original = builtins.__import__
@@ -346,3 +352,26 @@ def test_registro_no_rompe_si_models_no_existe():
         assert reg.registrar_accion(_S(), "TEST") is False
     finally:
         builtins.__import__ = original
+
+
+def test_fijar_actor_envia_null_cuando_no_hay_actor():
+    capturados: list[dict] = []
+
+    class _FakeDB:
+        bind = type("B", (), {
+            "dialect": type("D", (), {"name": "mysql"})(),
+        })()
+        def execute(self, _stmt, params):
+            capturados.append(params)
+
+    registro.fijar_actor(_FakeDB(), None)
+    assert capturados[-1] == {"id": None}
+
+    registro.fijar_actor(_FakeDB(), 0)
+    assert capturados[-1] == {"id": None}
+
+    registro.fijar_actor(_FakeDB(), 42)
+    assert capturados[-1] == {"id": 42}
+
+    registro.set_actor_id(_FakeDB(), 7)
+    assert capturados[-1] == {"id": 7}

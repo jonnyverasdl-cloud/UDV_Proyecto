@@ -43,7 +43,7 @@ El archivo `.env` **nunca se sube** al repositorio. Se copia desde `.env.example
 | `DATABASE_URL` | Conexión a la base (`mysql+pymysql://...`). Sin ella usa SQLite local. |
 | `SECRET_KEY` | Firma de los JWT. Obligatoria; valor largo y aleatorio. |
 | `ALGORITHM` | Algoritmo del token (`HS256`). |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | Vigencia del token (120 minutos = 7200 s). |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | Vigencia del token (120 minutos = 7200 segundos). |
 | `CORS_ORIGINS` | Orígenes del frontend permitidos, separados por coma. |
 | `LOGIN_MAX_INTENTOS` | Intentos fallidos antes del bloqueo (5 intentos). |
 | `LOGIN_BLOQUEO_MINUTOS` | Minutos de bloqueo (15 minutos). |
@@ -88,6 +88,7 @@ En `auditoria` solo se escriben a mano los eventos de acceso (login, login falli
 - Contraseñas solo con hash bcrypt; ninguna respuesta las devuelve.
 - Autorización en el servidor con `Authorization: Bearer <token>`.
 - Errores en el formato común, sin trazas, SQL ni rutas internas.
+- Los archivos de `/files` solo los descarga su dueño o un admin; cualquier otro rol recibe 403.
 - Sin credenciales en el código: todo va en `.env`.
 
 ## 7. Estructura
