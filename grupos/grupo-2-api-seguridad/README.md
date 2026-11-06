@@ -24,7 +24,13 @@ python -m uvicorn g2_api.main:app --reload
 
 - Interfaz de la documentación: `http://127.0.0.1:8000/api/v1/docs`
 - Documento OpenAPI: `http://127.0.0.1:8000/api/v1/openapi.json`
-- `main.py` completa la documentación con los errores comunes (401, 403, 404, 409 y 422) y ejemplos reales; `tests/test_openapi.py` lo verifica.
+- `g2_api/openapi_docs.py` completa la documentación con los errores comunes (401, 403, 404, 409 y 422) y ejemplos reales; `tests/test_openapi.py` lo verifica.
+- La app que se despliega en Railway es la del `main.py` de la raíz, no la de `g2_api/main.py`. Por eso la raíz debe llamar `completar_openapi(app)` después de montar los routers; si no, Swagger muestra el esquema genérico de FastAPI:
+
+```python
+from g2_api.openapi_docs import completar_openapi
+completar_openapi(app)
+```
 
 ## 3. Probar
 
