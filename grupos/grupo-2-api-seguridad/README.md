@@ -108,7 +108,7 @@ En `auditoria` solo se escriben a mano los eventos de acceso (login, login falli
 | `GUIA_GRUPO2.md` | Quién hace qué cada semana. |
 | `PENDIENTES_QA.md` | Pendientes del QA y quién los corrige. |
 
-Esqueleto del proyecto (estado al 06-nov-2026):
+Esqueleto del proyecto:
 
 ```
 grupos/grupo-2-api-seguridad/
