@@ -8,9 +8,22 @@ tenga el permiso necesario.
 from dataclasses import dataclass
 from typing import Any
 
-from fastapi import Request
+from fastapi import Depends
 
 from .errors import ApiError
+
+try:
+    from g2_api.routers.auth import obtener_usuario_actual
+except ModuleNotFoundError as error:
+    if error.name != "g2_api":
+        raise
+
+    def obtener_usuario_actual() -> Any:
+        raise ApiError(
+            503,
+            "AUTH_PROVIDER_UNAVAILABLE",
+            "La autenticación de G2 no está disponible en esta aplicación.",
+        )
 
 
 @dataclass(frozen=True)
@@ -29,15 +42,14 @@ def _value(user: Any, key: str, default: Any = None) -> Any:
     return getattr(user, key, default)
 
 
-async def authenticated_actor(request: Request) -> Actor:
-    """Lee de la solicitud al usuario que ya autenticó G2.
+async def authenticated_actor(
+    user: Any = Depends(obtener_usuario_actual),
+) -> Actor:
+    """Convierte a Actor el usuario autenticado que devuelve G2.
 
-    Deja el ID y los roles en un formato fácil de usar. Si falta la sesión o el
-    usuario no tiene un ID válido, detiene la solicitud con un error 401.
+    Deja el ID y los roles en un formato fácil de usar. Si el usuario no tiene
+    un ID válido, detiene la solicitud con un error 401.
     """
-    user = getattr(request.state, "user", None) or getattr(
-        request.state, "current_user", None
-    )
     if user is None:
         raise ApiError(401, "UNAUTHENTICATED", "Debes iniciar sesión.")
 
