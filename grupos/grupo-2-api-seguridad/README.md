@@ -108,6 +108,22 @@ En `auditoria` solo se escriben a mano los eventos de acceso (login, login falli
 | `GUIA_GRUPO2.md` | Quién hace qué cada semana. |
 | `PENDIENTES_QA.md` | Pendientes del QA y quién los corrige. |
 
+Esqueleto del proyecto (estado al 06-nov-2026):
+
+```
+grupos/grupo-2-api-seguridad/
+├── CONTRATO.md, 02_Requerimientos...docx   ← del PM, no tocar
+├── README.md, requirements.txt, .env.example, .gitignore   ← Robert
+├── frontend-login/        ← Fulvio
+├── tests/                 ← todos (cada uno su test_*.py)
+└── g2_api/
+    ├── main.py, config.py, database.py, openapi_docs.py, models.py   ← Robert
+    ├── seguridad.py       ← Daniel (token JWT)
+    ├── routers/           ← auth.py (Daniel), users.py y roles.py (Randy), files.py (Fulvio)
+    ├── middleware/        ← auth_middleware.py (Randy), error_handler.py (Edgar)
+    └── utils/             ← paginacion.py y registro.py (Edgar)
+```
+
 ## 8. Responsable de cada archivo
 
 | Persona | Cuenta de GitHub | Archivos |
@@ -116,5 +132,5 @@ En `auditoria` solo se escriben a mano los eventos de acceso (login, login falli
 | Randy - Persona 2 | `rtorresixcoy375` | `routers/users.py`, `routers/roles.py`, `middleware/auth_middleware.py`, `tests/test_users.py` |
 | Edgar - Persona 3 | `zeusgeo99-code` | `middleware/error_handler.py`, `utils/paginacion.py`, `utils/registro.py`, `tests/test_errores.py` |
 | Fulvio - Persona 4 | `Ful55` | `routers/files.py`, `frontend-login/`, `tests/test_files.py` (por crear) |
-| Robert - Persona 5 | `Davids107` | `main.py`, `config.py`, `database.py`, `models.py`, `requirements.txt`, `.env.example`, `.gitignore`, `README.md`, `tests/conftest.py`, `tests/test_openapi.py` |
+| Robert - Persona 5 | `Davids107` | `main.py`, `config.py`, `database.py`, `models.py`, `requirements.txt`, `.env.example`, `.gitignore`, `README.md`, `tests/conftest.py`, `tests/test_openapi.py`, `g2_api/openapi_docs.py` |
 | PM | — | `CONTRATO.md`, `CONTRATO_COMUN.md`, los `.docx` de requerimientos y la raíz del repo |
