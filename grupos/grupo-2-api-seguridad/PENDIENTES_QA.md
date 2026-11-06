@@ -25,7 +25,7 @@ Allison repitió G2-21, G2-31, G2-32 y G2-33 contra la API desplegada en Railway
 | H-04 | `GET /me` con `"string"` en el 200 | Ejemplo con el usuario, sus roles y permisos |
 | H-05 | `GET /users` con `"string"` en el 200 y sin 403 | Ejemplo paginado (`page`, `per_page`, `total`, `data`) y 403 documentado |
 
-**Cambio (Robert, solo `grupos/grupo-2-api-seguridad/`):** la documentación pasó a `g2_api/openapi_docs.py` (`completar_openapi(app)`), que usan `g2_api/main.py` y cualquier otra app. Solo toca las rutas del G2. `tests/test_openapi.py` ahora también prueba una app armada como la de la raíz; `pytest` completo: **107 pasan**. Se comprobó además con una copia del `main.py` de la raíz: `POST /users` da 201, 401, 403, 409 y 422; `GET /users` da 200, 401 y 403; `GET /me` da 200 y 401, todos con ejemplos de objeto.
+**Cambio (Robert, solo `grupos/grupo-2-api-seguridad/`):** la documentación pasó a `g2_api/openapi_docs.py` (`completar_openapi(app)`), que usan `g2_api/main.py` y cualquier otra app. Solo toca las rutas del G2. `tests/test_openapi.py` ahora también prueba una app armada como la de la raíz; `pytest` completo: **107 pasan**. Se comprobó además con una copia del `main.py` de la raíz: `POST /users` da 201, 401, 403, 409 y 422; `GET /users` da 200, 401 y 403; `GET /me` da 200 y 401, todos con ejemplos de objeto. Commits en `grupo-2`: `b58a863` (`main.py`), `bddbf20` (`openapi_docs.py`), `71a0dca` (`tests/test_openapi.py`) y `a4c8232` (`README.md`).
 
 **Falta para cerrar G2-33 (en este orden):**
 1. Daniel abre el PR `grupo-2` → `main` con estos cambios.
@@ -258,3 +258,4 @@ Allison revisa lo que se marque como completado en el Planner. Marca solo lo que
 Semana 2 · martes 20-oct · Semana 3 · martes 27-oct · Semana 4 · martes 03-nov · Semana 5 · martes 10-nov (revisión de los 36 escenarios y PR `grupo-2 → main`, solo Daniel). **PR de correcciones: jueves 22-oct. Retest de QA: viernes 23-oct.**
 
 *Nota: el resumen sale de los PDF del QA (Lista inicial, Updt_1 e Informe no. 1), del Planner de Allison y de los avisos del PM.*
+
