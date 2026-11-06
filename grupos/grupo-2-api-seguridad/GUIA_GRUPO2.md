@@ -6,7 +6,7 @@ Coordinador: Daniel (dancobs) · Versión 2 · 10-oct-2026 · Estado actualizado
 
 ---
 
-## 1. Dónde estamos (estado al 04-nov)
+## 1. Dónde estamos (estado al 06-nov)
 
 **Retest No. 3 de QA (05-nov):** G2-21 PASS (4/4), G2-31 PASS (22/22), G2-32 PASS (8/8) y G2-33 FAIL documental: 37 PASS y 1 FAIL. Swagger de Railway no mostraba la documentación del G2 porque Railway ejecuta el `main.py` de la raíz y no el de `g2_api`. Robert lo corrigió el 06-nov con `g2_api/openapi_docs.py` (sección 9.2); falta que el PM lo active en la raíz y el retest. `pytest` en `grupo-2`: **107 pasan**.
 
@@ -225,7 +225,7 @@ grupos/grupo-2-api-seguridad/
 ├── frontend-login/        ← Fulvio
 ├── tests/                 ← todos (cada uno su test_*.py)
 └── g2_api/
-    ├── main.py, config.py, database.py, openapi_api.py, models.py   ← Robert
+    ├── main.py, config.py, database.py, openapi_docs.py, models.py   ← Robert
     ├── seguridad.py       ← Daniel (token JWT)
     ├── routers/           ← auth.py (Daniel), users.py y roles.py (Randy), files.py (Fulvio)
     ├── middleware/        ← auth_middleware.py (Randy), error_handler.py (Edgar)
@@ -409,7 +409,7 @@ Allison repitió los cuatro escenarios contra Railway. **G2-21 PASS (4/4), G2-31
 | H-04 | `GET /me` con `"string"` en el 200 | Ejemplo con usuario, roles y permisos |
 | H-05 | `GET /users` con `"string"` en el 200 y sin 403 | Ejemplo paginado y 403 documentado |
 
-**Qué cambió:** la documentación pasó a `g2_api/openapi_docs.py` (`completar_openapi(app)`), que usan `g2_api/main.py` y cualquier otra app; solo toca las rutas del G2. `tests/test_openapi.py` prueba también una app armada como la de la raíz. `pytest` completo: **107 pasan**.
+**Qué cambió:** la documentación pasó a `g2_api/openapi_docs.py` (`completar_openapi(app)`), que usan `g2_api/main.py` y cualquier otra app; solo toca las rutas del G2. `tests/test_openapi.py` prueba también una app armada como la de la raíz. `pytest` completo: **107 pasan**. Commits en `grupo-2` (Robert, 06-nov): `b58a863` (`main.py`), `bddbf20` (`openapi_docs.py`), `71a0dca` (`tests/test_openapi.py`) y `a4c8232` (`README.md`).
 
 **Para cerrar G2-33:** 1) Daniel abre el PR `grupo-2` → `main`. 2) El PM agrega al `main.py` de la raíz, después de montar los routers, `from g2_api.openapi_docs import completar_openapi` y `completar_openapi(app)` (ese archivo es del PM). 3) El PM despliega en Railway y avisa a Allison para repetir G2-33.
 
