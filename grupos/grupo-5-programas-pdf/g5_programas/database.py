@@ -20,6 +20,13 @@ from .errors import ApiError
 
 log = logging.getLogger("udv.g5.database")
 
+try:
+    from g2_api.database import fijar_actor
+except ModuleNotFoundError as error:
+    if error.name != "g2_api":
+        raise
+    fijar_actor = None
+
 
 @lru_cache(maxsize=1)
 def _session_factory():
@@ -33,8 +40,9 @@ def _session_factory():
 
 def get_session(request: Request):
     """Abre una sesión para la solicitud y la cierra al terminar."""
-    factory = request.app.state.database_session_factory or _session_factory
+    factory = getattr(request.app.state, "database_session_factory", None) or _session_factory()
     session = factory()
+    session.info["ip_origen"] = request.client.host if request.client else None
     try:
         yield session
     except SQLAlchemyError as exc:
@@ -45,8 +53,15 @@ def get_session(request: Request):
 
 
 def set_database_actor(session: Session, actor: Actor) -> None:
-    """Le indica a MySQL qué usuario está haciendo el cambio."""
-    session.execute(text("SET @actor_id = :actor_id"), {"actor_id": actor.id})
+    """Le indica a G2/MySQL quién y desde dónde hizo el cambio."""
+    ip_origen = session.info.get("ip_origen")
+    if fijar_actor is not None:
+        fijar_actor(session, actor.id, ip_origen)
+        return
+    session.execute(
+        text("SET @actor_id = :actor_id, @ip_origen = :ip_origen"),
+        {"actor_id": actor.id, "ip_origen": ip_origen},
+    )
 
 
 def translate_database_error(exc: SQLAlchemyError) -> ApiError:

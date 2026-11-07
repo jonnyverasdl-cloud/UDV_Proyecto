@@ -32,15 +32,21 @@ grupo-5-programas-pdf/
 │       └── udv.css
 ├── tests/
 │   ├── conftest.py
+│   ├── test_api_contract.py
+│   ├── test_database.py
 │   └── test_program_flow.py
 └── docs/
     ├── README.md
-    └── instrucciones.md
+    ├── instrucciones.md
+    └── CONTRATO.md
 ```
 
 ## Requisitos e integración
 
 - Python 3.10 o posterior.
+- Las dependencias se fijan en `requirements.txt`: FastAPI 0.142.1,
+  Uvicorn 0.54.0, SQLAlchemy 2.1.1, PyMySQL 1.1.1, cryptography 44.0.2,
+  ReportLab 4.5.1 y pytest 9.1.1.
 - Una base MySQL compatible con el esquema compartido de G1, incluyendo sus
   catálogos, tablas, vistas y procedimientos usados por el repositorio. La
   autorización utiliza `sp_autorizar_version`.
@@ -49,7 +55,7 @@ grupo-5-programas-pdf/
   `DATABASE_URL`) y tenga disponible el paquete G2 con
   `g2_api.routers.auth.obtener_usuario_actual`.
 
-Instale las dependencias del módulo:
+Instale las dependencias del módulo desde la raíz del proyecto:
 
 ```bash
 python -m pip install -r requirements.txt
@@ -91,23 +97,41 @@ G5 usa `obtener_usuario_actual` de G2 como dependencia de autenticación. Si
 G2 no está disponible, los endpoints protegidos responden con error 503. Si no
 configura una fábrica de sesiones propia, G5 usa `DATABASE_URL`.
 
+El punto de entrada compartido debe registrar también el manejador de errores
+de G5 para conservar el formato común de las excepciones `ApiError`. La
+integración debe hacer ambas llamadas:
+
+```python
+app.include_router(router)
+
+from g5_programas.errors import registrar_errores
+
+registrar_errores(app)
+```
+
 ## Frontend y pruebas
 
-El frontend está en `frontend/`. Actualmente `script.js` apunta a
-`http://127.0.0.1:8000/api/v1` y carga el programa con ID `1`; ajuste esos
-valores para el entorno donde se publique. El selector de rol y los nombres
-mostrados en la página son parte de la interfaz de demostración: no sustituyen
-la sesión autenticada ni los permisos que valida el backend.
+El frontend está en `frontend/`. Usa la API del mismo origen, muestra el
+formulario de acceso de G2 y carga el programa indicado por
+`?program_id=<id>`, por ejemplo `Programa.html?program_id=1`. El token se
+mantiene en `sessionStorage` durante la pestaña y se envía como Bearer en las
+solicitudes protegidas. Los roles del selector se limitan a los que devuelve
+G2; el backend sigue siendo quien autoriza cada operación.
+
+Al crear una versión desde un trabajo de G3, el enlace puede incluir
+`&tarea_destinatario_origen_id=<id-de-asignacion>`. Si no se proporciona en
+una versión nueva, se conserva la asignación de origen de la versión clonada.
 
 Ejecute las pruebas disponibles desde la raíz:
 
 ```bash
-pytest -q
+python -m pytest -q
 ```
 
-Las pruebas actuales cubren transiciones, estados editables, unicidad de la
-versión autorizada y permisos; no reemplazan una prueba de integración con
-MySQL y la aplicación host.
+Las pruebas unitarias cubren transiciones y permisos, el manejador de errores,
+los filtros y OpenAPI, la validación del identificador de asignación, y la
+selección/cierre de sesiones y auditoría con mocks. No conectan a MySQL ni
+reemplazan una prueba de integración con la aplicación host.
 
 ## Documentación
 

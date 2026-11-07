@@ -4,7 +4,7 @@ Cada ruta comprueba quién está haciendo la solicitud y deja el trabajo de la
 base de datos al repositorio. Todas empiezan con ``/api/v1``.
 """
 
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.orm import Session
@@ -35,9 +35,31 @@ def list_course_programs(
     actor: CurrentActor,
     page: Annotated[int, Query(ge=1)] = 1,
     per_page: Annotated[int, Query(ge=1, le=100)] = 20,
+    curso_id: Annotated[int | None, Query(ge=1)] = None,
+    periodo_id: Annotated[int | None, Query(ge=1)] = None,
+    sede_id: Annotated[int | None, Query(ge=1)] = None,
+    estado: Literal[
+        "draft",
+        "submitted",
+        "under_review",
+        "returned",
+        "approved",
+        "authorized",
+        "superseded",
+    ] | None = None,
+    version: Annotated[int | None, Query(ge=1)] = None,
 ):
-    """Muestra los programas por páginas."""
-    return repository.list_programs(session, page, per_page)
+    """Muestra programas paginados y permite filtrar por curso y versión."""
+    return repository.list_programs(
+        session,
+        page,
+        per_page,
+        curso_id=curso_id,
+        periodo_id=periodo_id,
+        sede_id=sede_id,
+        estado=estado,
+        version=version,
+    )
 
 
 @router.post("/course-programs", status_code=201)

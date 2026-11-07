@@ -17,6 +17,52 @@ Estilos propios del proyecto.
   min-height: 100vh;
 }
 
+#login-panel[hidden],
+.container[hidden] {
+  display: none;
+}
+
+.login-panel {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px;
+}
+
+.login-panel > .panel {
+  width: min(100%, 440px);
+  padding: 28px;
+  border: 1px solid #E5E7EB;
+  border-radius: var(--udv-radius);
+  background: var(--udv-bg-white);
+  box-shadow: var(--udv-shadow);
+}
+
+.login-panel h1 {
+  margin-bottom: 8px;
+  color: var(--udv-navy);
+}
+
+.login-panel p {
+  color: var(--udv-text-muted);
+}
+
+.login-form {
+  display: grid;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.login-form #login-status {
+  min-height: 1.5em;
+}
+
+.header-actions {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+}
+
 /* =========================
    MENU LATERAL
    ========================= */
@@ -237,6 +283,11 @@ Estilos propios del proyecto.
 
 .field {
   display: flex;
+  flex-direction: column;
+}
+
+.header-actions {
+  align-items: stretch;
   flex-direction: column;
 }
 

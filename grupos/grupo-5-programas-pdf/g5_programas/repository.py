@@ -488,28 +488,53 @@ def _save_section(
 
 
 # Consultas para listar programas y revisar cambios entre versiones.
-def list_programs(session: Session, page: int, per_page: int):
-    """Lista una página de programas e indica cuántos hay en total."""
-    total = session.execute(text("SELECT COUNT(*) FROM programa_curso")).scalar_one()
+def list_programs(
+    session: Session,
+    page: int,
+    per_page: int,
+    *,
+    curso_id: int | None = None,
+    periodo_id: int | None = None,
+    sede_id: int | None = None,
+    estado: str | None = None,
+    version: int | None = None,
+):
+    """Lista programas/versiones paginados y aplica los filtros solicitados."""
+    conditions = []
+    params = {"limit": per_page, "offset": (page - 1) * per_page}
+    for column, value, parameter in (
+        ("pc.curso_id", curso_id, "curso_id"),
+        ("pv.periodo_id", periodo_id, "periodo_id"),
+        ("pc.sede_id", sede_id, "sede_id"),
+        ("pv.estado_codigo", estado, "estado"),
+        ("pv.numero_version", version, "version"),
+    ):
+        if value is not None:
+            conditions.append(f"{column} = :{parameter}")
+            params[parameter] = value
+    where_clause = f" WHERE {' AND '.join(conditions)}" if conditions else ""
+    from_clause = """
+        FROM programa_curso pc
+        JOIN curso c ON c.id = pc.curso_id
+        JOIN sede s ON s.id = pc.sede_id
+        JOIN modalidad m ON m.id = pc.modalidad_id
+        LEFT JOIN programa_version pv ON pv.programa_curso_id = pc.id
+        LEFT JOIN periodo p ON p.id = pv.periodo_id
+    """
+    total = session.execute(
+        text(f"SELECT COUNT(*) {from_clause}{where_clause}"),
+        {key: value for key, value in params.items() if key not in {"limit", "offset"}},
+    ).scalar_one()
     rows = _all(
         session,
-        """SELECT pc.id, pc.curso_id, pc.sede_id, pc.modalidad_id, pc.activo,
-                  c.codigo, c.nombre AS asignatura, s.nombre AS sede,
-                  m.nombre AS modalidad, v.programa_version_id, v.numero_version,
-                  v.periodo, 'authorized' AS estado
-           FROM programa_curso pc
-           JOIN curso c ON c.id = pc.curso_id
-           JOIN sede s ON s.id = pc.sede_id
-           JOIN modalidad m ON m.id = pc.modalidad_id
-           LEFT JOIN v_programa_vigente v
-             ON v.programa_curso_id = pc.id
-            AND v.programa_version_id = (
-                SELECT MAX(current.programa_version_id)
-                FROM v_programa_vigente current
-                WHERE current.programa_curso_id = pc.id
-            )
-           ORDER BY pc.id DESC LIMIT :limit OFFSET :offset""",
-        {"limit": per_page, "offset": (page - 1) * per_page},
+        f"""SELECT pc.id, pc.curso_id, pc.sede_id, pc.modalidad_id, pc.activo,
+                   c.codigo, c.nombre AS asignatura, s.nombre AS sede,
+                   m.nombre AS modalidad, pv.id AS programa_version_id,
+                   pv.numero_version, p.codigo AS periodo, pv.estado_codigo AS estado
+            {from_clause}{where_clause}
+            ORDER BY pc.id DESC, pv.periodo_id DESC, pv.numero_version DESC
+            LIMIT :limit OFFSET :offset""",
+        params,
     )
     return {"page": page, "per_page": per_page, "total": total, "data": json_value(rows)}
 
@@ -764,6 +789,29 @@ def generate_pdf_data(session: Session, version_id: int, actor: Actor):
     return pdf, hashlib.sha256(pdf).hexdigest(), program, version
 
 
+def _assignment_origin_id(body: dict) -> int | None:
+    """Valida el ID opcional de la asignación G3 que originó la versión."""
+    raw_id = body.get("tarea_destinatario_origen_id")
+    if raw_id is None:
+        return None
+    try:
+        if isinstance(raw_id, bool) or (
+            isinstance(raw_id, float) and not raw_id.is_integer()
+        ):
+            raise ValueError
+        assignment_id = int(raw_id)
+    except (TypeError, ValueError):
+        assignment_id = 0
+    if assignment_id <= 0:
+        raise ApiError(
+            422,
+            "VALIDATION_ERROR",
+            "La asignación de origen debe ser un identificador válido.",
+            {"tarea_destinatario_origen_id": "Usa un entero positivo."},
+        )
+    return assignment_id
+
+
 # Creación de programas y versiones, y registro del PDF generado.
 def create_program(session: Session, actor: Actor, body: dict):
     """Guarda un programa nuevo y crea su primera versión en borrador."""
@@ -776,6 +824,7 @@ def create_program(session: Session, actor: Actor, body: dict):
             "Faltan identificadores del catálogo de G1.",
             {key: "Campo obligatorio." for key in missing},
         )
+    assignment_id = _assignment_origin_id(body)
     with session.begin():
         set_database_actor(session, actor)
         context = _one(
@@ -820,10 +869,11 @@ def create_program(session: Session, actor: Actor, body: dict):
                     (programa_curso_id, numero_version, periodo_id, estado_codigo,
                      nombre, descripcion, programa_academico,
                      departamento, nivel, pensum, horas_clase_semanal,
-                     docente_responsable_id, creado_por)
+                     docente_responsable_id, tarea_destinatario_origen_id, creado_por)
                     VALUES (:program_id, 1, :period_id, 'draft',
                             :name, :description, :program,
-                            :department, :level, :pensum, :hours, :teacher, :actor_id)"""),
+                            :department, :level, :pensum, :hours, :teacher,
+                            :assignment_id, :actor_id)"""),
             {
                 "program_id": program_id,
                 "period_id": body["periodo_id"],
@@ -835,6 +885,7 @@ def create_program(session: Session, actor: Actor, body: dict):
                 "pensum": body.get("pensum"),
                 "hours": body.get("horas_clase_semanal"),
                 "teacher": actor.id,
+                "assignment_id": assignment_id,
                 "actor_id": actor.id,
             },
         )
@@ -852,6 +903,7 @@ def create_version(session: Session, actor: Actor, program_id: int, body: dict):
     period_id = body.get("periodo_id")
     if not period_id:
         raise ApiError(422, "VALIDATION_ERROR", "Falta el período académico.", {"periodo_id": "Campo obligatorio."})
+    assignment_id = _assignment_origin_id(body)
     with session.begin():
         set_database_actor(session, actor)
         program = _program_row(session, program_id)
@@ -877,11 +929,12 @@ def create_version(session: Session, actor: Actor, program_id: int, body: dict):
                     (programa_curso_id, numero_version, periodo_id, estado_codigo,
                      version_origen_id, nombre, descripcion, resumen_cambios,
                      unidad_academica_id, programa_academico, departamento, nivel,
-                     area_id, pensum, horas_clase_semanal, creado_por)
+                     area_id, pensum, horas_clase_semanal,
+                     tarea_destinatario_origen_id, creado_por)
                     VALUES (:program_id, :number, :period_id, 'draft',
                             :source_id, :name, :description, :summary,
                             :unit_id, :academic_program, :department, :level,
-                            :area_id, :pensum, :hours, :actor_id)"""),
+                            :area_id, :pensum, :hours, :assignment_id, :actor_id)"""),
             {
                 "program_id": program_id,
                 "number": (latest or 0) + 1,
@@ -897,6 +950,10 @@ def create_version(session: Session, actor: Actor, program_id: int, body: dict):
                 "area_id": (source or {}).get("area_id"),
                 "pensum": (source or {}).get("pensum"),
                 "hours": (source or {}).get("horas_clase_semanal"),
+                "assignment_id": (
+                    assignment_id if "tarea_destinatario_origen_id" in body
+                    else (source or {}).get("tarea_destinatario_origen_id")
+                ),
                 "actor_id": actor.id,
             },
         )

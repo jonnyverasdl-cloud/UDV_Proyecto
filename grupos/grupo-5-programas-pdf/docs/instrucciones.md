@@ -20,13 +20,13 @@ y el [`CONTRATO_COMUN.md`](https://github.com/jonnyverasdl-cloud/UDV_Proyecto/bl
   define un proveedor alternativo que responde 503. Verificar que este sea el
   comportamiento esperado al ejecutar G5 fuera de la aplicación compartida.
 - **Dependencias:** `requirements.txt` fija las versiones oficiales de
-  FastAPI, Uvicorn, SQLAlchemy, PyMySQL y cryptography. No usar rangos de
-  versiones para estas librerías.
+  FastAPI, Uvicorn, SQLAlchemy, PyMySQL, cryptography, ReportLab y pytest. No
+  usar rangos de versiones.
 - **Documentación:** arquitectura, flujo y criterios de revisión se mantienen
   en el README y esta guía.
 
-El selector de rol del frontend solo sirve para mostrar opciones de la interfaz;
-no representa autenticación real ni concede permisos en el backend.
+El selector se llena con los roles de la cuenta autenticada en G2. Solo cambia
+la vista de trabajo; el backend vuelve a validar los permisos en cada ruta.
 
 ## Flujo que debe validar QA
 
@@ -56,13 +56,17 @@ inmutable; una nueva versión se crea como borrador clonado.
 
 ### Instalación y arranque
 
-- [ ] Instalar desde cero con el `requirements.txt` de la raíz del proyecto
-      compartido y confirmar que las dependencias se resuelvan sin rangos
-      incompatibles.
-- [ ] Confirmar que `main.py` incluya el router de G5 y que sus rutas aparezcan
-      en `/api/v1/openapi.json`.
+- [ ] Instalar las dependencias declaradas en `requirements.txt` y confirmar
+      que la instalación termine correctamente.
+- [ ] Confirmar que la aplicación host incluya el router G5 y llame a
+      `registrar_errores(app)`; revisar las rutas en `/api/v1/openapi.json`.
 - [ ] Verificar que `DATABASE_URL` apunte a una base de prueba compatible con
       el esquema de G1; G5 no debe crear ni alterar tablas.
+- [ ] Iniciar sesión desde el formulario con una cuenta G2. Confirmar que las
+      rutas protegidas envían `Authorization: Bearer ...` y que el selector
+      solo muestra roles devueltos por G2.
+- [ ] Abrir el frontend con `?program_id=<id>` y confirmar que no depende de
+      una URL local ni de un ID de programa fijo.
 - [ ] Probar una petición autenticada con el token Bearer de G2. Confirmar que
       el usuario y sus roles llegan desde `obtener_usuario_actual`, no desde
       el selector del navegador.
@@ -81,6 +85,9 @@ inmutable; una nueva versión se crea como borrador clonado.
 
 ### Persistencia, auditoría y PDF
 
+- [ ] Probar los filtros del listado por curso, período, sede, estado y versión.
+- [ ] Crear una versión desde una asignación G3 y confirmar que
+      `tarea_destinatario_origen_id` se conserva en la versión creada.
 - [ ] Guardar una sección y comprobar que las demás secciones se conserven.
 - [ ] Confirmar que las filas dinámicas mantienen su orden tras guardar y
       volver a cargar.
@@ -98,9 +105,11 @@ inmutable; una nueva versión se crea como borrador clonado.
 Desde la raíz del proyecto:
 
 ```bash
-pytest -q
+python -m pytest -q
 ```
 
-Las pruebas unitarias actuales cubren reglas de estados, editabilidad,
-unicidad de versión autorizada y permisos. Un resultado exitoso no sustituye
-las pruebas de integración con G2, MySQL, OpenAPI ni la descarga real del PDF.
+La suite actual contiene 15 pruebas para reglas de estados y permisos,
+selección de sesiones y auditoría (con mocks), errores HTTP, filtros y
+OpenAPI, y validación del vínculo de asignación. No prueba una conexión MySQL
+real ni la descarga del PDF; un resultado exitoso no sustituye la integración
+con G2, la aplicación host y una base de prueba.

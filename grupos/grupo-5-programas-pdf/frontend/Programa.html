@@ -5,13 +5,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Programa de Curso</title>
     <!-- ESTILOS Y LÓGICA DE LA INTERFAZ -->
-    <link rel="stylesheet" href="estilos/udv.css?v=pdf-layout-2" />
-    <link rel="stylesheet" href="estilos/style.css?v=pdf-layout-2" />
-    <script src="script.js?v=pdf-layout-2" defer></script>
+    <link rel="stylesheet" href="estilos/udv.css?v=auth-filters-1" />
+    <link rel="stylesheet" href="estilos/style.css?v=auth-filters-1" />
+    <script src="script.js?v=auth-filters-1" defer></script>
   </head>
 
   <body>
-    <div class="container">
+    <main id="login-panel" class="login-panel">
+      <section class="panel">
+        <h1>Iniciar sesión</h1>
+        <p>Usa tu cuenta de la API UDV para abrir un programa.</p>
+        <form id="login-form" class="login-form">
+          <div class="field">
+            <label for="login-email">Correo</label>
+            <input id="login-email" type="email" autocomplete="username" required />
+          </div>
+          <div class="field">
+            <label for="login-password">Contraseña</label>
+            <input id="login-password" type="password" autocomplete="current-password" required />
+          </div>
+          <button id="login-submit" type="submit">Entrar</button>
+          <p id="login-status" role="status" aria-live="polite"></p>
+        </form>
+      </section>
+    </main>
+
+    <div class="container" hidden>
       <!-- MENÚ LATERAL -->
       <aside class="menu">
         <h1>Proyecto</h1>
@@ -41,20 +60,15 @@
               <span id="version-number"> Versión 1 </span>
             </div>
 
-            <p id="save-status">Cambios guardados localmente</p>
+            <p id="save-status">Cargando programa...</p>
           </div>
 
-          <!-- ROL ACTUAL -->
-          <div class="role-selector">
-            <label for="role">Rol actual</label>
-
-            <select id="role" class="role">
-              <option value="docente">Docente</option>
-              <option value="coordinador-academico">
-                Coordinador académico
-              </option>
-              <option value="decanatura">Decanatura</option>
-            </select>
+          <div class="header-actions">
+            <div class="role-selector">
+              <label for="role">Rol autorizado</label>
+              <select id="role" class="role"></select>
+            </div>
+            <button id="logout" type="button">Cerrar sesión</button>
           </div>
         </header>
 
