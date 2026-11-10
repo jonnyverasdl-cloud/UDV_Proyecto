@@ -22,13 +22,20 @@ class Base(unittest.TestCase):
         return transitions.get_actor(self.conn, uid)
 
     def make_task(self, type_code="update_program", rule=None, publish=False, **extra):
-        data = {"type_id": self.ids["types"][type_code], "title": "Tarea de prueba",
-                "due_date": "2026-10-30", "priority": "high",
-                "reviewer_id": self.ids["reviewer"], **extra}
+        data = {
+            "type_id": self.ids["types"][type_code],
+            "title": f"Tarea de prueba {self.conn.execute('SELECT COUNT(*) FROM tasks').fetchone()[0] + 1}",
+            "due_date": "2026-10-30",
+            "priority": "high",
+            "reviewer_id": self.ids["reviewer"],
+            **extra
+        }
         coord = self.actor("coord")
         task = tasks.create_task(self.conn, coord, data)
-        tasks.set_recipients(self.conn, coord, task["id"],
-                             rule or {"mode": "users", "user_ids": [self.t[0]]})
+        tasks.set_recipients(
+            self.conn, coord, task["id"],
+            rule or {"mode": "users", "user_ids": [self.t[0]]}
+        )
         if publish:
             tasks.publish_task(self.conn, coord, task["id"])
         return task["id"]
@@ -406,6 +413,20 @@ class SeedTests(unittest.TestCase):
         self.assertEqual(mass["summary"]["by_status"]["submitted"], 1)
         self.assertEqual(tasks.get_task(conn, coord, ids["draft_task"])["status"], "draft")
 
+class DuplicateTaskTests(Base):
+    def test_reject_duplicate_task(self):
+        coord = self.actor("coord")
+        data = {
+            "type_id": self.ids["types"]["update_program"],
+            "title": "Programa duplicado",
+            "due_date": "2026-10-30",
+            "priority": "medium",
+            "reviewer_id": self.ids["reviewer"]
+        }
 
+        tasks.create_task(self.conn, coord, data)
+
+        with self.assertRaises(Conflict):
+            tasks.create_task(self.conn, coord, data)
 if __name__ == "__main__":
     unittest.main()

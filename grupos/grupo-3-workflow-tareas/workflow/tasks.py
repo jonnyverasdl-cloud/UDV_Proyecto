@@ -263,6 +263,29 @@ def create_task(conn, actor, data):
     with transaction(conn):
         _validate_fields(conn, data)
         if _is_mysql(conn):
+            duplicada = conn.execute(
+                """SELECT t.id FROM tarea t
+                   JOIN workflow w ON w.id = t.workflow_id
+                   WHERE t.tipo_tarea_id = ?
+                   AND t.titulo = ?
+                   AND DATE(t.fecha_limite) = ?
+                   AND t.eliminado_en IS NULL
+                   LIMIT 1""",
+                (data["type_id"], data["title"].strip(), data["due_date"])
+            ).fetchone()
+        else:
+            duplicada = conn.execute(
+                """SELECT id FROM tasks
+                   WHERE type_id = ?
+                   AND title = ?
+                   AND due_date = ?
+                   AND status != 'cancelled'
+                   LIMIT 1""",
+                (data["type_id"], data["title"].strip(), data["due_date"])
+                  ).fetchone()
+            if duplicada:
+             raise Conflict("Ya existe una tarea con el mismo tipo, titulo y fecha limite")
+        if _is_mysql(conn):
             set_actor(conn, actor["id"])
             cur = conn.execute(
                 "INSERT INTO tarea(workflow_id, estado_codigo, titulo, descripcion, prioridad,"
