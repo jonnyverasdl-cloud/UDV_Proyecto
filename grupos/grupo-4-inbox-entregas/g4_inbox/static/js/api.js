@@ -26,11 +26,21 @@ const Api = (function () {
   function obtenerInbox({ q = "", status = "", page = 1, per_page = 20 } = {}) {
     const parametros = new URLSearchParams({ q, page, per_page });
     if (status) parametros.set("status", status);
-    return fetch(`${BASE}/inbox?${parametros}`).then(manejarRespuesta);
+    return fetch(
+    `${BASE}/inbox?${parametros}`,
+    {
+        headers: Sesion.encabezados()
+    }
+    ).then(manejarRespuesta);
   }
 
   function obtenerResumen() {
-    return fetch(`${BASE}/inbox/summary`).then(manejarRespuesta);
+    return fetch(
+    `${BASE}/inbox/summary`,
+    {
+        headers: Sesion.encabezados()
+    }
+    ).then(manejarRespuesta);
   }
 
   return { obtenerInbox, obtenerResumen, diasRestantes };

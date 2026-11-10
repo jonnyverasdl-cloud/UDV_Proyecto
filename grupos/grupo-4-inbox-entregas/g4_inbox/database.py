@@ -20,6 +20,7 @@ from datetime import date, datetime
 from typing import List, Optional
 
 from sqlalchemy import create_engine, text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 
 from .config import DATABASE_URL
@@ -162,3 +163,21 @@ def probar_conexion() -> bool:
         return True
     except Exception:
         return False
+
+
+def fetch_orden_prioridades() -> dict:
+    """{codigo: orden} del catálogo prioridad_tarea de G1 (low=1 ... urgent=4).
+
+    La prioridad solo desempata el orden del inbox, así que si el catálogo
+    no se puede leer (por ejemplo una base de la versión anterior) devolvemos
+    {} y listar_inbox usa su copia por defecto, en vez de tumbar el inbox."""
+    sesion = _sesion()
+    try:
+        filas = sesion.execute(
+            text("SELECT codigo, orden FROM prioridad_tarea WHERE activo = 1")
+        ).mappings().all()
+    except SQLAlchemyError:
+        return {}
+    finally:
+        sesion.close()
+    return {fila["codigo"]: int(fila["orden"]) for fila in filas}

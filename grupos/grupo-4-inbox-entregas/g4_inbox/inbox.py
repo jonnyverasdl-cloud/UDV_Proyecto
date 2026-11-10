@@ -1,6 +1,8 @@
 """Lógica del inbox del docente (GET /inbox y GET /inbox/summary).
 
-
+Python puro, sin framework ni base de datos: cuando el PM defina el stack,
+los endpoints solo llaman a estas funciones. Las reglas vienen de CONTRATO.md §4
+y los estados de CONTRATO_COMUN.md §2 (inglés, minúsculas).
 """
 import unicodedata
 from dataclasses import asdict, dataclass
@@ -15,7 +17,10 @@ ESTADOS_INBOX = tuple(e for e in ESTADOS if e != "draft")
 # Estados en los que el docente todavía tiene que hacer algo: solo en estos
 # importa el vencimiento.
 ESTADOS_PENDIENTES = ("assigned", "in_progress", "returned")
-ORDEN_PRIORIDAD = {"urgent": 0, "high": 1, "medium": 2, "low": 3}
+# Copia del catálogo prioridad_tarea de G1 (columna "orden": mayor = más urgente).
+# En producción el orden sale de esa tabla (database.fetch_orden_prioridades);
+# esta copia solo se usa en modo memoria y en las pruebas.
+ORDEN_PRIORIDAD_POR_DEFECTO = {"low": 1, "medium": 2, "high": 3, "urgent": 4}
 DIAS_POR_VENCER = 3
 
 PER_PAGE_POR_DEFECTO = 20
@@ -80,13 +85,15 @@ def visibles_para(asignaciones, usuario_id):
             if a.assignee_id == usuario_id and a.status in ESTADOS_INBOX]
 
 
-def _clave_orden(asignacion, hoy):
+def _clave_orden(asignacion, hoy, orden_prioridad):
     # Fecha más cercana primero, sin fecha al final; empate: más urgente primero.
+    # En el catálogo un "orden" mayor es más urgente, por eso se niega; una
+    # prioridad que el catálogo no conoce queda al final (0 > -1).
     dias = dias_restantes(asignacion, hoy)
     return (
         dias is None,
         dias if dias is not None else 0,
-        ORDEN_PRIORIDAD.get(asignacion.priority, 99),
+        -orden_prioridad.get(asignacion.priority, 0),
         asignacion.id,
     )
 
@@ -105,17 +112,22 @@ def _validar(status, page, per_page):
 
 
 def listar_inbox(asignaciones, usuario_id, *, q="", status=None,
-                 page=1, per_page=PER_PAGE_POR_DEFECTO, hoy=None):
-    """GET /inbox: respuesta paginada {page, per_page, total, data}."""
+                 page=1, per_page=PER_PAGE_POR_DEFECTO, hoy=None,
+                 orden_prioridad=None):
+    """GET /inbox: respuesta paginada {page, per_page, total, data}.
+
+    orden_prioridad: {codigo: orden} del catálogo de G1. Si no se pasa
+    (modo memoria, pruebas) se usa la copia ORDEN_PRIORIDAD_POR_DEFECTO."""
     _validar(status, page, per_page)
     hoy = hoy or date.today()
+    orden_prioridad = orden_prioridad or ORDEN_PRIORIDAD_POR_DEFECTO
 
     texto = normalizar(q)
     filtradas = [
         a for a in visibles_para(asignaciones, usuario_id)
         if texto in normalizar(a.title) and (status is None or a.status == status)
     ]
-    filtradas.sort(key=lambda a: _clave_orden(a, hoy))
+    filtradas.sort(key=lambda a: _clave_orden(a, hoy, orden_prioridad))
 
     inicio = (page - 1) * per_page
     pagina = filtradas[inicio:inicio + per_page]

@@ -124,6 +124,31 @@ def test_revisor_puede_comentar_pero_no_tocar_el_borrador_del_docente():
     assert cliente.put("/api/v1/assignments/1/submission-draft", json={"comment": "x"}).status_code == 403
 
 
+def test_admin_puede_ver_y_comentar_pero_no_tocar_la_entrega():
+    # el admin entra con un id que no es el del dueño (docente 1)
+    autenticar_como(99, roles=("admin",))
+    assert cliente.get("/api/v1/assignments/1").status_code == 200
+    assert cliente.post("/api/v1/assignments/1/comments", json={"text": "nota"}).status_code == 200
+    assert cliente.put("/api/v1/assignments/1/submission-draft", json={"comment": "x"}).status_code == 403
+    assert cliente.post("/api/v1/assignments/1/files",
+                         json={"file_id": "f-x", "name": "x.pdf"}).status_code == 403
+
+
+def test_auditor_solo_puede_ver():
+    autenticar_como(99, roles=("auditor",))
+    assert cliente.get("/api/v1/assignments/1").status_code == 200
+    assert cliente.get("/api/v1/assignments/1/comments").status_code == 200
+    assert cliente.post("/api/v1/assignments/1/comments", json={"text": "nota"}).status_code == 403
+    assert cliente.put("/api/v1/assignments/1/submission-draft", json={"comment": "x"}).status_code == 403
+    assert cliente.post("/api/v1/assignments/1/files",
+                         json={"file_id": "f-x", "name": "x.pdf"}).status_code == 403
+
+
+def test_un_docente_cualquiera_sigue_sin_acceso():
+    autenticar_como(99, roles=("teacher",))
+    assert cliente.get("/api/v1/assignments/1").status_code == 403
+
+
 # ============================================================================
 # DETALLE
 # ============================================================================

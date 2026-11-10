@@ -21,7 +21,7 @@ function claseBadge(estado) {
 async function apiFetch(ruta, opciones = {}) {
   const respuesta = await fetch(`${API_BASE}${ruta}`, {
     ...opciones,
-    headers: { "Content-Type": "application/json", ...(opciones.headers || {}) },
+    headers: {"Content-Type": "application/json", ...Sesion.encabezados(), ...(opciones.headers || {})},
   });
   const tipo = respuesta.headers.get("content-type") || "";
   const datos = tipo.includes("application/json") ? await respuesta.json() : await respuesta.text();
@@ -191,7 +191,6 @@ async function confirmarEntrega(tarea) {
     const accion = tarea.estado === "returned" ? "resubmit" : "submit";
     await apiFetch(`/assignments/${tarea.id}/${accion}`, {
       method: "POST",
-      headers: { "X-Role": "docente" },
     });
     await cargarDetalle();
     const ok = document.getElementById("avisoEntregaOk");
@@ -206,7 +205,6 @@ async function transicion(tarea, accion) {
   try {
     await apiFetch(`/assignments/${tarea.id}/${accion}`, {
       method: "POST",
-      headers: { "X-Role": accion === "start" ? "docente" : "revisor" },
     });
     await cargarDetalle();
   } catch (error) {
@@ -223,7 +221,6 @@ async function devolver(tarea) {
   try {
     await apiFetch(`/assignments/${tarea.id}/return`, {
       method: "POST",
-      headers: { "X-Role": "revisor" },
       body: JSON.stringify({ comment }),
     });
     await cargarDetalle();
