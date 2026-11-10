@@ -1,6 +1,6 @@
 # Guía del Grupo 2: API y Seguridad
 
-Coordinador: Daniel (dancobs) · Versión 2 · 10-oct-2026 · Estado actualizado al 06-nov-2026
+Coordinador: Daniel (dancobs) · Versión 2 · 10-oct-2026 · Estado actualizado al 09-nov-2026
 
 **Cómo usar esta guía:** busca tu nombre en la sección 2 y mira la semana actual. Ahí está lo que te toca y la fecha de entrega.
 
@@ -8,7 +8,7 @@ Coordinador: Daniel (dancobs) · Versión 2 · 10-oct-2026 · Estado actualizado
 
 ## 1. Dónde estamos (estado al 06-nov)
 
-**Retest No. 3 de QA (05-nov):** G2-21 PASS (4/4), G2-31 PASS (22/22), G2-32 PASS (8/8) y G2-33 FAIL documental: 37 PASS y 1 FAIL. Swagger de Railway no mostraba la documentación del G2 porque Railway ejecuta el `main.py` de la raíz y no el de `g2_api`. Robert lo corrigió el 06-nov con `g2_api/openapi_docs.py` (sección 9.2); falta que el PM lo active en la raíz y el retest. `pytest` en `grupo-2`: **107 pasan**.
+**Retest No. 3 de QA (05-nov):** G2-21 PASS (4/4), G2-31 PASS (22/22), G2-32 PASS (8/8) y G2-33 FAIL documental: 37 PASS y 1 FAIL. Swagger de Railway no mostraba la documentación del G2 porque Railway ejecuta el `main.py` de la raíz y no el de `g2_api`. Robert lo corrigió el 06-nov con `g2_api/openapi_docs.py` (sección 9.2); falta que el PM lo active en la raíz y el retest. `pytest` en `grupo-2` (09-nov): **115 pasan** (los 107 del 06-nov más las 8 pruebas de `tests/test_file.py`, que Fulvio subió el 08-nov).
 
 **Retest No. 2 de QA (23 y 24-oct, histórico):** 34 PASS, 2 FAIL (G2-21 archivos y G2-31 paginación), 1 PARCIAL (G2-33 OpenAPI) y 1 PASS histórico con retest pendiente (G2-32). Lo que falta se explica en la sección 9. `pytest` en `grupo-2` (04-nov): **103 pasan, sin fallas**. `test_campo_obligatorio_faltante_422` en `tests/test_users.py` ya lee `details` como objeto con un campo por llave (Randy y Robert, 04-nov). El `details` del 422 ya sale como objeto y el xfail de `tests/test_openapi.py` se quitó; la contraseña de 8 a 64 al crear usuario ya pasa.
 
@@ -33,10 +33,10 @@ Coordinador: Daniel (dancobs) · Versión 2 · 10-oct-2026 · Estado actualizado
 | ✅ | `registro.py`: el login fallido con correo inexistente o vacío se guarda con `registro_id = 0` (corregido otra vez el 02-nov por Daniel: el NULL del Grupo 1 es solo para `actor_id`; `registro_id` es NOT NULL en `01_schema.sql`). Queda quitar las funciones que ya no se usan | Edgar |
 | ✅ | `registro.py`: `set_actor_id()` ya no manda `@actor_id = 0`: manda NULL cuando no hay usuario (aviso del Grupo 1, 28-oct; corregido el 30-oct) | Edgar |
 | ✅ | `users.py`: al crear y al editar un usuario `fijar_actor(db, actual.id, _ip(request))` ya pasa la IP (`request.client.host`), así que los triggers llenan `ip_origen` (02-nov, `9205344`) | Randy |
-| ✅ | Archivos (28-oct): `POST /files` ya no da 500 y guarda el archivo en la tabla `archivo` con SHA-256 y `autor_id`. `GET /files/{id}` usa `{id}`, da 404 si no existe y 403 si quien pide no es el dueño ni un admin (G2-21; admin agregado el 31-oct, `7ffa69c`). El PM confirmó (01-nov) que descargan el dueño o un admin y que el límite de 5 MB aplica solo a `/files`. PASS 4/4 en el retest del 05-nov (G2-21). Ya está en `main` (PR #20; el PM montó `/files` en el PR #22). Falta `tests/test_files.py` | Fulvio |
+| ✅ | Archivos (28-oct): `POST /files` ya no da 500 y guarda el archivo en la tabla `archivo` con SHA-256 y `autor_id`. `GET /files/{id}` usa `{id}`, da 404 si no existe y 403 si quien pide no es el dueño ni un admin (G2-21; admin agregado el 31-oct, `7ffa69c`). El PM confirmó (01-nov) que descargan el dueño o un admin y que el límite de 5 MB aplica solo a `/files`. PASS 4/4 en el retest del 05-nov (G2-21). Ya está en `main` (PR #20; el PM montó `/files` en el PR #22). Pruebas en `tests/test_file.py` (Fulvio, 08-nov: 8 pruebas) | Fulvio |
 | ✅ | Bloqueo por intentos (5 fallos = 429 por 15 minutos): PASS en el retest (G2-34) | Daniel |
 | ✅ | Paginación en `GET /users` (`page`, `per_page`, `total`, `data`): ya la usa `users.py` (24-oct) y tiene pruebas. PASS 22/22 en el retest del 05-nov (G2-31) | Randy |
-| 🟡 | Documentación OpenAPI: `main.py` completa 401, 403, 404, 409 y 422 con el formato común y ejemplos reales (objetos, no `string`). Al día con el PM (01-nov): `creado_en` y `actualizado_en` en ISO 8601, `details` como objeto, 403 en `GET /files/{id}` y `file_id` numérico en `POST /files`. El 02-nov las fechas del ejemplo pasaron a UTC con `Z`, igual que la API (Randy ya subió las fechas); Edgar ya subió `details` como objeto (03-nov), así que Swagger coincide con la API y `tests/test_openapi.py` pasa 9 de 9 sin xfail. **FAIL documental en el retest del 05-nov:** Railway usa el `main.py` de la raíz y no cargaba esta documentación. Corregido el 06-nov: la lógica pasó a `g2_api/openapi_docs.py` y `tests/test_openapi.py` prueba una app como la de la raíz. Falta que el PM la active en la raíz y el retest (G2-33) | Robert |
+| 🟡 | Documentación OpenAPI: `main.py` completa 401, 403, 404, 409 y 422 con el formato común y ejemplos reales (objetos, no `string`). Al día con el PM (01-nov): `creado_en` y `actualizado_en` en ISO 8601, `details` como objeto, 403 en `GET /files/{id}` y `file_id` numérico en `POST /files`. El 02-nov las fechas del ejemplo pasaron a UTC con `Z`, igual que la API (Randy ya subió las fechas); Edgar ya subió `details` como objeto (03-nov), así que Swagger coincide con la API y `tests/test_openapi.py` pasa 9 de 9 sin xfail. **FAIL documental en el retest del 05-nov:** Railway usa el `main.py` de la raíz y no cargaba esta documentación. Corregido el 06-nov: la lógica pasó a `g2_api/openapi_docs.py` y `tests/test_openapi.py` prueba una app como la de la raíz. Falta que el PM la active en la raíz y el retest (G2-33). Ya se comentó «listo para retest» en el Planner | Robert |
 | ✅ | `pytest` completo en `grupo-2` (04-nov): **103 pasan, sin fallas**. Randy ajustó `test_campo_obligatorio_faltante_422` para que lea `details` como objeto y agregó `test_password_fuera_de_largo_422` (contraseña de 8 a 64) | Randy |
 
 **Ojo:** el PM entregó una base compartida (MySQL en Railway). Los datos de acceso se piden al PM y van **solo en tu `.env`**, nunca en el repo ni en `.env.example`. Lo que se borra ahí lo ven los demás grupos. El Grupo 1 ya subió su script SQL a la rama `grupo-1` (`grupos/grupo-1-base-de-datos/Docs/sql/`: `01_schema.sql` y `02_seed.sql`) y se puede montar la base local con `python -m g1_bd crear`. Login, sesión, middleware, `users.py` y `roles.py` ya usan la base. El JSON de prueba ya se borró (02-nov): `auth.py` ya no lo carga y la carpeta `datos_prueba/` no existe.
@@ -45,7 +45,7 @@ Coordinador: Daniel (dancobs) · Versión 2 · 10-oct-2026 · Estado actualizado
 
 ## 2. Quién hace qué, por semana
 
-**Corte de cada semana: martes a las 23:59.** Lo que no esté subido a `grupo-2` ese día se toma como no entregado. La semana 3 (corte martes 27-oct) ya pasó; lo que sigue es la **semana 4, con corte el martes 03-nov**.
+**Corte de cada semana: martes a las 23:59.** Lo que no esté subido a `grupo-2` ese día se toma como no entregado. La semana 3 (corte martes 27-oct) ya pasó, igual que la semana 4 (corte martes 03-nov); lo que sigue es la **semana 5, con corte el martes 10-nov**.
 
 Cada tarea dice: **archivo → qué haces** y, en *cursiva*, con quién se conecta.
 
@@ -142,7 +142,7 @@ Cada tarea dice: **archivo → qué haces** y, en *cursiva*, con quién se conec
   *(28-oct: subido a `grupo-2`. 31-oct: el admin también descarga, como confirmó el PM el 01-nov. 05-nov: PASS 4/4 en el retest de QA.)*
 
 **Semana 4 · martes 03-nov**
-- `tests/test_files.py` → pruebas: tipo no permitido, archivo muy grande y descarga sin token (401).
+- ✅ `tests/test_file.py` → pruebas: tipo no permitido, archivo muy grande y descarga sin token (401). Hecho el 08-nov: el archivo se llama `test_file.py` y trae 8 pruebas.
 
 ---
 
@@ -172,11 +172,12 @@ Cada tarea dice: **archivo → qué haces** y, en *cursiva*, con quién se conec
   *Randy y Edgar deben subir su parte para que Swagger coincida con la API.*
 - `tests/conftest.py` → sin cambios: `pytest` corre con SQLite temporal y nunca toca la base compartida.
 
-**Semana 5 · martes 10-nov** (adelantada: hecha el 06-nov)
+**Semana 5 · martes 10-nov** (adelantada: hecha el 06-nov; revisión final el 09-nov)
 - `g2_api/openapi_docs.py` (nuevo) y `g2_api/main.py` → la documentación de OpenAPI pasa a una función `completar_openapi(app)` que sirve para cualquier app, incluida la de la raíz que despliega Railway (G2-33).
 - `tests/test_openapi.py` → pruebas con una app armada como la de la raíz: 409, 403, ejemplos de objeto y 422 con el modelo real.
 - `README.md` → explica que la raíz debe llamar `completar_openapi(app)`.
   *El PM agrega esas dos líneas en el `main.py` de la raíz (no es archivo del G2).*
+- ✅ `README.md` y revisión final (09-nov) → el esqueleto del README dice en una línea qué es cada archivo, para qué sirve y quién lo elaboró; se quitó el «por crear» de las pruebas de archivos. El repo no trae claves (solo valores de ejemplo en `.env.example`) y `pytest` pasa 115.
 
 ---
 
@@ -346,7 +347,7 @@ Misma idea que la 8.2. Las tareas son las de la sección 2; aquí se les pone el
 | Daniel | `tests/test_auth.py`: login bien, login mal (401), logout y `/me` sin token (401) | G2-01, 02, 03, 05, 06, 07 |
 | Randy | `tests/test_users.py`: 401 sin token, 403 sin permiso, 404 y 409 por correo repetido | G2-06, 08, 09, 12, 27 |
 | Edgar | `tests/test_errores.py`: formato de error y paginación | G2-29, 30, 31 |
-| Fulvio | `tests/test_files.py`: tipo no permitido, archivo muy grande y descarga sin token (401) | G2-19, 20, 21 |
+| Fulvio | `tests/test_file.py`: tipo no permitido, archivo muy grande y descarga sin token (401) (hecho el 08-nov) | G2-19, 20, 21 |
 | Robert | `README.md` (hecho el 22-oct) y `tests/conftest.py`; revisión de `/api/v1/docs` (al día con el PM el 01-nov) | G2-33, 35 |
 
 ### 8.9 Semana 5 (martes 10-nov) con escenarios
@@ -359,7 +360,7 @@ En la sección 2 solo Daniel tiene tarea esta semana. Para que cada quien sepa q
 | Randy | Repetir y corregir lo que QA devuelva de usuarios, roles y middleware | G2-06, 08, 09, 10, 11, 12, 17, 26, 31, 37, 38 |
 | Edgar | Repetir y corregir lo que QA devuelva de errores, paginación y registro | G2-23, 24, 28, 29, 30, 31, 36 |
 | Fulvio | Repetir y corregir lo que QA devuelva de archivos | G2-18, 19, 20, 21, 22 |
-| Robert | Revisión final de OpenAPI (`/api/v1/docs` contra lo que responde la API) y del README; confirmar que no hay claves en el repo | G2-33, 35 |
+| Robert | Revisión final de OpenAPI (`/api/v1/docs` contra lo que responde la API) y del README; confirmar que no hay claves en el repo (hecho el 09-nov: sin claves y `pytest` 115 pasan) | G2-33, 35 |
 
 *Nota: las fechas de las semanas 3, 4 y 5 son martes 27-oct, 03-nov y 10-nov (las de la sección 2).*
 
@@ -371,7 +372,7 @@ Fuentes: Update No. 2 e Informe de Retest No. 2 de Allison (el detalle de los 38
 
 | Prioridad | Escenario | Qué pasa | Quién | Archivo | Estado al 02-nov |
 |-|-|-|-|-|-|
-| 🔴 Alta (crítica) | G2-21 | Un docente descarga el archivo de un admin (HTTP 200, posible IDOR). El PM pide 403 o 404. | Fulvio | `routers/files.py` | ✅ Subido el 28-oct (commit `6982c15`): `GET /files/{id}` pide token, da 404 si no existe y 403 si no es el dueño ni un admin; `POST /files` guarda en la tabla `archivo`. 31-oct (`7ffa69c`): el admin también descarga, como confirmó el PM (01-nov). **PASS 4/4 en el retest del 05-nov.** Ya está en `main` (PR #20; el PM montó `/files` en el PR #22). Falta `tests/test_files.py` |
+| 🔴 Alta (crítica) | G2-21 | Un docente descarga el archivo de un admin (HTTP 200, posible IDOR). El PM pide 403 o 404. | Fulvio | `routers/files.py` | ✅ Subido el 28-oct (commit `6982c15`): `GET /files/{id}` pide token, da 404 si no existe y 403 si no es el dueño ni un admin; `POST /files` guarda en la tabla `archivo`. 31-oct (`7ffa69c`): el admin también descarga, como confirmó el PM (01-nov). **PASS 4/4 en el retest del 05-nov.** Ya está en `main` (PR #20; el PM montó `/files` en el PR #22). Pruebas en `tests/test_file.py` (Fulvio, 08-nov: 8 pruebas) |
 | ⚪ Baja | G2-36 | PASS del PM y del QA en el retest. El aviso anterior del PM (correo inexistente con `registro_id` en NULL) ya está corregido: se guarda `registro_id = 0` y el correo va en `detalle`; el QA lo confirmó con un LOGIN_FALLIDO en la tabla `auditoria`. Antes se avisó que el login fallido se guardaba **dos veces** (`auth.py` y `registro.py`). | Daniel y Edgar | `routers/auth.py`, `utils/registro.py` | ✅ PASS de QA. Con el correo inexistente se guarda `registro_id = 0` (02 y 03-nov, Daniel y Edgar). Queda revisar que el login fallido quede una sola vez antes del PR a `main` |
 | 🟡 Media | G2-33 | Faltaban 409, 403, ejemplos con objetos y el 422 real. | Robert | `main.py` | 🔵 Hecho (27 y 28-oct): `POST /users`, `GET /me` y `GET /users` documentan sus códigos con ejemplos reales y `tests/test_openapi.py` lo verifica. `files` ya usa `{id}`. Ejemplos al día con el PM el 01-nov (fechas, `details` como objeto, 403 en archivos). ❌ **FAIL documental el 05-nov** (Railway no cargaba esta documentación); corregido el 06-nov, ver 9.2 |
 | ⚪ Baja | G2-31 | `GET /users` devolvía un arreglo sin paginar. | Randy | `routers/users.py` | ✅ Ya pagina (24-oct) con pruebas en `tests/test_users.py`. PASS 22/22 en el retest del 05-nov |
@@ -412,4 +413,6 @@ Allison repitió los cuatro escenarios contra Railway. **G2-21 PASS (4/4), G2-31
 **Qué cambió:** la documentación pasó a `g2_api/openapi_docs.py` (`completar_openapi(app)`), que usan `g2_api/main.py` y cualquier otra app; solo toca las rutas del G2. `tests/test_openapi.py` prueba también una app armada como la de la raíz. `pytest` completo: **107 pasan**. Commits en `grupo-2` (Robert, 06-nov): `b58a863` (`main.py`), `bddbf20` (`openapi_docs.py`), `71a0dca` (`tests/test_openapi.py`) y `a4c8232` (`README.md`).
 
 **Para cerrar G2-33:** 1) Daniel abre el PR `grupo-2` → `main`. 2) El PM agrega al `main.py` de la raíz, después de montar los routers, `from g2_api.openapi_docs import completar_openapi` y `completar_openapi(app)` (ese archivo es del PM). 3) El PM despliega en Railway y avisa a Allison para repetir G2-33.
+
+**Estado al 09-nov:** los tres pasos siguen por confirmar con el PM; Robert ya comentó «listo para retest» en el Planner. El corte de la semana 5 es mañana, martes 10-nov a las 23:59.
 
