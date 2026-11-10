@@ -167,5 +167,5 @@ grupos/grupo-2-api-seguridad/
 | Edgar - Persona 3 | `zeusgeo99-code` | `middleware/error_handler.py`, `utils/paginacion.py`, `utils/registro.py`, `tests/test_errores.py` |
 | Fulvio - Persona 4 | `Ful55` | `routers/files.py`, `frontend-login/`, `tests/test_file.py` |
 | Robert - Persona 5 | `Davids107` | `main.py`, `config.py`, `database.py`, `models.py`, `requirements.txt`, `.env.example`, `.gitignore`, `README.md`, `tests/conftest.py`, `tests/test_openapi.py`, `g2_api/openapi_docs.py` |
-| onathan Veras - PM | — | `CONTRATO.md`, `CONTRATO_COMUN.md`, los `.docx` de requerimientos y la raíz del repo |
+| Jonathan Veras - PM | — | `CONTRATO.md`, `CONTRATO_COMUN.md`, los `.docx` de requerimientos y la raíz del repo |
 
