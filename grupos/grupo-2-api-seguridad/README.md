@@ -127,7 +127,7 @@ grupos/grupo-2-api-seguridad/
 │   ├── script.js                           # Envía el login a la API y muestra el error si falla. (Elaborado por Fulvio Jiménez)
 │   ├── logo.webp                           # Logo que se muestra en la pantalla de login. (Elaborado por Fulvio Jiménez)
 │   └── imagen.webp                         # Imagen decorativa de la pantalla de login. (Elaborado por Fulvio Jiménez)
-├── tests/                                  # Pruebas automáticas con pytest y una base SQLite temporal. (Elaborado por el Grupo 2.)
+├── tests/                                  # Pruebas automáticas con pytest y una base SQLite temporal. (Elaborado por el Grupo 2)
 │   ├── conftest.py                         # Prepara la base temporal y el cliente que usan todas las pruebas. (Elaborado por Robert Rodríguez)
 │   ├── test_auth.py                        # Pruebas de login, logout y /me. (Elaborado por Daniel Cobos)
 │   ├── test_users.py                       # Pruebas de usuarios y roles: 401, 403, 404, 409 y 422. (Elaborado por Randy Torres)
