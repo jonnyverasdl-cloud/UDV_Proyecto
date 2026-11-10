@@ -1,0 +1,74 @@
+Reporte de Pruebas QA: Flujo End-to-End de Tareas y Asignaciones
+
+Fecha: 09 de noviembre de 2026
+Módulo: Tareas y Asignaciones (Task Management System)
+Tipo de Prueba: Funcional, Integración, Máquina de Estados y Seguridad (Roles).
+
+1. Resumen Ejecutivo
+
+Se realizó una prueba completa (End-to-End) del ciclo de vida de una tarea, involucrando los roles de Coordinador, Docente y Revisor. Se validó exitosamente la máquina de estados del sistema y la seguridad por roles. Sin embargo, se identificó un defecto crítico (Bug) en la creación de tareas que requiere corrección en el backend.
+
+2. Hallazgos y Defectos (Bugs a Corregir)
+
+ BUG: Creación de tareas duplicadas sin validación
+
+Descripción: El sistema permite la creación de tareas duplicadas con contenido idéntico, generando diferentes IDs sin ninguna restricción por parte del servidor.
+
+Precondición: Autenticación con rol de Coordinador.
+
+Pasos para reproducir:
+
+Enviar una petición POST /tasks con un payload válido para crear una tarea.
+
+Replicar exactamente la misma petición POST /tasks con el mismo payload.
+
+Resultado Obtenido: El servidor responde con código HTTP 201 (o 200) y crea un nuevo registro con un ID diferente pero contenido duplicado.
+
+Resultado Esperado: El backend debería implementar una validación (ej. devolver un error 409 Conflict o 422 Unprocessable Entity) si detecta la creación de una tarea con los mismos parámetros exactos en un lapso corto de tiempo, o si rompe alguna regla de unicidad del negocio.
+
+3. Flujos Validados Exitosamente
+
+Se verificó el correcto funcionamiento de la Máquina de Estados, comprobando que el sistema exige transiciones lógicas obligatorias:
+
+ 1. Flujo de Coordinador (Preparación):
+
+POST /tasks -> Creación de la tarea (Estado: Draft).
+
+POST /tasks/{id}/recipients -> Asignación masiva mediante regla {"mode": "all"}.
+
+POST /tasks/{id}/publish -> Publicación exitosa y generación de los assignment_ids individuales para los docentes elegibles.
+
+ 2. Flujo de Docente (Entrega):
+
+Intento de submit directo resulta en 409 Conflict (Acción inválida desde estado assigned).
+
+POST /assignments/{id}/start -> Inicializa el trabajo (Status 200 OK).
+
+POST /assignments/{id}/submit -> Entrega de tarea (Status 200 OK).
+
+ 3. Flujo de Revisor (Rechazo y Corrección):
+
+Intento de return directo resulta en 409 Conflict (Acción inválida).
+
+POST /assignments/{id}/review -> Abre la tarea para revisión (Status 200 OK).
+
+POST /assignments/{id}/return -> Se intentó devolver sin comentarios y fue rechazado. Se validó que el sistema exige un comentario para proceder. Al enviar el comentario, se completa la devolución (Status 200 OK).
+
+ 4. Flujo de Re-entrega y Aprobación Final:
+
+POST /assignments/{id}/resubmit -> El docente vuelve a entregar la corrección (Status 200 OK).
+
+Revisor intenta approve directo y recibe 409 Conflict.
+
+POST /assignments/{id}/review -> Revisor vuelve a abrir la corrección.
+
+POST /assignments/{id}/approve -> Aprobación final exitosa, cerrando el ciclo (Status 200 OK).
+
+4. Validaciones de Seguridad
+
+ Control de Acceso por Roles:
+Se validó correctamente que los usuarios no pueden acceder a recursos que no les pertenecen.
+
+Prueba realizada: Se intentó realizar un GET /tasks/{id} utilizando un token de Docente para consultar detalles administrativos de la tarea general.
+
+Resultado: El servidor protegió el endpoint devolviendo correctamente un error 403 Forbidden.
