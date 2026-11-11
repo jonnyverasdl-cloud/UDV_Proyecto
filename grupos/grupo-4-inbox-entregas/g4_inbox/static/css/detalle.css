@@ -1,0 +1,7 @@
+/* Estilo propio de la pantalla de detalle — además de udv.css.
+   Mismo criterio que inbox.css: solo lo que udv.css no trae resuelto. */
+
+#detComentario .udv-alert { margin-bottom: 1rem; }
+
+#detBotones button,
+#entregaBotones button { margin: 0; }

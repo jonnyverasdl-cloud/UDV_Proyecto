@@ -51,3 +51,45 @@ def test_422_real_devuelve_details_como_objeto_con_un_campo_por_llave(client):
     assert r.status_code == 422
     detalles = r.json()["error"]["details"]
     assert "correo" in detalles and isinstance(detalles["correo"], str)
+
+
+# --- App de la raiz (la que despliega Railway) ---------------------------------------
+# El main.py de la raiz monta los routers del G2 en su propia app, sin pasar por
+# g2_api/main.py. Aqui se comprueba que completar_openapi() sirve para cualquier app.
+def _app_de_la_raiz():
+    from fastapi import FastAPI
+
+    from g2_api.openapi_docs import completar_openapi
+    from g2_api.routers import auth, files, roles, users
+
+    raiz = FastAPI(title="UDV", docs_url="/api/v1/docs", openapi_url="/api/v1/openapi.json")
+    for r in (auth.router, auth.me_router, users.router, roles.router, files.router):
+        raiz.include_router(r)
+
+    @raiz.get("/api/v1/tasks")  # ruta de otro grupo: no debe cambiar
+    def tareas():
+        return []
+
+    completar_openapi(raiz)
+    return raiz
+
+def test_app_de_la_raiz_documenta_lo_mismo_que_la_del_grupo():
+    r = _app_de_la_raiz().openapi()["paths"]
+    assert {"201", "401", "403", "409", "422"} <= set(r["/api/v1/users"]["post"]["responses"])
+    assert {"200", "401", "403"} <= set(r["/api/v1/users"]["get"]["responses"])
+    assert {"200", "401"} <= set(r["/api/v1/me"]["get"]["responses"])
+
+def test_app_de_la_raiz_no_muestra_string_en_los_ejemplos_200_y_201():
+    r = _app_de_la_raiz().openapi()["paths"]
+    for ruta, metodo, codigo in (("/api/v1/me", "get", "200"), ("/api/v1/users", "get", "200"),
+                                 ("/api/v1/users", "post", "201")):
+        ejemplo = r[ruta][metodo]["responses"][codigo]["content"]["application/json"]["example"]
+        assert isinstance(ejemplo, dict)
+
+def test_app_de_la_raiz_422_usa_el_modelo_de_error_real_y_no_el_de_fastapi():
+    r = _app_de_la_raiz().openapi()["paths"]["/api/v1/users"]["post"]["responses"]["422"]
+    assert r["content"]["application/json"]["schema"] == {"$ref": "#/components/schemas/ErrorResponse"}
+
+def test_completar_openapi_no_toca_las_rutas_de_otros_grupos():
+    r = _app_de_la_raiz().openapi()["paths"]["/api/v1/tasks"]["get"]["responses"]
+    assert set(r) == {"200"}
