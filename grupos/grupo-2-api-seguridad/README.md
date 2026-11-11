@@ -24,7 +24,13 @@ python -m uvicorn g2_api.main:app --reload
 
 - Interfaz de la documentación: `http://127.0.0.1:8000/api/v1/docs`
 - Documento OpenAPI: `http://127.0.0.1:8000/api/v1/openapi.json`
-- `main.py` completa la documentación con los errores comunes (401, 403, 404, 409 y 422) y ejemplos reales; `tests/test_openapi.py` lo verifica.
+- `g2_api/openapi_docs.py` completa la documentación con los errores comunes (401, 403, 404, 409 y 422) y ejemplos reales; `tests/test_openapi.py` lo verifica.
+- La app que se despliega en Railway es la del `main.py` de la raíz, no la de `g2_api/main.py`. Por eso la raíz debe llamar `completar_openapi(app)` después de montar los routers; si no, Swagger muestra el esquema genérico de FastAPI:
+
+```python
+from g2_api.openapi_docs import completar_openapi
+completar_openapi(app)
+```
 
 ## 3. Probar
 
@@ -102,13 +108,64 @@ En `auditoria` solo se escriben a mano los eventos de acceso (login, login falli
 | `GUIA_GRUPO2.md` | Quién hace qué cada semana. |
 | `PENDIENTES_QA.md` | Pendientes del QA y quién los corrige. |
 
+Esqueleto del proyecto (Cada línea dice qué es el archivo o la carpeta, para qué sirve y quién lo elaboró):
+
+```
+grupos/grupo-2-api-seguridad/
+├── CONTRATO.md                             # Contrato del PM con las rutas y reglas que debe cumplir el grupo. (Elaborado por Jonathan Veras - PM)
+├── 02_Requerimientos_API_y_Seguridad.docx  # Requerimientos del módulo de API y seguridad. (Elaborado por Jonathan Veras - PM)
+├── README.md                               # Guía para instalar, correr y probar el proyecto. (Elaborado por Robert Rodríguez)
+├── GUIA_GRUPO2.md                          # Guía con las tareas de cada semana y el estado del grupo. (Elaborado por Daniel Cobos)
+├── PENDIENTES_QA.md                        # Resumen de los hallazgos del QA y quién corrige cada uno. (Elaborado por Robert Rodríguez)
+├── requirements.txt                        # Lista de librerías de Python que se instalan con pip. (Elaborado por Robert Rodríguez)
+├── .env.example                            # Plantilla de las variables de entorno, sin claves reales. (Elaborado por Robert Rodríguez)
+├── .gitignore                              # Evita subir al repositorio el .env, la base local y los archivos generados. (Elaborado por Robert Rodríguez)
+├── pytest.ini                              # Configuración de pytest: carpeta de pruebas y ruta de los imports. (Elaborado por Daniel Cobos)
+├── frontend-login/                         # Pantalla de login que consume la API. (Elaborado por Fulvio Jiménez)
+│   ├── index.html                          # Estructura de la pantalla con el formulario de correo y contraseña. (Elaborado por Fulvio Jiménez)
+│   ├── style.css                           # Estilos y diseño adaptable de la pantalla de login. (Elaborado por Fulvio Jiménez)
+│   ├── script.js                           # Envía el login a la API y muestra el error si falla. (Elaborado por Fulvio Jiménez)
+│   ├── logo.webp                           # Logo que se muestra en la pantalla de login. (Elaborado por Fulvio Jiménez)
+│   └── imagen.webp                         # Imagen decorativa de la pantalla de login. (Elaborado por Fulvio Jiménez)
+├── tests/                                  # Pruebas automáticas con pytest y una base SQLite temporal. (Elaborado por el Grupo 2)
+│   ├── conftest.py                         # Prepara la base temporal y el cliente que usan todas las pruebas. (Elaborado por Robert Rodríguez)
+│   ├── test_auth.py                        # Pruebas de login, logout y /me. (Elaborado por Daniel Cobos)
+│   ├── test_users.py                       # Pruebas de usuarios y roles: 401, 403, 404, 409 y 422. (Elaborado por Randy Torres)
+│   ├── test_errores.py                     # Pruebas del formato de error y de la paginación. (Elaborado por Edgar Domingo)
+│   ├── test_file.py                        # Pruebas de archivos: tipo no permitido, tamaño y descarga. (Elaborado por Fulvio Jiménez)
+│   └── test_openapi.py                     # Pruebas de que Swagger coincide con lo que responde la API. (Elaborado por Robert Rodríguez)
+└── g2_api/                                 # Paquete con todo el código de la API. (Elaborado por el Grupo 2)
+    ├── __init__.py                         # Marca la carpeta como paquete de Python. (Elaborado por Daniel Cobos)
+    ├── main.py                             # Crea la app y conecta los routers, el CORS y los errores. (Elaborado por Robert Rodríguez)
+    ├── config.py                           # Lee las variables del .env y las deja listas para usar. (Elaborado por Robert Rodríguez)
+    ├── database.py                         # Conexión a MySQL, sesiones y la función fijar_actor para la auditoría. (Elaborado por Robert Rodríguez)
+    ├── models.py                           # Tablas de seguridad (usuario, rol, sesión, archivo y auditoría) como clases. (Elaborado por Robert Rodríguez)
+    ├── openapi_docs.py                     # Completa Swagger con los errores comunes y ejemplos reales. (Elaborado por Robert Rodríguez)
+    ├── seguridad.py                        # Crea y valida los tokens JWT y revisa las contraseñas. (Elaborado por Daniel Cobos)
+    ├── routers/                            # Rutas de la API agrupadas por tema. (Elaborado por Daniel Cobos, Randy Torres y Fulvio Jiménez)
+    │   ├── __init__.py                     # Marca la carpeta como paquete de Python. (Elaborado por Daniel Cobos)
+    │   ├── auth.py                         # Login, logout y /me, con el bloqueo por intentos fallidos. (Elaborado por Daniel Cobos)
+    │   ├── users.py                        # Crear, listar, consultar, editar y desactivar usuarios. (Elaborado por Randy Torres)
+    │   ├── roles.py                        # Listar roles y crear uno nuevo, solo para el admin. (Elaborado por Randy Torres)
+    │   └── files.py                        # Subir archivos validados y descargarlos solo el dueño o un admin. (Elaborado por Fulvio Jiménez)
+    ├── middleware/                         # Código que se ejecuta antes o después de cada ruta. (Elaborado por Randy Torres y Edgar Domingo)
+    │   ├── __init__.py                     # Marca la carpeta como paquete de Python. (Elaborado por Daniel Cobos)
+    │   ├── auth_middleware.py              # Exige un rol permitido y responde 403 si no lo tiene. (Elaborado por Randy Torres)
+    │   └── error_handler.py                # Da a todos los errores el mismo formato JSON, sin datos internos. (Elaborado por Edgar Domingo)
+    └── utils/                              # Funciones de apoyo que usan varios routers. (Elaborado por Edgar Domingo)
+        ├── __init__.py                     # Marca la carpeta como paquete de Python. (Elaborado por Daniel Cobos)
+        ├── paginacion.py                   # Arma las listas con page, per_page, total y data. (Elaborado por Edgar Domingo)
+        └── registro.py                     # Guarda en auditoría el login, el login fallido y el logout. (Elaborado por Edgar Domingo)
+```
+
 ## 8. Responsable de cada archivo
 
 | Persona | Cuenta de GitHub | Archivos |
 |-|-|-|
-| Daniel - Persona 1 (coordinador) | `dancobs` | `routers/auth.py`, `seguridad.py`, `tests/test_auth.py`, `GUIA_GRUPO2.md` |
+| Daniel - Persona 1 (Coordinador) | `dancobs` | `routers/auth.py`, `seguridad.py`, `tests/test_auth.py`, `GUIA_GRUPO2.md` |
 | Randy - Persona 2 | `rtorresixcoy375` | `routers/users.py`, `routers/roles.py`, `middleware/auth_middleware.py`, `tests/test_users.py` |
 | Edgar - Persona 3 | `zeusgeo99-code` | `middleware/error_handler.py`, `utils/paginacion.py`, `utils/registro.py`, `tests/test_errores.py` |
-| Fulvio - Persona 4 | `Ful55` | `routers/files.py`, `frontend-login/`, `tests/test_files.py` (por crear) |
-| Robert - Persona 5 | `Davids107` | `main.py`, `config.py`, `database.py`, `models.py`, `requirements.txt`, `.env.example`, `.gitignore`, `README.md`, `tests/conftest.py`, `tests/test_openapi.py` |
-| PM | — | `CONTRATO.md`, `CONTRATO_COMUN.md`, los `.docx` de requerimientos y la raíz del repo |
+| Fulvio - Persona 4 | `Ful55` | `routers/files.py`, `frontend-login/`, `tests/test_file.py` |
+| Robert - Persona 5 | `Davids107` | `main.py`, `config.py`, `database.py`, `models.py`, `requirements.txt`, `.env.example`, `.gitignore`, `README.md`, `tests/conftest.py`, `tests/test_openapi.py`, `g2_api/openapi_docs.py` |
+| Jonathan Veras - PM | — | `CONTRATO.md`, `CONTRATO_COMUN.md`, los `.docx` de requerimientos y la raíz del repo |
+

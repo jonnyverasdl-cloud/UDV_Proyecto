@@ -36,8 +36,8 @@ ROUTERS = [
     ("g2_api.routers.roles", "router"),
     ("g2_api.routers.files", "router"),     # G2: archivos (G2-21 corregido en PR #20)
     ("workflow.api", "router"),             # G3
-    # ("g4_inbox.routes", "router"),        # G4
-    # ("g5_programas.router", "router"),    # G5
+    ("g4_inbox.routes", "router"),          # G4 (PR del 9-nov)
+    ("g5_programas.router", "router"),      # G5 (PR del 6-nov)
     ("g6_admin.api", "router"),             # G6
 ]
 
@@ -64,6 +64,16 @@ for modulo, nombre in ROUTERS:
     except Exception as exc:  # el grupo aún no integró ese módulo a esta rama
         pendientes[f"{modulo}:{nombre}"] = f"{type(exc).__name__}: {exc}"
         log.warning("Router omitido %s:%s -> %s", modulo, nombre, exc)
+
+# Ganchos opcionales de cada grupo sobre la app (solo tocan sus propias rutas).
+for modulo, nombre in [
+    ("g2_api.openapi_docs", "completar_openapi"),   # G2-33: codigos y ejemplos en Swagger
+    ("g5_programas.errors", "registrar_errores"),   # G5: ApiError -> JSON del contrato
+]:
+    try:
+        getattr(importlib.import_module(modulo), nombre)(app)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("Gancho omitido %s:%s -> %s", modulo, nombre, exc)
 
 
 @app.get("/health", tags=["Sistema"])

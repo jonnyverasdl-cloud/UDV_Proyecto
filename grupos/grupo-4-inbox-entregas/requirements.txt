@@ -1,1 +1,8 @@
-# Dependencias del grupo-4-inbox-entregas. Una por línea, con versión fija (ej.: libreria==1.2.3).
+fastapi==0.142.1
+uvicorn[standard]==0.54.0
+pytest==9.1.1
+httpx==0.28.1
+sqlalchemy==2.1.1
+pymysql==1.1.1
+cryptography==44.0.2
+python-dotenv==1.2.3
