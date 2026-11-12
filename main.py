@@ -17,6 +17,8 @@ import sys
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 RAIZ = Path(__file__).resolve().parent
 log = logging.getLogger("udv")
@@ -76,10 +78,37 @@ for modulo, nombre in [
         log.warning("Gancho omitido %s:%s -> %s", modulo, nombre, exc)
 
 
+# Interfaz (README §4: los estáticos y estilos compartidos los sirve main.py).
+# Cada pantalla vive en la carpeta de su grupo; aquí solo se publica.
+# El login es el de G2; el token se guarda en la pestaña como "udv_token".
+PANTALLAS = [
+    ("/udv-styles", "grupos/udv-styles"),                               # estilos compartidos (PM)
+    ("/app/g2",     "grupos/grupo-2-api-seguridad/frontend-login"),     # G2: pantalla de login
+    ("/app/g3",     "grupos/grupo-3-workflow-tareas/frontend"),         # G3: tareas
+    ("/app/g4",     "grupos/grupo-4-inbox-entregas/g4_inbox/static"),   # G4: bandeja y entregas
+    ("/app/g5",     "grupos/grupo-5-programas-pdf/frontend"),           # G5: programas y PDF
+    ("/app/g6",     "grupos/grupo-6-administracion/g6_admin/pantallas"),# G6: panel, catálogos, auditoría
+    ("/app",        "portal"),                                          # inicio y login (PM)
+]
+pantallas_montadas = []
+for ruta, carpeta in PANTALLAS:
+    directorio = RAIZ / carpeta
+    if directorio.is_dir():
+        app.mount(ruta, StaticFiles(directory=str(directorio), html=True), name=ruta.strip("/").replace("/", "-"))
+        pantallas_montadas.append(ruta)
+    else:
+        log.warning("Pantalla omitida %s -> no existe %s", ruta, carpeta)
+
+
+@app.get("/", include_in_schema=False)
+def inicio():
+    return RedirectResponse("/app/")
+
+
 @app.get("/health", tags=["Sistema"])
 def health():
     """Estado de la app y de los routers. No requiere base de datos."""
-    return {"status": "ok", "routers": montados, "pendientes": pendientes}
+    return {"status": "ok", "routers": montados, "pendientes": pendientes, "pantallas": pantallas_montadas}
 
 
 @app.get("/health/db", tags=["Sistema"])
