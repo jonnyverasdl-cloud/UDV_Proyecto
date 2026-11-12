@@ -1,0 +1,145 @@
+{
+  "info": {
+    "_postman_id": "8fb821c4-3a54-44a2-a50c-003b3379334f",
+    "name": "QA G3 - Tareas (Fixes PM)",
+    "description": "Casos de prueba preparados para validar las correcciones exigidas por el PM al Grupo 3 (Paginación, Validación de Archivos y Permisos de Revisión).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "59070311",
+    "_collection_link": "https://go.postman.co/collection/59070311-8fb821c4-3a54-44a2-a50c-003b3379334f?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "1. GET Tareas (Validar Paginación)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token_usuario}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{url_base}}/tasks?page=1&per_page=10",
+          "host": [
+            "{{url_base}}"
+          ],
+          "path": [
+            "tasks"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "per_page",
+              "value": "10"
+            }
+          ]
+        },
+        "description": "Debe responder con la estructura del contrato común: page, per_page, total, data (Ya no items ni page_size)."
+      },
+      "response": []
+    },
+    {
+      "name": "2. Submit sin Archivo (Validar Tipo 3)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token_docente}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{url_base}}/assignments/{{asignacion_id}}/submit",
+          "host": [
+            "{{url_base}}"
+          ],
+          "path": [
+            "assignments",
+            "{{asignacion_id}}",
+            "submit"
+          ]
+        },
+        "description": "Debe dar 422 Unprocessable Entity si la tarea es tipo 3 (requiere_archivo = 1) y el docente no adjuntó evidencia previa."
+      },
+      "response": []
+    },
+    {
+      "name": "3. Review con Revisor No Asignado (Validar 403)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token_revisor_ajeno}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"comentario\": \"Intento de revisión no autorizada para validar seguridad\"\n}"
+        },
+        "url": {
+          "raw": "{{url_base}}/tasks/{{tarea_id}}/review",
+          "host": [
+            "{{url_base}}"
+          ],
+          "path": [
+            "tasks",
+            "{{tarea_id}}",
+            "review"
+          ]
+        },
+        "description": "Debe dar 403 Forbidden si el usuario tiene rol reviewer pero no es el revisor_id asignado a esta tarea."
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "url_base",
+      "value": "https://udvproyecto-production.up.railway.app/api/v1"
+    },
+    {
+      "key": "token_usuario",
+      "value": "PEGAR_TOKEN_AQUI"
+    },
+    {
+      "key": "token_docente",
+      "value": "PEGAR_TOKEN_DOCENTE_AQUI"
+    },
+    {
+      "key": "token_revisor_ajeno",
+      "value": "PEGAR_TOKEN_REVISOR_NO_ASIGNADO"
+    },
+    {
+      "key": "tarea_id",
+      "value": "1"
+    },
+    {
+      "key": "asignacion_id",
+      "value": "1"
+    }
+  ]
+}
