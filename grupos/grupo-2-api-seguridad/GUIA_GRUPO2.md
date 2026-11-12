@@ -1,12 +1,16 @@
 # Guía del Grupo 2: API y Seguridad
 
-Coordinador: Daniel (dancobs) · Versión 2 · 10-oct-2026 · Estado actualizado al 09-nov-2026
+Coordinador: Daniel (dancobs) · Versión 2 · 10-oct-2026 · Estado actualizado al 12-nov-2026
 
 **Cómo usar esta guía:** busca tu nombre en la sección 2 y mira la semana actual. Ahí está lo que te toca y la fecha de entrega.
 
 ---
 
-## 1. Dónde estamos (estado al 06-nov)
+## 1. Dónde estamos (estado al 12-nov)
+
+**Avisos del PM y de QA (12-nov):** el PM ya activó `completar_openapi(app)` en el `main.py` de la raíz (PR #24 en `main`) y sirve la pantalla de login del G2 en `/app/g2/`. Para que funcione en producción, `frontend-login/script.js` ahora llama a `/api/v1/auth/login` con ruta relativa, guarda el token con `sessionStorage.setItem("udv_token", ...)` y entra a `/app/` (Robert, 12-nov); `index.html` carga `/udv-styles/udv.css` antes de `style.css`. Swagger documenta el bloqueo del login (5 fallos = 429 por 15 minutos, con los minutos que faltan en el mensaje) y el 200 del login con su objeto; `.env.example` quedó solo con marcadores (`TU_USUARIO`, `TU_CLAVE`). `pytest` completo: **117 pasan**. G2-33 sigue en FAIL en la hoja de QA hasta que Allison lo repita contra Railway.
+
+**Estado al 06-nov**
 
 **Retest No. 3 de QA (05-nov):** G2-21 PASS (4/4), G2-31 PASS (22/22), G2-32 PASS (8/8) y G2-33 FAIL documental: 37 PASS y 1 FAIL. Swagger de Railway no mostraba la documentación del G2 porque Railway ejecuta el `main.py` de la raíz y no el de `g2_api`. Robert lo corrigió el 06-nov con `g2_api/openapi_docs.py` (sección 9.2); falta que el PM lo active en la raíz y el retest. `pytest` en `grupo-2` (09-nov): **115 pasan** (los 107 del 06-nov más las 8 pruebas de `tests/test_file.py`, que Fulvio subió el 08-nov).
 
@@ -178,6 +182,20 @@ Cada tarea dice: **archivo → qué haces** y, en *cursiva*, con quién se conec
 - `README.md` → explica que la raíz debe llamar `completar_openapi(app)`.
   *El PM agrega esas dos líneas en el `main.py` de la raíz (no es archivo del G2).*
 - ✅ `README.md` y revisión final (09-nov) → el esqueleto del README dice en una línea qué es cada archivo, para qué sirve y quién lo elaboró; se quitó el «por crear» de las pruebas de archivos. El repo no trae claves (solo valores de ejemplo en `.env.example`) y `pytest` pasa 115.
+
+---
+
+### Semana 6 · martes 17-nov
+
+Lo que queda según los avisos del PM y de QA. Cada quien toca solo sus archivos y avisa en el grupo **antes** de cambiar algo compartido (errores, auth, Swagger) y en cada PR.
+
+- **Daniel** → `routers/auth.py`: Abrir el PR `grupo-2 → main` con la pantalla de login, Swagger del bloqueo y `.env.example`. Antes: `git fetch`, merge de `origin/main` en `grupo-2`, `pytest` completo y la prueba contra MySQL. Avisar en el grupo cuando abra el PR.
+- **Fulvio** → `frontend-login/`: Revisar con Robert el cambio de `script.js` (ruta relativa, `udv_token`, redirección a `/app/`) y probarlo en `/app/g2/` con una cuenta `qa.*`.
+- **Randy y Edgar** → `users.py` y `error_handler.py`: No cambiar el formato de errores sin avisar (el cambio anterior rompió 3 pruebas del G6). Si algo cambia, correr también las pruebas del G6.
+- **Robert** → `openapi_docs.py`, `.env.example`, `README.md`: Hecho el 12-nov (bloqueo 429 en Swagger, login con ejemplo, marcadores en `.env.example`). Falta correr `pytest` contra MySQL antes del PR y confirmar con el PM que Railway ya despliega lo nuevo.
+- **QA (Allison)** → Repetir G2-33 contra Railway cuando el PM confirme el despliegue.
+
+**Convención única de pantalla (PM):** token en `sessionStorage` con la clave `udv_token`, rutas relativas (nunca `127.0.0.1`) y estilos de `/udv-styles/udv.css`.
 
 ---
 
@@ -414,5 +432,5 @@ Allison repitió los cuatro escenarios contra Railway. **G2-21 PASS (4/4), G2-31
 
 **Para cerrar G2-33:** 1) Daniel abre el PR `grupo-2` → `main`. 2) El PM agrega al `main.py` de la raíz, después de montar los routers, `from g2_api.openapi_docs import completar_openapi` y `completar_openapi(app)` (ese archivo es del PM). 3) El PM despliega en Railway y avisa a Allison para repetir G2-33.
 
-**Estado al 09-nov:** los tres pasos siguen por confirmar con el PM; Robert ya comentó «listo para retest» en el Planner. El corte de la semana 5 es mañana, martes 10-nov a las 23:59.
+**Estado al 12-nov:** el PM ya agregó `completar_openapi` al `main.py` de la raíz (PR #24 en `main`), así que falta solo el despliegue en Railway y el retest de Allison; Robert ya comentó «listo para retest» en el Planner. Además, el 12-nov se documentó en Swagger el bloqueo 429 del login. El corte de la semana 5 es mañana, martes 10-nov a las 23:59.
 
