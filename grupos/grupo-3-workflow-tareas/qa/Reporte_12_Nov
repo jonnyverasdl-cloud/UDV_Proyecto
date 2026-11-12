@@ -1,0 +1,29 @@
+# Reporte de Ejecución de Pruebas E2E - Módulo de Programas (G5)
+
+**Fecha:** 12 de noviembre de 2026  
+**Entorno:** Producción (Railway)  
+
+A continuación, el detalle de los casos de prueba ejecutados sobre el flujo de creación y edición de Programas de Curso. Se validaron reglas de negocio, estructura de base de datos y máquina de estados.
+
+## Resumen de Ejecución
+* **Casos Ejecutados:** 7
+* **Exitosos (Pass):** 6 (Validaciones de negocio y DB respondiendo correctamente)
+* **Fallidos (Fail/Blocker):** 1 (Error 500 bloqueante)
+* **Bloqueados (Blocked):** El resto del flujo de la máquina de estados está en pausa hasta resolver el defecto bloqueante.
+
+## Detalle de Casos de Prueba (Test Cases)
+
+| ID | Caso de Prueba (Acción) | Rol | Resultado Esperado | Resultado Real | Estado |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **TC-01** | **Crear Programa Nuevo.** (POST `/course-programs`). Payload: `curso_id: 3`. | Docente | Código 201. Debe crear el programa y generar automáticamente la versión 1 (borrador). | Código 201. Generó Programa ID 2 y Versión ID 3 en estado `draft`. |  **Pass** |
+| **TC-02** | **Validación de Duplicidad.** Intentar crear un programa con un curso/período ya existente. | Docente | Código 409 Conflict. | Código 409: "El programa ya tiene una versión para este período". |  **Pass** |
+| **TC-03** | **Actualizar Encabezado de Versión.** (PUT `/program-versions/{id}`). Editar descripción y horas. | Docente | Código 200 OK. Datos guardados. | Código 200 OK. |  **Pass** |
+| **TC-04** | **Validación de URL en Secciones.** Intentar editar una sección que no existe en el esquema (`/sections/objetivos`). | Docente | Código 404 Not Found. | Código 404. El sistema rechaza secciones no mapeadas. |  **Pass** |
+| **TC-05** | **Editar Sección de Texto (Descripción).** Enviar payload anidado `{contenido: {texto: ...}}`. | Docente | Código 200 OK. | Código 200 OK. |  **Pass** |
+| **TC-06** | **Validación de Máquina de Estados (Submit Incompleto).** Enviar a revisión con notas incompletas. | Docente | Código 422 Unprocessable Entity indicando qué falta. | Código 422: "evaluacion.ponderacion (debe sumar 100)". |  **Pass** |
+| **TC-07** | **Editar Sección de Evaluación (Suma 100).** Enviar lista de actividades sumando 100 puntos para destrabar el paso a revisión. | Docente | Código 200 OK. | **Código 500 Internal Server Error.** |  **Fail (Blocker)** |
+| **TC-08** | **Avance de estado (`draft` a `submitted`).** Ejecutar POST `/submit` tras completar campos. | Docente | Código 200 OK, estado cambia a `submitted`. | **No ejecutado.** Bloqueado por TC-07. |  **Blocked** |
+
+## Notas para Desarrollo (G5)
+* QA queda a la espera de la resolución del **Error 500** en la sección de evaluación para poder continuar con el flujo de revisión (Review, Approve, Authorize).
+* Se requiere actualizar los Pydantic Models según la instrucción del PM para poder mapear correctamente las pruebas restantes.
