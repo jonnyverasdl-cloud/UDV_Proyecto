@@ -1,0 +1,258 @@
+{
+  "info": {
+    "_postman_id": "89d1eaf8-001c-4ec8-946a-094d4281d280",
+    "name": "QA G5 - Programas E2E (Evidencia Reporte 12-Nov)",
+    "description": "Colección utilizada para el flujo de pruebas E2E. Incluye validaciones de negocio, estados y evidencia del HTTP 500 en la sección de evaluación.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "59070311",
+    "_collection_link": "https://go.postman.co/collection/59070311-89d1eaf8-001c-4ec8-946a-094d4281d280?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "1. Crear Programa",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token_docente}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"curso_id\": 3,\n    \"sede_id\": 1,\n    \"modalidad_id\": 1,\n    \"periodo_id\": 1\n}"
+        },
+        "url": {
+          "raw": "{{url_base}}/course-programs",
+          "host": [
+            "{{url_base}}"
+          ],
+          "path": [
+            "course-programs"
+          ]
+        },
+        "description": "Crea el programa y su primera versión en borrador. Si da 409, cambiar el curso_id."
+      },
+      "response": []
+    },
+    {
+      "name": "2. Editar Encabezado Versión",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token_docente}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"nombre\": \"Programa Actualizado por QA\",\n    \"descripcion\": \"Prueba E2E de actualización\"\n}"
+        },
+        "url": {
+          "raw": "{{url_base}}/program-versions/{{version_id}}",
+          "host": [
+            "{{url_base}}"
+          ],
+          "path": [
+            "program-versions",
+            "{{version_id}}"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "3. Editar Sección (404 - No Mapeada)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token_docente}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"contenido\": {\n        \"texto\": \"Esto no debe pasar\"\n    }\n}"
+        },
+        "url": {
+          "raw": "{{url_base}}/program-versions/{{version_id}}/sections/objetivos",
+          "host": [
+            "{{url_base}}"
+          ],
+          "path": [
+            "program-versions",
+            "{{version_id}}",
+            "sections",
+            "objetivos"
+          ]
+        },
+        "description": "Prueba negativa: Espera un 404 porque 'objetivos' no es una sección válida de la BD."
+      },
+      "response": []
+    },
+    {
+      "name": "4. Editar Sección (Descripción - 200 OK)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token_docente}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"contenido\": {\n        \"texto\": \"Esta es una descripción agregada por QA en la prueba E2E.\"\n    }\n}"
+        },
+        "url": {
+          "raw": "{{url_base}}/program-versions/{{version_id}}/sections/descripcion",
+          "host": [
+            "{{url_base}}"
+          ],
+          "path": [
+            "program-versions",
+            "{{version_id}}",
+            "sections",
+            "descripcion"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "5. Submit (Validación 422 Incompleto)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token_docente}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"comentario\": \"Intento de envío sin notas\"\n}"
+        },
+        "url": {
+          "raw": "{{url_base}}/program-versions/{{version_id}}/submit",
+          "host": [
+            "{{url_base}}"
+          ],
+          "path": [
+            "program-versions",
+            "{{version_id}}",
+            "submit"
+          ]
+        },
+        "description": "Prueba negativa: Espera un 422 indicando que la ponderación debe sumar 100."
+      },
+      "response": []
+    },
+    {
+      "name": "6. Editar Evaluación (Bloqueado - 500 Error)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token_docente}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "[\n    {\n        \"actividad\": \"Primer Parcial\",\n        \"ponderacion\": 30\n    },\n    {\n        \"actividad\": \"Segundo Parcial\",\n        \"ponderacion\": 30\n    },\n    {\n        \"actividad\": \"Examen Final\",\n        \"ponderacion\": 40\n    }\n]"
+        },
+        "url": {
+          "raw": "{{url_base}}/program-versions/{{version_id}}/sections/evaluacion",
+          "host": [
+            "{{url_base}}"
+          ],
+          "path": [
+            "program-versions",
+            "{{version_id}}",
+            "sections",
+            "evaluacion"
+          ]
+        },
+        "description": "Actualmente crashea el servidor (HTTP 500). Necesario para avanzar a Submit."
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "url_base",
+      "value": "https://udvproyecto-production.up.railway.app/api/v1"
+    },
+    {
+      "key": "token_docente",
+      "value": "PEGAR_TOKEN_DOCENTE_AQUI"
+    },
+    {
+      "key": "version_id",
+      "value": "3"
+    }
+  ]
+}
