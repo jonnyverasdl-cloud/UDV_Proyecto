@@ -1,1 +1,10 @@
-# Dependencias del grupo-6-administracion. Una por línea, con versión fija (ej.: libreria==1.2.3).
+# Dependencias del grupo-6-administracion. Una por línea, con versión fija (README §5).
+# g6_admin usa g2_api (sesión, roles, errores y paginación); las librerías de
+# g2_api las declara el Grupo 2 en su propio requirements.txt.
+fastapi==0.142.1
+pydantic==2.14.0
+# Tablas del G1 (misma versión que requirements-base.txt del PM)
+SQLAlchemy==2.1.1
+# Pruebas automáticas (httpx lo usa el TestClient de FastAPI)
+pytest==9.1.1
+httpx==0.28.1

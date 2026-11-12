@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Workflow docente · UDV</title>
+<link rel="stylesheet" href="udv.css">
+<style>
+/* Solo lo que udv.css no cubre */
+body{min-height:100vh;display:flex;flex-direction:column}
+main{flex:1}
+@media (max-width:768px){.udv-header__nav{display:flex;gap:0}.udv-header__logo-text span{display:none}}
+.who{display:flex;gap:8px;align-items:center;color:rgba(255,255,255,.75);font-size:.78rem}
+.who .udv-select,.who .udv-input{padding:.35rem .6rem;font-size:.8rem;width:auto}
+.btn-udv.danger{background:var(--udv-danger);color:#fff}
+.btn-udv.danger:hover{background:#b91c1c;color:#fff}
+.btn-udv.sm2{padding:.3rem .8rem;font-size:.72rem;margin:2px 2px 2px 0}
+.row{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center}.sp{justify-content:space-between}
+.mut{color:var(--udv-text-muted);font-size:.85rem}
+.chips{display:flex;gap:.75rem;flex-wrap:wrap}
+.chips .udv-card{padding:.8rem 1.1rem;min-width:120px}.chips .udv-card:hover{transform:none}
+.chips b{display:block;font-size:1.6rem;line-height:1.1}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);display:none;max-width:92vw;z-index:2000;background:#fff;border-radius:8px;box-shadow:var(--udv-shadow-lg)}
+#toast .udv-alert{margin:0}
+dialog.udv-card{max-width:620px;width:92vw;padding:1.5rem}dialog::backdrop{background:rgba(0,0,0,.55)}
+.tl{list-style:none}.tl li{padding:.7rem 0;border-bottom:1px solid rgba(255,255,255,.12)}
+.tl .m{color:rgba(255,255,255,.6);font-size:.8rem}
+.form2{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:0 1.25rem}.form2 .full{grid-column:1/-1}
+.chk{flex-direction:row;align-items:center;gap:.5rem}.chk input{width:auto}
+</style>
+</head>
+<body>
+<header class="udv-header">
+  <a href="#" class="udv-header__logo"><div class="udv-header__logo-text">Universidad Da Vinci<span>de Guatemala</span></div></a>
+  <nav><ul class="udv-header__nav" id="nav">
+    <li><a href="#" data-v="tasks">Seguimiento</a></li>
+    <li><a href="#" data-v="new">Nueva tarea</a></li>
+    <li><a href="#" data-v="types">Tipos</a></li>
+  </ul></nav>
+  <div class="who"><span id="me">…</span>
+    <select id="preset" class="udv-select" title="Usuarios del seed">
+      <option value="1">1 · Coordinadora</option><option value="2">2 · Coordinador (ajeno)</option>
+      <option value="3">3 · Revisor</option><option value="4">4 · Revisora</option>
+      <option value="5">5 · Autoridad</option><option value="6">6 · Sistema</option>
+      <option value="7">7 · Docente 1</option><option value="8">8 · Docente 2</option>
+    </select>
+    <input id="uid" class="udv-input" type="number" min="1" value="1" style="width:68px" title="X-User-Id">
+  </div>
+</header>
+
+<section class="udv-section udv-section-dark" style="padding:1.6rem 0">
+  <div class="udv-container">
+    <p class="udv-card__category" style="margin:0">Sistema de Workflow Docente</p>
+    <h1 class="udv-section-title" style="margin:0">Gestión de tareas</h1>
+  </div>
+</section>
+
+<main class="udv-container udv-section" id="main"></main>
+<div id="toast"></div>
+<dialog id="dlg" class="udv-card"></dialog>
+
+<footer class="udv-footer" style="padding:1rem 0"><div class="udv-container udv-footer__bottom">
+  <span>© 2026 Universidad Da Vinci de Guatemala · Grupo 3 — Workflow y tareas</span></div></footer>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const S = { uid: 1, me: null, view: "tasks", matrix: null };
+const STATUS = {draft:"Borrador",published:"Publicada",cancelled:"Cancelada",assigned:"Asignada",in_progress:"En progreso",
+  submitted:"Entregada",under_review:"En revisión",returned:"Devuelta",approved:"Aprobada",closed:"Cerrada"};
+const ACTION = {publish:"Publicar",start:"Iniciar",submit:"Entregar",review:"Revisar",return:"Devolver",
+  resubmit:"Reenviar",approve:"Aprobar",close:"Cerrar",cancel:"Cancelar"};
+const badge = s => `<span class="udv-badge badge-${s === "published" ? "assigned" : esc(s).replace("_", "-")}">${esc(STATUS[s] || s)}</span>`;
+const fdate = d => d ? d.replace("T", " ").replace(/(\+00:00|Z)$/, " UTC") : "—";
+const info = m => `<div class="udv-alert udv-alert-info">${m}</div>`;
+
+async function api(path, { method = "GET", body } = {}) {
+  const r = await fetch("/api/v1" + path, { method, headers: { "Content-Type": "application/json", "X-User-Id": S.uid },
+    body: body ? JSON.stringify(body) : undefined });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(`${j.error?.message || "Error"} (${r.status})`);
+  return j;
+}
+function toast(msg, err) {
+  const t = $("#toast"); t.innerHTML = `<div class="udv-alert udv-alert-${err ? "danger" : "success"}">${err ? "❌" : "✅"} ${esc(msg)}</div>`;
+  t.style.display = "block"; clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = "none", 4500);
+}
+async function run(fn) { try { return await fn(); } catch (e) { toast(e.message, true); } }
+
+async function login(id) {
+  S.uid = String(id); $("#uid").value = id;
+  S.me = await api("/me").catch(() => null);
+  $("#me").textContent = S.me ? `${S.me.name} · ${S.me.role}` : "Usuario inválido";
+  show(S.view);
+}
+$("#preset").onchange = e => login(e.target.value);
+$("#uid").onchange = e => login(e.target.value);
+$("#nav").onclick = e => { const v = e.target.dataset.v; if (v) { e.preventDefault(); show(v); } };
+
+function show(v) {
+  S.view = v;
+  document.querySelectorAll("#nav a").forEach(a => a.classList.toggle("active", a.dataset.v === v));
+  const f = { types: vTypes, new: vNew, tasks: vTasks }[v];
+  run(() => !S.me ? ($("#main").innerHTML = info("Usuario inválido. Elige otro."))
+    : ["teacher", "system"].includes(S.me.role) && v !== "types"
+      ? ($("#main").innerHTML = info(`Tu rol (${esc(S.me.role)}) no tiene pantallas de gestión. Las asignaciones del docente las muestra el inbox (Grupo 4).`))
+      : f());
+}
+
+/* ---------- tipos ---------- */
+async function vTypes() {
+  const d = await api("/task-types?page_size=100");
+  $("#main").innerHTML = `<h2 class="udv-section-title">Tipos de tarea</h2>
+  <div class="udv-table-wrapper udv-mb-3"><table class="udv-table"><thead><tr><th>Código</th><th>Nombre</th><th>Flujo</th><th>Evidencia</th></tr></thead><tbody>
+  ${d.items.map(t => `<tr><td>${esc(t.code)}</td><td>${esc(t.name)}</td><td>${esc(t.flow)}</td><td>${t.requires_evidence ? esc(t.evidence_type || "sí") : "—"}</td></tr>`).join("")}</tbody></table></div>
+  <h2 class="udv-section-title" style="font-size:1.2rem">Nuevo tipo</h2>
+  <div class="udv-card-light"><form id="ft" class="form2">
+    <div class="udv-form-group"><label class="udv-label">Código</label><input class="udv-input" name="code" required></div>
+    <div class="udv-form-group"><label class="udv-label">Nombre</label><input class="udv-input" name="name" required></div>
+    <div class="udv-form-group"><label class="udv-label">Flujo</label><select class="udv-select" name="flow"><option value="standard">standard (completo)</option><option value="short">short (confirmación)</option></select></div>
+    <div class="udv-form-group"><label class="udv-label">Tipo de evidencia</label><input class="udv-input" name="evt" placeholder="documento, archivo…"></div>
+    <div class="udv-form-group chk"><input type="checkbox" name="ev" id="ev"><label class="udv-label" for="ev">Exige evidencia</label></div>
+    <div class="full"><button class="btn-udv btn-udv-primary">Crear tipo</button></div></form></div>`;
+  $("#ft").onsubmit = e => { e.preventDefault(); const f = new FormData(e.target);
+    run(async () => { await api("/task-types", { method: "POST", body: { code: f.get("code"), name: f.get("name"),
+      flow: f.get("flow"), requires_evidence: f.has("ev"), evidence_type: f.get("evt") || null } });
+      toast("Tipo creado"); vTypes(); }); };
+}
+
+/* ---------- nueva tarea ---------- */
+async function vNew() {
+  const types = (await api("/task-types?page_size=100")).items;
+  $("#main").innerHTML = `<h2 class="udv-section-title">Nueva tarea</h2><div class="udv-card-light"><form id="fn" class="form2">
+    <div class="udv-form-group"><label class="udv-label">Tipo</label><select class="udv-select" name="type_id">${types.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select></div>
+    <div class="udv-form-group"><label class="udv-label">Título</label><input class="udv-input" name="title" required></div>
+    <div class="udv-form-group"><label class="udv-label">Prioridad</label><select class="udv-select" name="priority"><option value="low">Baja</option><option value="medium" selected>Media</option><option value="high">Alta</option></select></div>
+    <div class="udv-form-group"><label class="udv-label">Fecha límite</label><input class="udv-input" type="date" name="due_date" required></div>
+    <div class="udv-form-group"><label class="udv-label">Responsable (id)</label><input class="udv-input" type="number" name="responsible_id" placeholder="opcional"></div>
+    <div class="udv-form-group"><label class="udv-label">Revisor (id)</label><input class="udv-input" type="number" name="reviewer_id" placeholder="opcional"></div>
+    <div class="udv-form-group full"><label class="udv-label">Descripción</label><textarea class="udv-textarea" name="description" rows="3"></textarea></div>
+    <div class="udv-form-group"><label class="udv-label">Destinatarios</label><select class="udv-select" name="mode" id="mode">
+      <option value="all">Todos los docentes</option><option value="users">Docente(s) específicos</option><option value="filter">Filtro institucional</option></select></div>
+    <div class="udv-form-group" id="l-users" style="display:none"><label class="udv-label">IDs de docentes</label><input class="udv-input" name="user_ids" placeholder="7, 8, 9"></div>
+    <div class="udv-form-group l-f" style="display:none"><label class="udv-label">Sede</label><input class="udv-input" name="campus" placeholder="Central"></div>
+    <div class="udv-form-group l-f" style="display:none"><label class="udv-label">Unidad</label><input class="udv-input" name="unit" placeholder="Ingeniería"></div>
+    <div class="full row"><button class="btn-udv btn-udv-dark" value="draft">Guardar borrador</button>
+      <button class="btn-udv btn-udv-primary" value="publish">Guardar y publicar</button></div>
+    <p class="mut full" style="margin-top:.8rem">Un borrador no aparece en ningún inbox hasta que se publique. Ids del seed: revisor 3, docentes 7–11.</p>
+  </form></div>`;
+  $("#mode").onchange = e => { $("#l-users").style.display = e.target.value === "users" ? "" : "none";
+    document.querySelectorAll(".l-f").forEach(x => x.style.display = e.target.value === "filter" ? "" : "none"); };
+  $("#fn").onsubmit = e => { e.preventDefault(); const f = new FormData(e.target), go = e.submitter.value;
+    const num = k => f.get(k) ? Number(f.get(k)) : null;
+    run(async () => {
+      const t = await api("/tasks", { method: "POST", body: { type_id: num("type_id"), title: f.get("title"),
+        description: f.get("description"), priority: f.get("priority"), due_date: f.get("due_date"),
+        responsible_id: num("responsible_id"), reviewer_id: num("reviewer_id") } });
+      try {
+        const rule = { mode: f.get("mode") };
+        if (rule.mode === "users") rule.user_ids = f.get("user_ids").split(",").map(s => Number(s.trim())).filter(Boolean);
+        if (rule.mode === "filter") { if (f.get("campus")) rule.campus = f.get("campus"); if (f.get("unit")) rule.unit = f.get("unit"); }
+        await api(`/tasks/${t.id}/recipients`, { method: "POST", body: rule });
+        if (go === "publish") { const p = await api(`/tasks/${t.id}/publish`, { method: "POST" });
+          toast(`Publicada: ${p.assignments_created} asignación(es) creadas`); }
+        else toast("Borrador guardado");
+      } catch (err) { toast("Borrador creado, pero: " + err.message, true); }
+      openTask(t.id);
+    }); };
+}
+
+/* ---------- seguimiento ---------- */
+async function vTasks(status = "") {
+  const d = await api(`/tasks?page_size=100${status ? "&status=" + status : ""}`);
+  $("#main").innerHTML = `<div class="row sp udv-mb-2"><h2 class="udv-section-title" style="margin:0">Seguimiento de tareas</h2>
+    <select id="fs" class="udv-select" style="width:auto"><option value="">Todas</option><option value="draft">Borradores</option>
+    <option value="published">Publicadas</option><option value="cancelled">Canceladas</option></select></div>
+  <div class="udv-table-wrapper"><table class="udv-table"><thead><tr><th>#</th><th>Título</th><th>Estado</th><th>Prioridad</th><th>Vence</th><th></th></tr></thead><tbody>
+  ${d.items.map(t => `<tr><td>${t.id}</td><td>${esc(t.title)}</td><td>${badge(t.status)}</td><td>${esc(t.priority)}</td><td>${esc(t.due_date)}</td>
+    <td><button class="btn-udv btn-udv-primary btn-udv-sm" data-open="${t.id}">Abrir</button></td></tr>`).join("")
+    || `<tr><td colspan="6" class="mut">Sin tareas.</td></tr>`}</tbody></table></div>`;
+  $("#fs").value = status; $("#fs").onchange = e => run(() => vTasks(e.target.value));
+  $("#main").onclick = e => { const id = e.target.dataset.open; if (id) openTask(id); };
+}
+
+function openTask(id) { S.view = "tasks";
+  document.querySelectorAll("#nav a").forEach(a => a.classList.toggle("active", a.dataset.v === "tasks"));
+  run(() => vTask(id)); }
+
+async function vTask(id) {
+  if (!S.matrix) S.matrix = await api("/workflow/matrix");
+  const [t, a, ty] = await Promise.all([api(`/tasks/${id}`), api(`/tasks/${id}/assignments?page_size=100`), api("/task-types?page_size=100")]);
+  const type = ty.items.find(x => x.id === t.type_id) || {}, flow = type.flow || "standard";
+  const by = a.summary.by_status, mine = S.me.role;
+  const rowActions = x => S.matrix[flow].filter(r => r.from === x.status && r.action !== "publish" && r.roles.includes(mine))
+    .map(r => `<button class="btn-udv ${r.action === "cancel" ? "danger" : "btn-udv-dark"} sm2" data-act="${r.action}" data-a="${x.id}" data-c="${r.comment_required ? 1 : 0}">${ACTION[r.action]}</button>`).join("");
+  $("#main").innerHTML = `<p class="udv-mb-2"><a href="#" id="back">← Todas las tareas</a></p>
+  <div class="udv-card-light udv-mb-3"><div class="row sp"><div><h2 class="udv-section-title" style="margin:0">${esc(t.title)}</h2>
+    <span class="mut">${esc(type.name || "")} · flujo ${esc(flow)} · prioridad ${esc(t.priority)} · vence ${esc(t.due_date)}</span></div>${badge(t.status)}</div>
+    <p class="udv-mt-2">${esc(t.description) || '<span class="mut">Sin descripción.</span>'}</p>
+    <p class="mut udv-mb-2">Destinatarios: ${t.recipient_rule ? esc(JSON.stringify(t.recipient_rule)) : "sin configurar"} · Revisor id: ${esc(t.reviewer_id ?? "—")}</p>
+    <div class="row">
+      ${t.status === "draft" ? `<button class="btn-udv btn-udv-dark" id="edit">Editar borrador</button><button class="btn-udv btn-udv-primary" id="pub">Publicar</button>` : ""}
+      ${t.status !== "cancelled" ? `<button class="btn-udv danger" id="cancel">Cancelar tarea</button>` : ""}</div></div>
+  <h2 class="udv-section-title" style="font-size:1.2rem">Avance agregado</h2>
+  <div class="chips udv-mb-3">${Object.entries(by).map(([k, n]) => `<div class="udv-card"><p class="udv-card__category" style="margin:0">${esc(STATUS[k])}</p><b>${n}</b></div>`).join("")}
+    <div class="udv-card" style="border-color:var(--udv-cyan)"><p class="udv-card__category" style="margin:0;color:var(--udv-cyan)">Total</p><b>${a.summary.total}</b></div></div>
+  <h2 class="udv-section-title" style="font-size:1.2rem">Avance individual</h2>
+  <div class="udv-table-wrapper"><table class="udv-table"><thead><tr><th>Docente</th><th>Sede / unidad</th><th>Estado</th><th>Último cambio</th><th>Acciones</th></tr></thead><tbody>
+  ${a.items.map(x => `<tr><td>${esc(x.assignee_name)}</td><td>${esc(x.campus || "")} / ${esc(x.unit || "")}</td><td>${badge(x.status)}</td>
+    <td class="mut">${fdate(x.last_change_at)}</td><td>${rowActions(x)}<button class="btn-udv btn-udv-primary sm2" data-hist="${x.id}">Historial</button></td></tr>`).join("")
+    || `<tr><td colspan="5" class="mut">Aún no hay asignaciones${t.status === "draft" ? " (se crean al publicar)" : ""}.</td></tr>`}</tbody></table></div>`;
+
+  $("#back").onclick = e => { e.preventDefault(); show("tasks"); };
+  if ($("#pub")) $("#pub").onclick = () => run(async () => { const p = await api(`/tasks/${id}/publish`, { method: "POST" });
+    toast(`Publicada: ${p.assignments_created} asignación(es)`); vTask(id); });
+  if ($("#cancel")) $("#cancel").onclick = () => { const reason = prompt("Motivo de la cancelación (opcional):"); if (reason === null) return;
+    run(async () => { const r = await api(`/tasks/${id}/cancel`, { method: "POST", body: { reason: reason || null } });
+      toast(r.skipped.length ? `${r.cancelled_assignments.length} canceladas; ${r.skipped.length} ya avanzaron y se conservan` : "Tarea cancelada"); vTask(id); }); };
+  if ($("#edit")) $("#edit").onclick = () => editDialog(t);
+  $("#main").onclick = e => { const d = e.target.dataset;
+    if (d.hist) return run(() => history(d.hist));
+    if (d.act) { let comment = null;
+      if (d.c === "1" || d.act === "cancel") { comment = prompt(d.c === "1" ? "Comentario (obligatorio):" : "Comentario (opcional):"); if (comment === null) return; }
+      run(async () => { await api(`/assignments/${d.a}/actions/${d.act}`, { method: "POST", body: { comment } });
+        toast(`${ACTION[d.act]}: hecho`); vTask(id); }); } };
+}
+
+async function history(aid) {
+  const h = (await api(`/assignments/${aid}/history`)).items, dlg = $("#dlg");
+  dlg.innerHTML = `<p class="udv-card__category">Historial</p><h3 class="udv-card__title">Asignación #${aid}</h3><ul class="tl">
+    ${h.map(x => `<li><b>${esc(ACTION[x.action] || x.action)}</b> · ${badge(x.from_status)} → ${badge(x.to_status)}<br>
+    <span class="m">${esc(x.actor_name)} · ${fdate(x.created_at)}</span>${x.comment ? `<br>“${esc(x.comment)}”` : ""}</li>`).join("")}</ul>
+    <div class="udv-mt-2"><button class="btn-udv btn-udv-primary" onclick="$('#dlg').close()">Cerrar</button></div>`;
+  dlg.showModal();
+}
+
+function editDialog(t) {
+  const dlg = $("#dlg");
+  dlg.innerHTML = `<p class="udv-card__category">Borrador</p><h3 class="udv-card__title">Editar tarea</h3><form id="fe">
+    <div class="udv-form-group"><label class="udv-label">Título</label><input class="udv-input" name="title" value="${esc(t.title)}" required></div>
+    <div class="udv-form-group"><label class="udv-label">Descripción</label><textarea class="udv-textarea" name="description" rows="3">${esc(t.description)}</textarea></div>
+    <div class="udv-form-group"><label class="udv-label">Prioridad</label><select class="udv-select" name="priority">${["low", "medium", "high"].map(p => `<option ${p === t.priority ? "selected" : ""}>${p}</option>`).join("")}</select></div>
+    <div class="udv-form-group"><label class="udv-label">Fecha límite</label><input class="udv-input" type="date" name="due_date" value="${esc(t.due_date)}" required></div>
+    <div class="row"><button class="btn-udv btn-udv-primary">Guardar</button><button type="button" class="btn-udv btn-udv-outline" onclick="$('#dlg').close()">Cancelar</button></div></form>`;
+  dlg.showModal();
+  $("#fe").onsubmit = e => { e.preventDefault(); const f = Object.fromEntries(new FormData(e.target));
+    run(async () => { await api(`/tasks/${t.id}`, { method: "PATCH", body: f }); dlg.close(); toast("Borrador actualizado"); vTask(t.id); }); };
+}
+
+login(1);
+</script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+/* Complementos del G6 para el panel y la auditoría. Solo usan los tokens de udv.css. */
+.pagina { padding-top: 2.5rem; padding-bottom: 4rem; }
+.pagina .udv-section-subtitle { margin-bottom: 1.75rem; max-width: 60ch; }
+.seccion { margin-top: 2.25rem; }
+.seccion h2 { font-size: 1.15rem; font-weight: 700; color: var(--udv-navy); margin-bottom: .75rem; }
+.ayuda { font-size: .8rem; color: var(--udv-text-muted); }
+.fila-vacia td { padding: 2rem 1rem; text-align: center; color: var(--udv-text-muted); }
+.numero { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.btn-udv-secundario { background: var(--udv-bg-white); color: var(--udv-navy); border: 1.5px solid #D1D5DB; }
+.btn-udv-secundario:hover:not(:disabled) { border-color: var(--udv-navy); color: var(--udv-navy); }
+.btn-udv:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+.mensajes .udv-alert { margin: 1rem 0 0; }
+.aviso-sesion { margin-bottom: 1.5rem; }
+.aviso-sesion > .udv-alert { margin: 0; }
+.login { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: .75rem; align-items: end; margin-top: .75rem; }
+.login .udv-form-group { margin: 0; }
+.barra-sesion { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; justify-content: flex-end; margin-bottom: 1rem; font-size: .85rem; color: var(--udv-text-muted); }
+
+.paginacion { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 1rem; font-size: .85rem; color: var(--udv-text-muted); }
+.paginacion__botones { display: flex; gap: .5rem; }
+
+:focus-visible { outline: 3px solid var(--udv-cyan); outline-offset: 2px; }
+/* udv.css da display a los botones: sin esto, hidden no los oculta. */
+[hidden] { display: none !important; }
+
+@media (max-width: 480px) {
+  .paginacion { flex-direction: column; align-items: stretch; text-align: center; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; }
+  .btn-udv:hover { transform: none; }
+}

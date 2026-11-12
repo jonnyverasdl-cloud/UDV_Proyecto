@@ -11,10 +11,11 @@
 
 | Rol | Nombre | Usuario GitHub |
 |---|---|---|
-| Coordinador (abre los PRs) | | |
-| Dev | | |
-| Dev | | |
-| Dev | | |
+| Coordinador (abre los PRs) | Anthony | toni2000fb-lab |
+| Dev | Aguilar Arrecis, Angel Javier | AnG3I-universidad |
+| Dev | Perez Lopez, Ancelmo Gerardo | Ancel2002 |
+| Dev | Godoy Barrera, Luis Alejandro | Alejandrobarrera03 |
+| Dev | Petet Garcia, Pablo Abraham | ppetet1501 |
 
 ## 2. Alcance del módulo
 

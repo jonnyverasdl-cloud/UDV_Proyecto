@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auditoría | UDV</title>
+  <link rel="stylesheet" href="/udv-styles/udv.css">
+  <link rel="stylesheet" href="comun.css">
+  <style>
+    .filtros {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: .75rem 1rem; align-items: end;
+      background: var(--udv-bg-white); border: 1px solid #E5E7EB; border-top: 3px solid var(--udv-gold);
+      border-radius: var(--udv-radius); padding: 1.25rem; box-shadow: var(--udv-shadow-sm);
+    }
+    .filtros .udv-form-group { margin: 0; }
+    .filtros__botones { display: flex; gap: .5rem; }
+    .filtros__botones .btn-udv { flex: 1; justify-content: center; }
+    .resultados { margin-top: 1.5rem; }
+    .celda-fecha { white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .accion { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .8rem; }
+    .detalle summary { cursor: pointer; color: var(--udv-navy); font-weight: 600; font-size: .85rem; }
+    .detalle pre {
+      margin-top: .5rem; padding: .75rem; background: var(--udv-bg-light); border-radius: var(--udv-radius-sm);
+      font-size: .75rem; white-space: pre-wrap; word-break: break-word; max-width: 32rem;
+    }
+    .transicion { white-space: nowrap; }
+  </style>
+</head>
+<body>
+
+<header class="udv-header">
+  <a href="catalogos.html" class="udv-header__logo">
+    <div class="udv-header__logo-text">Universidad Da Vinci<span>de Guatemala</span></div>
+  </a>
+  <nav aria-label="Principal">
+    <ul class="udv-header__nav">
+      <li><a href="catalogos.html">Catálogos</a></li>
+      <li><a href="panel.html">Panel</a></li>
+      <li><a href="auditoria.html" class="active" aria-current="page">Auditoría</a></li>
+      <li><a href="/api/v1/docs">Documentación de la API</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main class="udv-container pagina">
+  <h1 class="udv-section-title">Auditoría</h1>
+  <p class="udv-section-subtitle">
+    Quién hizo qué y cuándo en todo el sistema: catálogos, tareas, programas, usuarios e inicios de sesión.
+    Los registros no se pueden editar ni borrar.
+  </p>
+
+  <div id="barra-sesion" class="barra-sesion" hidden>
+    <span id="usuario-sesion"></span>
+    <button id="salir" class="btn-udv btn-udv-sm btn-udv-secundario" type="button">Cerrar sesión</button>
+  </div>
+
+  <div id="aviso-sesion" class="mensajes aviso-sesion" hidden>
+    <div class="udv-alert udv-alert-warning">
+      Inicia sesión para consultar la auditoría.
+      <form id="form-login" class="login" novalidate>
+        <div class="udv-form-group">
+          <label class="udv-label" for="login-correo">Correo</label>
+          <input id="login-correo" class="udv-input" type="email" autocomplete="username" required>
+        </div>
+        <div class="udv-form-group">
+          <label class="udv-label" for="login-clave">Contraseña</label>
+          <input id="login-clave" class="udv-input" type="password" autocomplete="current-password" required>
+        </div>
+        <button id="entrar" class="btn-udv btn-udv-primary" type="submit">Entrar</button>
+      </form>
+      <div id="mensaje-login" class="mensajes" role="status"></div>
+    </div>
+  </div>
+
+  <div id="mensaje" class="mensajes" role="status"></div>
+
+  <div id="contenido" hidden>
+    <form id="filtros" class="filtros" aria-label="Filtros de la auditoría" novalidate>
+      <div class="udv-form-group">
+        <label class="udv-label" for="user_id">Usuario</label>
+        <select id="user_id" class="udv-input"><option value="">Todos</option></select>
+      </div>
+      <div class="udv-form-group">
+        <label class="udv-label" for="from">Desde</label>
+        <input id="from" class="udv-input" type="date">
+      </div>
+      <div class="udv-form-group">
+        <label class="udv-label" for="to">Hasta (incluido)</label>
+        <input id="to" class="udv-input" type="date">
+      </div>
+      <div class="udv-form-group">
+        <label class="udv-label" for="entity">Entidad</label>
+        <select id="entity" class="udv-input"><option value="">Todas</option></select>
+      </div>
+      <div class="udv-form-group">
+        <label class="udv-label" for="action">Acción</label>
+        <select id="action" class="udv-input"><option value="">Todas</option></select>
+      </div>
+      <div class="filtros__botones">
+        <button class="btn-udv btn-udv-primary" type="submit">Buscar</button>
+        <button id="limpiar" class="btn-udv btn-udv-secundario" type="button">Limpiar</button>
+      </div>
+    </form>
+    <p class="ayuda">Las fechas son días completos en hora UTC, la misma con que se guardan y se muestran abajo.</p>
+
+    <section class="resultados" aria-labelledby="titulo-resultados">
+      <h2 id="titulo-resultados" class="ayuda">Resultados</h2>
+      <div class="udv-table-wrapper">
+        <table class="udv-table">
+          <thead>
+            <tr><th scope="col">Fecha (UTC)</th><th scope="col">Usuario</th><th scope="col">Acción</th>
+                <th scope="col">Entidad</th><th scope="col">Registro</th><th scope="col">Detalle</th></tr>
+          </thead>
+          <tbody id="filas" aria-live="polite"></tbody>
+        </table>
+      </div>
+      <div class="paginacion">
+        <span id="resumen"></span>
+        <div class="paginacion__botones">
+          <button id="anterior" class="btn-udv btn-udv-sm btn-udv-secundario" type="button">Anterior</button>
+          <button id="siguiente" class="btn-udv btn-udv-sm btn-udv-secundario" type="button">Siguiente</button>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script src="comun.js"></script>
+<script>
+  "use strict";
+  const { $, llamarApi, textoDeError, mostrarAlerta, fechaUtc, celda } = UDV;
+
+  // Roles con el permiso audit.read en la semilla del G1.
+  const ROLES_AUDITORIA = ["admin", "auditor"];
+  const SIN_PERMISO = "La auditoría la consultan solo administración y auditoría.";
+  const POR_PAGINA = 20;
+  const FILTROS = ["user_id", "from", "to", "entity", "action"];
+  const estado = { pagina: 1, filtros: {}, solicitud: 0 };
+
+  function llenarLista(lista, opciones) {
+    const primera = lista.options[0];
+    lista.replaceChildren(primera, ...opciones.map(([valor, texto]) => new Option(texto, valor)));
+  }
+
+  async function cargarOpciones() {
+    const opciones = await llamarApi("/audit/filters");
+    llenarLista($("user_id"), opciones.users.map((u) => [u.id, u.email ?? `Usuario ${u.id}`]));
+    llenarLista($("entity"), opciones.entities.map((e) => [e, e]));
+    llenarLista($("action"), opciones.actions.map((a) => [a, a]));
+  }
+
+  function detalle(registro) {
+    const td = document.createElement("td");
+    if (registro.from_state || registro.to_state) {
+      const transicion = document.createElement("span");
+      transicion.className = "transicion";
+      transicion.textContent = `${registro.from_state ?? "—"} → ${registro.to_state ?? "—"}`;
+      td.append(transicion);
+      if (registro.comment) td.append(document.createElement("br"), registro.comment);
+    }
+    if (Object.keys(registro.changes).length) {
+      const caja = document.createElement("details");
+      caja.className = "detalle";
+      const resumen = document.createElement("summary");
+      resumen.textContent = "Ver cambios";
+      const texto = document.createElement("pre");
+      texto.textContent = JSON.stringify(registro.changes, null, 2);
+      caja.append(resumen, texto);
+      td.append(caja);
+    }
+    if (!td.childNodes.length) td.textContent = "—";
+    return td;
+  }
+
+  async function buscar() {
+    const numero = ++estado.solicitud;
+    const parametros = new URLSearchParams({ page: estado.pagina, per_page: POR_PAGINA });
+    for (const [clave, valor] of Object.entries(estado.filtros)) if (valor) parametros.set(clave, valor);
+    $("filas").setAttribute("aria-busy", "true");
+    try {
+      const resultado = await llamarApi(`/audit?${parametros}`);
+      if (numero !== estado.solicitud) return;
+      if (resultado.data.length === 0) {
+        const fila = document.createElement("tr");
+        fila.className = "fila-vacia";
+        const td = celda("Ningún registro coincide con los filtros.");
+        td.colSpan = 6;
+        fila.append(td);
+        $("filas").replaceChildren(fila);
+      } else {
+        $("filas").replaceChildren(...resultado.data.map((r) => {
+          const fila = document.createElement("tr");
+          fila.append(celda(fechaUtc(r.created_at), "celda-fecha"),
+                      celda(r.actor_email ?? (r.actor_id ? `Usuario ${r.actor_id}` : "Sistema")),
+                      celda(r.action, "accion"), celda(r.entity), celda(String(r.entity_id)),
+                      detalle(r));
+          return fila;
+        }));
+      }
+      const paginas = Math.max(1, Math.ceil(resultado.total / resultado.per_page));
+      $("resumen").textContent = `Página ${resultado.page} de ${paginas}, `
+        + (resultado.total === 1 ? "1 registro" : `${resultado.total} registros`);
+      $("anterior").disabled = resultado.page <= 1;
+      $("siguiente").disabled = resultado.page >= paginas;
+      mostrarAlerta($("mensaje"), null);
+    } catch (error) {
+      if (numero !== estado.solicitud) return;
+      $("filas").replaceChildren();
+      if (error.estadoHttp === 403) $("contenido").hidden = true;
+      if (error.estadoHttp !== 401) mostrarAlerta($("mensaje"), "danger", textoDeError(error, SIN_PERMISO));
+    } finally {
+      if (numero === estado.solicitud) $("filas").removeAttribute("aria-busy");
+    }
+  }
+
+  $("filtros").addEventListener("submit", (evento) => {
+    evento.preventDefault();
+    if ($("from").value && $("to").value && $("from").value > $("to").value) {
+      return mostrarAlerta($("mensaje"), "danger", "La fecha final debe ser igual o posterior a la inicial.");
+    }
+    estado.filtros = Object.fromEntries(FILTROS.map((f) => [f, $(f).value]));
+    estado.pagina = 1;
+    buscar();
+  });
+  $("limpiar").addEventListener("click", () => {
+    $("filtros").reset();
+    estado.filtros = {};
+    estado.pagina = 1;
+    buscar();
+  });
+  $("anterior").addEventListener("click", () => { estado.pagina -= 1; buscar(); });
+  $("siguiente").addEventListener("click", () => { estado.pagina += 1; buscar(); });
+
+  UDV.iniciarSesion(async (yo) => {
+    $("contenido").hidden = true;
+    mostrarAlerta($("mensaje"), null);
+    if (!yo) return;
+    if (yo.codigosDeRol && !yo.codigosDeRol.some((r) => ROLES_AUDITORIA.includes(r))) {
+      return mostrarAlerta($("mensaje"), "warning", SIN_PERMISO);
+    }
+    try {
+      await cargarOpciones();
+    } catch (error) {
+      if (error.estadoHttp !== 401) mostrarAlerta($("mensaje"), "danger", textoDeError(error, SIN_PERMISO));
+      return;
+    }
+    $("contenido").hidden = false;
+    buscar();
+  });
+</script>
+</body>
+</html>

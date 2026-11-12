@@ -1,0 +1,10 @@
+# Entorno virtual y archivos generados por Python
+.venv/
+__pycache__/
+*.py[cod]
+.DS_Store
+
+# Credenciales locales; compartir solo la plantilla sin secretos
+.env
+.env.*
+!.env.example
