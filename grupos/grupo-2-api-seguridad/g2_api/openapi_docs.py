@@ -9,6 +9,8 @@ from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
 from fastapi.routing import APIRoute
 
+from g2_api import config
+
 _ERRORES = {
     400: ("BAD_REQUEST", "Solicitud inválida."),
     401: ("UNAUTHORIZED", "Falta el token de autenticación."),
@@ -16,6 +18,7 @@ _ERRORES = {
     404: ("NOT_FOUND", "Recurso no encontrado."),
     409: ("CONFLICT", "El correo ya está registrado."),
     422: ("VALIDATION_ERROR", "Datos de entrada inválidos."),
+    429: ("TOO_MANY_REQUESTS", "Cuenta bloqueada por intentos fallidos. Intenta de nuevo en 15 minutos."),
 }
 # Las fechas son de solo lectura, en ISO 8601 y en UTC (terminan en Z).
 _USUARIO = {
@@ -60,7 +63,7 @@ def _rutas_del_g2():
 
 
 def completar_openapi(app: FastAPI):
-    # Deja en `app.openapi` el esquema con los codigos HTTP y ejemplos reales del G2.
+    # Deja en 'app.openapi' el esquema con los codigos HTTP y ejemplos reales del G2.
 
     def _construir():
         if app.openapi_schema:
@@ -96,6 +99,19 @@ def completar_openapi(app: FastAPI):
                     r["404"] = _resp_error(404)
                 if ruta.endswith("/users") and metodo == "post" or (ruta.endswith("{usuario_id}") and metodo == "patch"):
                     r["409"] = _resp_error(409)
+                if ruta.endswith("/auth/login") and metodo == "post":
+                    # Bloqueo: tras LOGIN_MAX_INTENTOS fallos seguidos, 429 por LOGIN_BLOQUEO_MINUTOS.
+                    r["401"] = _resp_error(401, "Correo o contraseña incorrectos.")
+                    r["429"] = _resp_error(429)
+                    r["429"]["description"] = (
+                        f"Cuenta bloqueada: {config.LOGIN_MAX_INTENTOS} intentos fallidos seguidos bloquean "
+                        f"el acceso {config.LOGIN_BLOQUEO_MINUTOS} minutos. El mensaje indica cuántos minutos faltan "
+                        "y el bloqueo aplica aunque la contraseña sea correcta."
+                    )
+                    r["200"] = _resp_ok("Sesión iniciada: token y datos del usuario.", {
+                        "access_token": "eyJhbGciOiJIUzI1NiIs...", "token_type": "bearer", "expires_in": 7200,
+                        "usuario": {"id": 12, "correo": "docente@udv.edu.gt", "nombres": "Carlos",
+                                    "apellidos": "Maeda", "roles": ["teacher"]}})
                 if ruta.endswith("/files") and metodo == "post":
                     r["400"] = _resp_error(400)
                 if ruta.endswith("/files/{id}") and metodo == "get":
@@ -122,3 +138,4 @@ def completar_openapi(app: FastAPI):
         return esquema
 
     app.openapi = _construir
+
