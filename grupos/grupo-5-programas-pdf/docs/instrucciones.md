@@ -20,13 +20,20 @@ y el [`CONTRATO_COMUN.md`](https://github.com/jonnyverasdl-cloud/UDV_Proyecto/bl
   define un proveedor alternativo que responde 503. Verificar que este sea el
   comportamiento esperado al ejecutar G5 fuera de la aplicación compartida.
 - **Dependencias:** `requirements.txt` fija las versiones oficiales de
-  FastAPI, Uvicorn, SQLAlchemy, PyMySQL, cryptography, ReportLab y pytest. No
-  usar rangos de versiones.
+  FastAPI, Pydantic, Uvicorn, SQLAlchemy, PyMySQL, cryptography, ReportLab y
+  pytest. No usar rangos de versiones.
 - **Documentación:** arquitectura, flujo y criterios de revisión se mantienen
   en el README y esta guía.
 
 El selector se llena con los roles de la cuenta autenticada en G2. Solo cambia
 la vista de trabajo; el backend vuelve a validar los permisos en cada ruta.
+G5 usa únicamente los códigos oficiales de G1: `admin`, `coordinator`,
+`teacher`, `reviewer`, `authority` y `auditor`. Según el seed vigente,
+`admin`, `coordinator` y `reviewer` tienen permiso de gestión; solo `reviewer`
+tiene permiso de revisión; `authority` autoriza. Los gestores pueden crear y
+editar borradores; además, el docente asignado puede editar su propia versión.
+Un usuario sin esos permisos ni asignación recibe 403. El envío a revisión
+sigue reservado a `coordinator` y `reviewer`.
 
 ## Flujo que debe validar QA
 
@@ -41,11 +48,11 @@ draft -> submitted -> under_review -> approved -> authorized
 
 | Acción | Estado inicial | Resultado | Rol esperado |
 |---|---|---|---|
-| Enviar (`submit`) | `draft` o `returned` | `submitted` | docente/autor |
-| Tomar revisión (`review`) | `submitted` | `under_review` | revisor |
-| Devolver (`return`) | `under_review` | `returned` | revisor |
-| Aprobar (`approve`) | `under_review` | `approved` | revisor |
-| Autorizar (`authorize`) | `approved` | `authorized` | autoridad |
+| Enviar (`submit`) | `draft` o `returned` | `submitted` | `coordinator` o `reviewer` |
+| Tomar revisión (`review`) | `submitted` | `under_review` | `reviewer` |
+| Devolver (`return`) | `under_review` | `returned` | `reviewer` |
+| Aprobar (`approve`) | `under_review` | `approved` | `reviewer` |
+| Autorizar (`authorize`) | `approved` | `authorized` | `authority` |
 
 Comprobar también que solo `draft` y `returned` se puedan editar, que una
 devolución requiera observación y que no existan dos versiones autorizadas
@@ -62,14 +69,39 @@ inmutable; una nueva versión se crea como borrador clonado.
       `registrar_errores(app)`; revisar las rutas en `/api/v1/openapi.json`.
 - [ ] Verificar que `DATABASE_URL` apunte a una base de prueba compatible con
       el esquema de G1; G5 no debe crear ni alterar tablas.
-- [ ] Iniciar sesión desde el formulario con una cuenta G2. Confirmar que las
-      rutas protegidas envían `Authorization: Bearer ...` y que el selector
-      solo muestra roles devueltos por G2.
-- [ ] Abrir el frontend con `?program_id=<id>` y confirmar que no depende de
-      una URL local ni de un ID de programa fijo.
-- [ ] Probar una petición autenticada con el token Bearer de G2. Confirmar que
+- [ ] Confirmar que no haya credenciales reales en archivos versionados:
+      `.env.example` contiene solo marcadores y `.env` permanece ignorado.
+      La clave `SECRET_KEY` la administra G2; no se agrega a G5 ni al frontend.
+- [ ] Iniciar sesión en `/app/`, abrir G5 desde el portal y confirmar que
+      reutiliza `sessionStorage["udv_token"]` y envía `Authorization: Bearer`.
+- [ ] Abrir G5 sin `program_id`; confirmar que permite seleccionar un programa
+      desde el listado de la API. Verificar también el caso con
+      `?program_id=<id>`.
+- [ ] Confirmar que se carga `/udv-styles/udv.css` y que no se muestra un
+      segundo formulario de login dentro de G5.
+- [ ] Probar una petición autenticada con el token de G2. Confirmar que
       el usuario y sus roles llegan desde `obtener_usuario_actual`, no desde
       el selector del navegador.
+- [ ] Comprobar la matriz de permisos G1: `admin`, coordinación y revisión
+      gestionan borradores; `reviewer` revisa y aprueba; `authority` autoriza.
+- [ ] Verificar que `admin`, `coordinator` y `reviewer` puedan gestionar
+      borradores; el docente asignado puede editar su versión, pero otro
+      docente y `auditor` reciben 403.
+- [ ] En Swagger, confirmar que los cuerpos de creación, nueva versión,
+      encabezado y transiciones muestren sus campos en lugar de un objeto
+      genérico.
+- [ ] En `PUT /program-versions/{id}/sections/evaluacion`, probar una lista
+      como `[{"nombre":"Parcial 1","ponderacion":30,"semana":5}]`; una
+      actividad sin `nombre` o `ponderacion` debe recibir 422 sin borrar las
+      filas de evaluación existentes.
+- [ ] Crear un programa del mismo curso/sede/modalidad en otro período y
+      confirmar que recibe el siguiente número de versión sin conflicto de
+      unicidad de G1.
+- [ ] Asignar `docente_responsable_id` en la creación o sección
+      `responsables`; confirmar que el usuario esté activo en
+      `docente_curso` para ese curso, período y sede. Si coordinación crea el
+      programa sin indicar docente, confirmar que no queda asignada como
+      docente responsable.
 
 ### Permisos, validación y errores
 
@@ -108,8 +140,9 @@ Desde la raíz del proyecto:
 python -m pytest -q
 ```
 
-La suite actual contiene 15 pruebas para reglas de estados y permisos,
-selección de sesiones y auditoría (con mocks), errores HTTP, filtros y
-OpenAPI, y validación del vínculo de asignación. No prueba una conexión MySQL
-real ni la descarga del PDF; un resultado exitoso no sustituye la integración
-con G2, la aplicación host y una base de prueba.
+La suite incluye pruebas HTTP de las rutas protegidas con encabezados Bearer y
+roles oficiales en el formato de usuario que entrega G2. El proveedor de
+identidad se sustituye por fixtures: estas pruebas verifican la autorización
+de G5, pero no validan un token JWT real ni sustituyen el login de G2. Tampoco
+prueban una conexión MySQL real ni la descarga del PDF; se requiere además
+validar la integración con la aplicación host y una base MySQL local de prueba.

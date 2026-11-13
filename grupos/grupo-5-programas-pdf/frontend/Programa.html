@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Programa de Curso</title>
     <!-- ESTILOS Y LÓGICA DE LA INTERFAZ -->
-    <link rel="stylesheet" href="estilos/udv.css?v=auth-filters-1" />
+    <link rel="stylesheet" href="/udv-styles/udv.css" />
     <link rel="stylesheet" href="estilos/style.css?v=auth-filters-1" />
     <script src="script.js?v=auth-filters-1" defer></script>
   </head>
@@ -13,20 +13,10 @@
   <body>
     <main id="login-panel" class="login-panel">
       <section class="panel">
-        <h1>Iniciar sesión</h1>
-        <p>Usa tu cuenta de la API UDV para abrir un programa.</p>
-        <form id="login-form" class="login-form">
-          <div class="field">
-            <label for="login-email">Correo</label>
-            <input id="login-email" type="email" autocomplete="username" required />
-          </div>
-          <div class="field">
-            <label for="login-password">Contraseña</label>
-            <input id="login-password" type="password" autocomplete="current-password" required />
-          </div>
-          <button id="login-submit" type="submit">Entrar</button>
-          <p id="login-status" role="status" aria-live="polite"></p>
-        </form>
+        <h1>Acceso al programa</h1>
+        <p>Inicia sesión en el portal UDV y vuelve a abrir este módulo.</p>
+        <a class="btn-udv btn-udv-primary" href="/app/">Ir al portal UDV</a>
+        <p id="login-status" role="status" aria-live="polite"></p>
       </section>
     </main>
 
@@ -65,10 +55,16 @@
 
           <div class="header-actions">
             <div class="role-selector">
+              <label for="program-select">Programa de curso</label>
+              <select id="program-select" class="role">
+                <option value="">Selecciona un programa</option>
+              </select>
+            </div>
+            <div class="role-selector">
               <label for="role">Rol autorizado</label>
               <select id="role" class="role"></select>
             </div>
-            <button id="logout" type="button">Cerrar sesión</button>
+            <a class="btn-udv btn-udv-outline" href="/app/">Volver al portal</a>
           </div>
         </header>
 
@@ -86,8 +82,16 @@
               <input
                 type="text"
                 id="instructor"
-                placeholder="Escriba el nombre del docente"
+                placeholder="Se carga desde el usuario responsable"
+                readonly
               />
+            </div>
+
+            <div class="field">
+              <label for="instructor-id">ID del docente responsable en G1</label>
+
+              <input type="number" id="instructor-id" min="1" step="1" disabled />
+              <small>Debe tener asignación activa al mismo curso, período y sede.</small>
             </div>
 
             <div class="field">
