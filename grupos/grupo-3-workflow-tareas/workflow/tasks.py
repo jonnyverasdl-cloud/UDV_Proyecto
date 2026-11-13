@@ -230,9 +230,18 @@ def _validate_fields(conn, data):
     mysql = _is_mysql(conn)
     if "title" in data and not (data["title"] or "").strip():
         raise ValidationFailed("title no puede estar vacío", details={"field": "title"})
-    if "priority" in data and data["priority"] not in PRIORITIES:
-        raise ValidationFailed("priority inválida",
-                               details={"field": "priority", "valid": list(PRIORITIES)})
+    if "priority" in data:
+        if mysql:
+            rows = conn.execute("SELECT codigo FROM prioridad_tarea").fetchall()
+            valid = [row[0] for row in rows]
+        else:
+            valid = list(PRIORITIES)
+        if data["priority"] not in valid:
+            raise ValidationFailed(
+                "priority inválida",
+                details=[{"field": "priority",
+                          "message": "Prioridad no registrada en el catálogo",
+                          "valid": valid}])
     if "due_date" in data:
         data["due_date"] = _parse_due_date(data["due_date"])
     if "type_id" in data:
