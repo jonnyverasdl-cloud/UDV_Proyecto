@@ -7,7 +7,7 @@ Expone un `router` (APIRouter con prefijo /api/v1) que el main.py de la raíz mo
 - Errores con el formato del CONTRATO_COMUN: {"error": {"code", "message", "details"}}.
 - Paginación: {"items": [...], "page": 1, "page_size": 20, "total": 0}
 """
-from typing import Literal, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.exceptions import RequestValidationError
@@ -23,7 +23,6 @@ from .http_errors import validation_body
 from .matrix import SHORT, STANDARD
 
 PREFIX = "/api/v1"
-Priority = Literal["low", "medium", "high"]       # "urgent" u otro valor -> 422 con el campo
 
 # Las 6 acciones de asignación que ahora son de G3 (antes las hacía G4).
 ASSIGNMENT_ACTIONS = ("start", "submit", "resubmit", "review", "return", "approve")
@@ -63,7 +62,7 @@ class TaskIn(BaseModel):
     type_id: int
     title: str
     description: str = ""
-    priority: Priority = "medium"
+    priority: str = "medium"
     due_date: str
     responsible_id: Optional[int] = None
     reviewer_id: Optional[int] = None
@@ -73,7 +72,7 @@ class TaskPatch(BaseModel):
     type_id: Optional[int] = None
     title: Optional[str] = None
     description: Optional[str] = None
-    priority: Optional[Priority] = None
+    priority: Optional[str] = None
     due_date: Optional[str] = None
     responsible_id: Optional[int] = None
     reviewer_id: Optional[int] = None
