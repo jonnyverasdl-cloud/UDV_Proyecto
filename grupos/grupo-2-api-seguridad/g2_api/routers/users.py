@@ -1,12 +1,12 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 from g2_api.database import get_db
 from typing import Optional
 import bcrypt
-from g2_api.middleware.auth_middleware import requerir_rol
+from g2_api.middleware.auth_middleware import requerir_permiso, requerir_rol
 from g2_api.models import Rol, Usuario, UsuarioRol
 from g2_api.routers.auth import obtener_usuario_actual
 from g2_api.database import fijar_actor
@@ -15,20 +15,21 @@ from datetime import timezone
 
 router = APIRouter(prefix="/api/v1/users", tags=["Users"])
 
+# largos iguales a la tabla usuario del Grupo 1: si se pasan da 422, no 500
 class UsuarioCreate(BaseModel):
-    nombres: str
-    apellidos: str
-    correo: str
+    nombres: str = Field(min_length=1, max_length=100)
+    apellidos: str = Field(min_length=1, max_length=100)
+    correo: EmailStr = Field(max_length=254)
     password: str = Field(min_length=8, max_length=64)
-    rol: str
+    rol: str = Field(min_length=1, max_length=30)
     activo:bool = True
 
 class UsuarioUpdate(BaseModel):
-    nombres: Optional[str] = None
-    apellidos: Optional[str] = None
-    correo: Optional[str] = None
+    nombres: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    apellidos: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    correo: Optional[EmailStr] = Field(default=None, max_length=254)
     password: Optional[str] = Field(default=None, min_length=8, max_length=64)
-    rol: Optional[str] = None
+    rol: Optional[str] = Field(default=None, min_length=1, max_length=30)
     activo: Optional[bool] = None
 
 def _fecha(f):
@@ -82,7 +83,7 @@ def _correo_repetido():
     )
     
 
-@router.get("", dependencies=[Depends(requerir_rol(["admin"]))]) #Endpoint para buscar usuarios 
+@router.get("", dependencies=[Depends(requerir_permiso("users.read"))]) # lectura: admin o quien tenga users.read (coordinacion) 
 def listar_usuarios(paginacion: Paginacion =Depends(params_paginacion), db: Session = Depends(get_db)):
     
     consultas = (
@@ -95,7 +96,7 @@ def listar_usuarios(paginacion: Paginacion =Depends(params_paginacion), db: Sess
     return paginar(consultas, paginacion.page, paginacion.per_page, diccionario)
 
 
-@router.get("/{usuario_id}", dependencies=[Depends(requerir_rol(["admin"]))])
+@router.get("/{usuario_id}", dependencies=[Depends(requerir_permiso("users.read"))])
 def obtiene_usuario(usuario_id: int, db: Session = Depends(get_db)):
     return diccionario(_buscar_usuario(db, usuario_id))
 
