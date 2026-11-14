@@ -43,7 +43,8 @@ document.querySelector("form").addEventListener("submit", async function(e) {
     const password = document.getElementById("password").value;
 
     try {
-      const respuesta = await fetch("http://127.0.0.1:8000/api/v1/auth/login", {
+      // Ruta relativa: funciona igual en local y en Railway.
+      const respuesta = await fetch("/api/v1/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ correo: correo, password: password })
@@ -52,7 +53,10 @@ document.querySelector("form").addEventListener("submit", async function(e) {
       const datos = await respuesta.json();
 
       if (respuesta.ok) {
-        alert("Bienvenido " + datos.usuario.nombres);
+        // Guarda el token solo en esta pestaña, con la clave que leen las demás pantallas.
+        sessionStorage.setItem("udv_token", datos.access_token);
+        // Entra al portal del sistema.
+        window.location.href = "/app/";
       } else {
         triggerShake(); // Hace temblar el campo cuando la contraseña/usuario es incorrecto
         alert(datos.error.message);
@@ -64,3 +68,4 @@ document.querySelector("form").addEventListener("submit", async function(e) {
   });
 
 });
+

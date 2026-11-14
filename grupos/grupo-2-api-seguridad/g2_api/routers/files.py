@@ -9,6 +9,7 @@ import hashlib
 
 from sqlalchemy.orm import Session
 
+from g2_api import config
 from g2_api.database import get_db
 from g2_api.models import Archivo
 
@@ -48,16 +49,14 @@ async def verificar_archivo(file: UploadFile = File(...),
         # si el archivo esta corrupto o no se puede determinar su tipo, se lanza una excepción HTTP
         raise HTTPException(
             status_code=400,
-            detail={"error": "Archivo invlálido", "mensaje": "No se pudo determinar el tipo de archivo. Asegúrese de que el archivo no esté corrupto y sea un archivo válido."}
+            detail="No se pudo leer el tipo de archivo. Solo se aceptan PDF, JPG o PNG sin dañar."
         )
 
     # Verificar si el tipo de archivo real está en la lista de tipos permitidos
     if tipo_real not in MIMETYPES_PERMITIDOS:
         raise HTTPException(
             status_code=400,
-            detail={"error": "formato no permitido",
-                    "mensaje": f"El archivo tiene un formato real de tipo '{tipo_real}'. Solo se permiten los siguientes formatos: {', '.join(MIMETYPES_PERMITIDOS.keys())}."
-                    }
+            detail=f"Formato no permitido ({tipo_real}). Solo se aceptan PDF, JPG o PNG."
         )
 
     # Generar un identificador único para el archivo y un nombre interno basado en el tipo de archivo
@@ -68,8 +67,9 @@ async def verificar_archivo(file: UploadFile = File(...),
         file_id +
         MIMETYPES_PERMITIDOS[tipo_real]
     )
-    UPLOAD_DIR = Path("uploads")
-    UPLOAD_DIR.mkdir(exist_ok=True)
+    # la carpeta sale del .env (UPLOAD_DIR) para usar el volumen de Railway
+    UPLOAD_DIR = Path(config.UPLOAD_DIR)
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
     ruta_archivo = UPLOAD_DIR / nombre_interno
 
@@ -108,8 +108,10 @@ async def descargar_archivo(
     db: Session = Depends(get_db)
 ):
 
+    # un archivo eliminado se trata como si no existiera
     registro = db.query(Archivo).filter(
-        Archivo.id == id
+        Archivo.id == id,
+        Archivo.eliminado_en.is_(None)
     ).first()
 
     if registro is None:
@@ -118,12 +120,15 @@ async def descargar_archivo(
             detail="Archivo no encontrado"
         )
 
-    es_admin = any(
-    rol.codigo == "admin"
-    for rol in usuario_actual.roles
+    # descarga el dueño, el admin o un rol que no sea docente con files.download
+    # (revisor, coordinacion, autoridad, auditoria), segun la matriz del Grupo 1
+    puede_descargar = any(
+        rol.codigo == "admin"
+        or (rol.codigo != "teacher" and any(p.codigo == "files.download" for p in rol.permisos))
+        for rol in usuario_actual.roles
     )
 
-    if registro.autor_id != usuario_actual.id and not es_admin:
+    if registro.autor_id != usuario_actual.id and not puede_descargar:
         raise HTTPException(
         status_code=403,
         detail="No tienes permiso para acceder a este archivo"

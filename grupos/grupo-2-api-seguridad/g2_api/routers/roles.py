@@ -1,7 +1,7 @@
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from g2_api.database import get_db
@@ -14,10 +14,11 @@ from g2_api.middleware.auth_middleware import requerir_rol
 
 router = APIRouter(prefix="/api/v1/roles", tags=["Roles"])
 
+# mismas reglas que la tabla rol del Grupo 1: codigo en minusculas y guion bajo
 class RolCreate(BaseModel):
-    codigo: str
-    nombre: str
-    descripcion: Optional[str] = None
+    codigo: str = Field(min_length=1, max_length=30, pattern=r"^[a-z][a-z_]*$")
+    nombre: str = Field(min_length=1, max_length=80)
+    descripcion: Optional[str] = Field(default=None, max_length=300)
     
 
 def _diccionario(r: Rol) -> dict: 

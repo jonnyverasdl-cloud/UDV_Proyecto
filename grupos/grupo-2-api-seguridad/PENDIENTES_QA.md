@@ -1,8 +1,21 @@
-## Pendientes del QA — Grupo 2 (Update No. 3 · 05-nov-2026 · estado al 09-nov-2026)
+## Pendientes del QA — Grupo 2 (Update No. 3 · 05-nov-2026 · estado al 12-nov-2026)
 
 Resumen de los informes de Allison Espaderos (QA: Informe No. 1, Update No. 2 e Informe de Retest No. 2) y quién corrige cada cosa. Cada quien toca **solo sus archivos**. Los números G2-xx son los escenarios del plan de QA.
 
 Prioridad: **Alta** → **Media** → **Baja**. El Planner de Allison tiene tres tareas (Alta, Media y Baja) con puntos por escenario; están sin responsable y con fecha 21/10. El detalle está en `GUIA_GRUPO2.md`, sección 8.
+
+## Avisos del PM y de QA (12-nov)
+
+| Aviso | Quién | Estado al 12-nov |
+|-|-|-|
+| Pantalla de login apuntaba a `localhost` y no guardaba el token | Robert (archivo de Fulvio) | 🔵 `script.js`: ruta relativa `/api/v1/auth/login`, `sessionStorage.setItem("udv_token", ...)` y redirección a `/app/`. Falta que Fulvio lo revise y el PR |
+| Avisar en el grupo antes de cambiar algo compartido (errores, auth, Swagger); el cambio de formato rompió 3 pruebas del G6 | Todos (Edgar, Randy, Daniel) | ⏳ Regla para la semana 6 |
+| El bloqueo tras 5 intentos no estaba en Swagger ni decía cuánto falta | Robert | 🔵 `openapi_docs.py`: login documenta 200, 401, 422 y 429 (5 fallos = 15 minutos, mensaje con los minutos que faltan); `tests/test_openapi.py` al día |
+| `.env.example` sin valores reales | Robert | 🔵 Solo marcadores (`TU_USUARIO`, `TU_CLAVE`, `TU_HOST`, `TU_PUERTO`, `TU_CLAVE_SECRETA`) |
+| MySQL antes del PR, convención única de pantalla (`udv_token`, rutas relativas, `udv.css`) y avisar cada PR | Daniel y todos | 🔵 `index.html` carga `/udv-styles/udv.css`. Falta `pytest` contra MySQL y el PR (Daniel) |
+| G2-33: confirmar si ya está arreglado para actualizar la hoja de QA | Robert y PM | 🔵 Corregido (06-nov) y el PM ya lo activó en la raíz (PR #24 en `main`). Falta el despliegue y que Allison repita G2-33 |
+
+`pytest` completo en `grupo-2` (12-nov): **117 pasan**.
 
 ## Retest No. 3 (05-nov) · estado al 09-nov
 
@@ -13,7 +26,7 @@ Allison repitió G2-21, G2-31, G2-32 y G2-33 contra la API desplegada en Railway
 | G2-21 | ✅ PASS 4/4: el dueño y el admin descargan (200), otro usuario recibe 403 | Fulvio | ✅ Cerrado. Ya está en `main` (PR #20; el PM montó `/files` en el PR #22) |
 | G2-31 | ✅ PASS 22/22: `page` y `per_page` de 1 a 100, 422 fuera de rango | Randy | ✅ Cerrado |
 | G2-32 | ✅ PASS 8/8: 32 fechas en ISO 8601 y UTC con `Z` | Randy | ✅ Cerrado |
-| G2-33 | ❌ FAIL documental: Swagger de Railway no coincide con la API (H-01 a H-05) | Robert | 🔵 Corregido en `grupo-2` el 06-nov. Falta que el PM lo active en el `main.py` de la raíz, desplegar y el retest. Ya está comentado «listo para retest» en el Planner |
+| G2-33 | ❌ FAIL documental: Swagger de Railway no coincide con la API (H-01 a H-05) | Robert | 🔵 Corregido en `grupo-2` el 06-nov. El PM ya lo activó en el `main.py` de la raíz (PR #24, 12-nov); falta confirmar el despliegue y el retest. Ya está comentado «listo para retest» en el Planner |
 
 **Por qué falló G2-33.** Los códigos HTTP y los ejemplos de Swagger estaban en `g2_api/main.py`, pero Railway ejecuta el `main.py` de la raíz, que solo monta los routers y nunca cargaba esa documentación. Las pruebas pasaban porque usan la app de `g2_api`; QA veía la de la raíz. Las respuestas reales de la API estaban bien.
 

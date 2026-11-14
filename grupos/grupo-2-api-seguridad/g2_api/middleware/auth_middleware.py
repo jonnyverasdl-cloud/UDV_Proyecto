@@ -17,3 +17,17 @@ def requerir_rol(roles_permitidos: list[str]): #recibe un parámetro tipo lista 
         return usuario_actual
 
     return verificacion
+
+
+# deja pasar al admin o a quien tenga el permiso en alguno de sus roles (matriz del Grupo 1)
+def requerir_permiso(codigo_permiso: str):
+    def verificacion(usuario_actual: Usuario = Depends(obtener_usuario_actual)):
+        for rol in usuario_actual.roles:
+            if rol.codigo == "admin" or any(p.codigo == codigo_permiso for p in rol.permisos):
+                return usuario_actual
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No tienes permisos necesarios para realizar esta acción"
+        )
+
+    return verificacion

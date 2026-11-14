@@ -37,6 +37,18 @@ def test_ejemplo_de_usuario_trae_fechas_iso_con_zona_horaria():
     for campo in ("creado_en", "actualizado_en"):
         assert datetime.fromisoformat(ejemplo[campo].replace("Z", "+00:00")).tzinfo is not None
 
+def test_login_documenta_el_bloqueo_429_con_los_minutos_que_faltan():
+    r = _resp("/api/v1/auth/login", "post")
+    assert {"200", "401", "422", "429"} <= set(r)
+    ejemplo = r["429"]["content"]["application/json"]["example"]
+    assert ejemplo["error"]["code"] == "TOO_MANY_REQUESTS"
+    assert "minutos" in ejemplo["error"]["message"]
+    assert "15" in r["429"]["description"] and "5" in r["429"]["description"]
+
+def test_login_documenta_el_200_con_token_y_usuario():
+    ejemplo = _resp("/api/v1/auth/login", "post")["200"]["content"]["application/json"]["example"]
+    assert {"access_token", "token_type", "expires_in", "usuario"} <= set(ejemplo)
+
 def test_rutas_con_id_documentan_404():
     assert "404" in _resp("/api/v1/users/{usuario_id}", "get")
     assert "404" in _resp("/api/v1/files/{id}", "get")
@@ -53,7 +65,7 @@ def test_422_real_devuelve_details_como_objeto_con_un_campo_por_llave(client):
     assert "correo" in detalles and isinstance(detalles["correo"], str)
 
 
-# --- App de la raiz (la que despliega Railway) ---------------------------------------
+# --- App de la raiz (La que despliega Railway) ---------------------------------------
 # El main.py de la raiz monta los routers del G2 en su propia app, sin pasar por
 # g2_api/main.py. Aqui se comprueba que completar_openapi() sirve para cualquier app.
 def _app_de_la_raiz():
@@ -66,7 +78,7 @@ def _app_de_la_raiz():
     for r in (auth.router, auth.me_router, users.router, roles.router, files.router):
         raiz.include_router(r)
 
-    @raiz.get("/api/v1/tasks")  # ruta de otro grupo: no debe cambiar
+    @raiz.get("/api/v1/tasks") # Ruta de otro grupo: no debe cambiar
     def tareas():
         return []
 
@@ -93,3 +105,4 @@ def test_app_de_la_raiz_422_usa_el_modelo_de_error_real_y_no_el_de_fastapi():
 def test_completar_openapi_no_toca_las_rutas_de_otros_grupos():
     r = _app_de_la_raiz().openapi()["paths"]["/api/v1/tasks"]["get"]["responses"]
     assert set(r) == {"200"}
+
