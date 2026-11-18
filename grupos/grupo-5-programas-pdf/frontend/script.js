@@ -22,15 +22,16 @@ document.addEventListener("DOMContentLoaded", async () => {
   const loginPanel = $("#login-panel");
   const loginStatus = $("#login-status");
   const appContainer = $(".container");
-  const role = $("#role");
   const programList = $("#program-list");
   const programStatus = $("#program-status");
   const versionNumberLabel = $("#version-number");
   const saveStatus = $("#save-status");
+  const versionUpdated = $("#version-updated");
 
   const instructor = $("#instructor");
   const deanName = $("#dean-name");
   const coordinatorName = $("#coordinator-name");
+  const reviewerName = $("#reviewer-name");
   const instructorId = $("#instructor-id");
 
   const saveButton = $("#save-section");
@@ -61,19 +62,22 @@ document.addEventListener("DOMContentLoaded", async () => {
   let state = "draft";
   let currentVersionNumber = 1;
   let isSaving = false;
+  let authenticatedRoles = new Set();
+  let authenticatedRoleNames = [];
 
   const PROGRAM_MANAGERS = ["admin", "coordinator", "reviewer"];
   const PROGRAM_AUTHORS = ["teacher", "coordinator"];
   const PROGRAM_REVIEWERS = ["coordinator", "reviewer"];
-
-  const roleNames = {
-    admin: "Administrador de programas",
-    coordinator: "Coordinación académica",
-    teacher: "Docente responsable",
-    reviewer: "Revisor",
-    authority: "Dirección",
-    auditor: "Auditor (consulta)",
-  };
+  const API_READ_ONLY_FIELDS = new Set([
+    "course-code",
+    "faculty",
+    "training-area",
+    "term",
+    "year",
+    "modality",
+    "credits",
+    "campus",
+  ]);
 
   const roleOptions = [
     { value: "admin", label: "Administrador de programas" },
@@ -117,8 +121,16 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function canEditCurrentVersion() {
-    return PROGRAM_MANAGERS.includes(role.value) ||
-      (role.value === "teacher" && isAssignedTeacher());
+    return hasAnyRole(PROGRAM_MANAGERS) ||
+      (authenticatedRoles.has("teacher") && isAssignedTeacher());
+  }
+
+  function hasAnyRole(roles) {
+    return roles.some((roleCode) => authenticatedRoles.has(roleCode));
+  }
+
+  function roleDescription() {
+    return authenticatedRoleNames.join(", ");
   }
 
   /** Guarda la versión en la lista local o actualiza sus datos si ya estaba. */
@@ -135,15 +147,15 @@ document.addEventListener("DOMContentLoaded", async () => {
    * Muestra a cada rol la versión que le toca: la que debe revisar o autorizar,
    * o la más reciente que todavía se puede editar.
    */
-  function selectVersionForRole(selectedRole) {
+  function selectVersionForUser() {
     const latestVersion = getLatestVersion();
 
-    if (selectedRole === "authority" && latestVersion?.estado === "approved") {
+    if (authenticatedRoles.has("authority") && latestVersion?.estado === "approved") {
       return latestVersion;
     }
 
     if (
-      PROGRAM_MANAGERS.includes(selectedRole) &&
+      hasAnyRole(PROGRAM_MANAGERS) &&
       ["submitted", "under_review", "approved"].includes(latestVersion?.estado)
     ) {
       return latestVersion;
@@ -153,7 +165,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       .filter((item) => ["draft", "returned"].includes(item.estado))
       .sort((a, b) => b.numero_version - a.numero_version);
 
-    if (selectedRole === "teacher") {
+    if (authenticatedRoles.has("teacher") && !hasAnyRole(PROGRAM_MANAGERS)) {
       return (
         editableVersions.find(isAssignedTeacher) ||
         programVersions
@@ -177,18 +189,18 @@ document.addEventListener("DOMContentLoaded", async () => {
   /** Le cuenta al usuario qué falta hacer con la versión que está viendo. */
   function getVersionStatusMessage() {
     const latestVersion = getLatestVersion();
-    if (!latestVersion) return `Rol seleccionado: ${roleNames[role.value]}`;
+    if (!latestVersion) return `Roles de la cuenta: ${roleDescription()}`;
 
-    if (role.value === "authority" && latestVersion.estado === "approved") {
+    if (authenticatedRoles.has("authority") && latestVersion.estado === "approved") {
       return `La versión ${latestVersion.numero_version} está aprobada y pendiente de autorización.`;
     }
 
     if (
-      PROGRAM_MANAGERS.includes(role.value) &&
+      hasAnyRole(PROGRAM_MANAGERS) &&
       latestVersion.estado !== "authorized"
     ) {
       const nextStep = {
-        draft: PROGRAM_AUTHORS.includes(role.value)
+        draft: hasAnyRole(PROGRAM_AUTHORS)
           ? "el docente responsable o coordinación debe enviarla a revisión"
           : "coordinación o revisión debe enviarla a revisión",
         submitted: "un revisor debe tomar la revisión",
@@ -200,11 +212,15 @@ document.addEventListener("DOMContentLoaded", async () => {
       return `La versión ${latestVersion.numero_version} aún no está vigente: ${nextStep}.`;
     }
 
-    if (role.value === "teacher" && !isAssignedTeacher()) {
+    if (
+      authenticatedRoles.has("teacher") &&
+      !authenticatedRoles.has("coordinator") &&
+      !isAssignedTeacher()
+    ) {
       return "Solo puedes editar la versión en la que figuras como docente responsable.";
     }
 
-    return `Rol seleccionado: ${roleNames[role.value]}`;
+    return `Roles de la cuenta: ${roleDescription()}`;
   }
 
   function configureRoles(user) {
@@ -218,18 +234,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       throw new Error("Tu cuenta no tiene un rol habilitado para G5.");
     }
 
-    role.replaceChildren(
-      ...allowedRoles.map((option) => {
-        const element = document.createElement("option");
-        element.value = option.value;
-        element.textContent = option.label;
-        return element;
-      }),
-    );
-    role.value = allowedRoles[0].value;
-    role.disabled = allowedRoles.length === 1;
-    const coordinatorLabel = document.querySelector('label[for="coordinator-name"]');
-    coordinatorLabel.textContent = role.value === "reviewer" ? "Revisor" : "Coordinación académica";
+    authenticatedRoles = new Set(allowedRoles.map((option) => option.value));
+    authenticatedRoleNames = allowedRoles.map((option) => option.label);
   }
 
   async function loadProgramOptions() {
@@ -339,6 +345,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     saveStatus.textContent = message;
   }
 
+  function formatApiDate(value) {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleString("es-GT", {
+      timeZone: "America/Guatemala",
+    });
+  }
+
   function parseResponse(response) {
     return response.text().then((text) => {
       if (!text) return {};
@@ -401,9 +416,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   function setValue(id, dataItem) {
     const element = document.getElementById(id);
 
-    if (!element || dataItem === undefined || dataItem === null) return;
+    if (!element) return;
 
     if (element.tagName === "SELECT") {
+      if (dataItem === undefined || dataItem === null || dataItem === "") {
+        element.value = "";
+        return;
+      }
+
       const option = [...element.options].find(
         (item) => item.value === String(dataItem) ||
           item.textContent.trim() === String(dataItem),
@@ -413,49 +433,78 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
-    element.value = dataItem;
+    element.value = dataItem ?? "";
   }
 
-  /** Busca los datos de una sección; si aún no tiene, usa un objeto vacío. */
+  /** Devuelve el contenido de una sección en la forma publicada por la API. */
   function getSectionContent(versionData, name) {
-    return versionData?.secciones?.[name]?.contenido || {};
+    const content = versionData?.secciones?.[name]?.contenido;
+    if (content !== undefined && content !== null) return content;
+    return ["prerrequisitos", "competencias", "perfil", "contenidos", "bibliografia", "evaluacion"].includes(name)
+      ? []
+      : {};
   }
 
-  /** Junta la información general y le pone los nombres que espera la API. */
+  /** Lee los datos generales editables sin inventar ni enviar valores de muestra. */
   function captureGeneral() {
-    return {
-      codigo: getValue("course-code"),
-      asignatura: getValue("course"),
-      programa: getValue("program-name"),
-      departamento: getValue("department"),
-      facultad: getValue("faculty"),
-      area_formacion: getValue("training-area"),
-      pensum: getValue("curriculum"),
-      ciclo: getValue("term"),
-      anio: getValue("year"),
-      nivel: getValue("level"),
-      modalidad: getValue("modality"),
-      creditos: getValue("credits"),
-      horas: getValue("hours"),
-      sede: getValue("campus"),
+    const fields = {
+      asignatura: "course",
+      programa: "program-name",
+      departamento: "department",
+      nivel: "level",
+      pensum: "curriculum",
+      horas: "hours",
     };
+    return Object.fromEntries(
+      Object.entries(fields)
+        .map(([key, id]) => [key, getValue(id).trim()])
+        .filter(([, value]) => value !== ""),
+    );
   }
 
   /** Lee las filas de prerrequisitos y las deja listas para guardar. */
   function capturePrerequisites() {
     const rows = [...document.querySelectorAll("#prerequisites tbody tr")];
 
-    return {
-      asignaturas: rows.map((row) => {
-        const controls = row.querySelectorAll("input");
+    return rows.flatMap((row, index) => {
+      const controls = row.querySelectorAll("input");
+      const nombre = controls[0]?.value.trim() || "";
+      const codigo = controls[1]?.value.trim() || "";
+      if (!nombre && !codigo) return [];
 
-        return {
-          asignatura: controls[0]?.value || "",
-          codigo: controls[1]?.value || "",
-          orden: controls[2]?.value || "",
-        };
-      }),
-    };
+      const rawOrder = controls[2]?.value;
+      const item = {
+        orden: rawOrder ? Number(rawOrder) : index + 1,
+        tipo: row.dataset.type || "obligatorio",
+        codigo,
+        nombre,
+      };
+      if (row.dataset.courseId) item.curso_id = Number(row.dataset.courseId);
+      return [item];
+    });
+  }
+
+  function captureList(id, section) {
+    const value = getValue(id).trim();
+    if (!value) return [];
+
+    let parsed;
+    try {
+      parsed = JSON.parse(value);
+    } catch (error) {
+      throw new Error(`La sección "${section}" debe contener una lista JSON válida.`);
+    }
+    if (!Array.isArray(parsed) || parsed.some((item) => !item || typeof item !== "object" || Array.isArray(item))) {
+      throw new Error(`La sección "${section}" debe ser una lista de objetos JSON.`);
+    }
+    return parsed;
+  }
+
+  function setListValue(id, content, section) {
+    if (!Array.isArray(content)) {
+      throw new Error(`El servidor devolvió "${section}" en un formato distinto a una lista.`);
+    }
+    setValue(id, JSON.stringify(content, null, 2));
   }
 
   // Convierte los campos visibles del formulario al formato que espera la API.
@@ -466,6 +515,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         docente_responsable_id: instructorId.value ? Number(instructorId.value) : null,
         decanatura: deanName.value,
         coordinador: coordinatorName.value,
+        revisor: reviewerName.value,
       },
 
       general: captureGeneral(),
@@ -476,33 +526,18 @@ document.addEventListener("DOMContentLoaded", async () => {
         texto: getValue("description-text"),
       },
 
-      competencias: {
-        general: getValue("general-competency"),
-        especificas: getValue("specific-competencies"),
-      },
-
-      perfil: {
-        codigo: getValue("profile-code"),
-        contribucion: getValue("profile-contribution"),
-      },
+      competencias: captureList("competencies-data", "Competencias"),
+      perfil: captureList("profile-data", "Perfil de egreso"),
 
       metodologia: {
         texto: getValue("methodology-text"),
       },
 
-      contenidos: {
-        texto: getValue("contents-text"),
-      },
+      contenidos: captureList("contents-data", "Contenidos"),
 
-      bibliografia: {
-        texto: getValue("bibliography-text"),
-      },
+      bibliografia: captureList("bibliography-data", "Bibliografía"),
 
-      evaluacion: {
-        parcial: getValue("midterm-assessment"),
-        final: getValue("final-assessment"),
-        proyecto: getValue("project-assessment"),
-      },
+      evaluacion: captureList("evaluation-data", "Evaluación"),
     };
   }
 
@@ -519,37 +554,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     const bibliography = getSectionContent(versionData, "bibliografia");
     const evaluation = getSectionContent(versionData, "evaluacion");
 
-    // Los datos del programa sirven como valores iniciales.
-    setValue("course-code", program?.codigo || "PW-001");
-    setValue("course", program?.asignatura || "Programación Web");
-    setValue(
-      "program-name",
-      program?.programa_academico || "Ingeniería en Sistemas",
-    );
-    setValue("department", program?.departamento || "Tecnología");
-    setValue("faculty", program?.facultad || "Ingeniería");
-    setValue("training-area", program?.area_formacion || "");
-    setValue("curriculum", program?.pensum || "");
-    setValue("term", program?.ciclo_academico || "Segundo ciclo");
-    setValue("year", program?.anio || 2026);
-    setValue("level", program?.nivel_academico || "Licenciatura");
-    setValue("modality", program?.modalidad || "Presencial");
-    setValue("credits", program?.creditos ?? 4);
-    setValue("hours", program?.horas_semanales ?? 64);
-    setValue("campus", program?.sede || "Campus Central");
-
-    // Los valores guardados en la sección tienen prioridad.
-    Object.entries(general).forEach(([field, dataItem]) => {
-      const fieldMappings = {
-        programa: "programa",
-        ciclo: "ciclo",
-        anio: "anio",
-        nivel: "nivel",
-        horas: "horas",
-      };
-
-      setValue(fieldMappings[field] || field, dataItem);
-    });
+    setValue("course-code", general.codigo ?? program?.codigo);
+    setValue("course", general.asignatura ?? program?.asignatura);
+    setValue("program-name", general.programa ?? program?.programa_academico);
+    setValue("department", general.departamento ?? program?.departamento);
+    setValue("faculty", general.facultad ?? program?.facultad);
+    setValue("training-area", general.area_formacion ?? program?.area_formacion);
+    setValue("curriculum", general.pensum ?? program?.pensum);
+    setValue("term", general.ciclo ?? program?.ciclo_academico);
+    setValue("year", general.anio ?? program?.anio);
+    setValue("level", general.nivel ?? program?.nivel);
+    setValue("modality", general.modalidad ?? program?.modalidad);
+    setValue("credits", general.creditos ?? program?.creditos);
+    setValue("hours", general.horas ?? program?.horas_clase_semanal);
+    setValue("campus", general.sede ?? program?.sede);
 
     setValue(
       "instructor",
@@ -558,22 +576,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     setValue("instructor-id", responsibleSection.docente_responsable_id ?? "");
     setValue("dean-name", responsibleSection.decanatura ?? "");
     setValue("coordinator-name", responsibleSection.coordinador ?? "");
+    setValue("reviewer-name", responsibleSection.revisor ?? "");
 
-    setValue("description-text", description.texto ?? "");
-    setValue("general-competency", competencies.general ?? "");
-    setValue("specific-competencies", competencies.especificas ?? "");
-    setValue("profile-code", profile.codigo ?? "");
-    setValue("profile-contribution", profile.contribucion ?? "");
-    setValue("methodology-text", methodology.texto ?? "");
-    setValue("contents-text", contentSection.texto ?? "");
-    setValue("bibliography-text", bibliography.texto ?? "");
-    setValue("midterm-assessment", evaluation.parcial ?? "");
-    setValue("final-assessment", evaluation.final ?? "");
-    setValue("project-assessment", evaluation.proyecto ?? "");
+    setValue("description-text", description.texto);
+    setListValue("competencies-data", competencies, "Competencias");
+    setListValue("profile-data", profile, "Perfil de egreso");
+    setValue("methodology-text", methodology.texto);
+    setListValue("contents-data", contentSection, "Contenidos");
+    setListValue("bibliography-data", bibliography, "Bibliografía");
+    setListValue("evaluation-data", evaluation, "Evaluación");
 
-    if (Array.isArray(prerequisites.asignaturas)) {
-      loadPrerequisiteRows(prerequisites.asignaturas);
+    if (!Array.isArray(prerequisites)) {
+      throw new Error('El servidor devolvió "Prerrequisitos" en un formato distinto a una lista.');
     }
+    loadPrerequisiteRows(prerequisites);
   }
 
   /** Reconstruye la tabla de prerrequisitos con los registros recibidos del servidor. */
@@ -581,11 +597,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     const bodyElement = $("#prerequisites tbody");
     bodyElement.replaceChildren();
 
-    rows.forEach((dataItem) => {
+    (rows.length ? rows : [{}]).forEach((dataItem) => {
       const row = document.createElement("tr");
 
       [
-        ["text", dataItem.asignatura],
+        ["text", dataItem.nombre ?? dataItem.asignatura],
         ["text", dataItem.codigo],
         ["number", dataItem.orden],
       ].forEach(([type, content]) => {
@@ -598,6 +614,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         row.append(cell);
       });
 
+      row.dataset.courseId = dataItem.curso_id ?? "";
+      row.dataset.type = dataItem.tipo ?? "obligatorio";
       bodyElement.append(row);
     });
   }
@@ -614,7 +632,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       throw new Error("No se encontró el programa solicitado.");
     }
 
-    const selectedVersion = selectVersionForRole(role.value);
+    const selectedVersion = selectVersionForUser();
 
     if (selectedVersion) {
       await loadVersion(selectedVersion.id);
@@ -625,6 +643,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Sincroniza la versión seleccionada y refresca tanto el formulario como sus permisos.
   async function loadVersion(id) {
+    programLoaded = false;
     const data = await request(`/program-versions/${id}`);
 
     updateProgramVersion(data);
@@ -632,13 +651,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     versionId = data.id ?? id;
     currentVersionNumber = data.numero_version ?? 1;
     state = data.estado || "draft";
-    programLoaded = true;
 
     loadSections(data);
+    programLoaded = true;
     updateStatus();
   }
 
-  // Persiste cada sección por separado para no reemplazar datos de otras secciones.
+  // Persiste secciones por separado y detiene el guardado al primer error.
   async function saveOnServer() {
     if (!versionId) {
       throw new Error("No hay una versión seleccionada para guardar.");
@@ -647,13 +666,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     const capturedSections = captureSections();
 
     for (const [name, content] of Object.entries(capturedSections)) {
-      await sendJson(
-        `/program-versions/${versionId}/sections/${name}`,
-        "PUT",
-        {
-          contenido: content,
-        },
-      );
+      try {
+        await sendJson(
+          `/program-versions/${versionId}/sections/${name}`,
+          "PUT",
+          { contenido: content },
+        );
+      } catch (error) {
+        throw new Error(`No se guardó la sección "${name}" y se detuvo el guardado. ${error.message}`);
+      }
     }
 
     await loadVersion(versionId);
@@ -677,6 +698,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     showMessage(message);
   }
 
+  function reviewResponsiblePayload() {
+    return {
+      coordinador: coordinatorName.value.trim(),
+      revisor: reviewerName.value.trim(),
+    };
+  }
+
   // Cambiar de sección y responder a los botones del flujo.
   // Navegación entre secciones.
   sectionLinks.forEach((link) => {
@@ -691,22 +719,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       link.classList.add("active");
       document.getElementById(id)?.classList.add("active");
     });
-  });
-
-  role.addEventListener("change", async () => {
-    const coordinatorLabel = document.querySelector('label[for="coordinator-name"]');
-    coordinatorLabel.textContent = role.value === "reviewer" ? "Revisor" : "Coordinación académica";
-    const selectedVersion = selectVersionForRole(role.value);
-    if (selectedVersion && selectedVersion.id !== versionId) {
-      await withLoading(async () => {
-        await loadVersion(selectedVersion.id);
-        showMessage(getVersionStatusMessage());
-      });
-      return;
-    }
-
-    updateStatus();
-    showMessage(getVersionStatusMessage());
   });
 
   // Guardar todas las secciones de la versión.
@@ -729,8 +741,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Antes de enviar, guarda los campos actuales para que la revisión use lo más reciente.
   submitForReviewButton.addEventListener("click", async () => {
     if (
-      !PROGRAM_AUTHORS.includes(role.value) ||
-      (role.value === "teacher" && !isAssignedTeacher())
+      !hasAnyRole(PROGRAM_AUTHORS) ||
+      (
+        authenticatedRoles.has("teacher") &&
+        !authenticatedRoles.has("coordinator") &&
+        !isAssignedTeacher()
+      )
     ) {
       alert("Solo el docente responsable de la versión o coordinación pueden enviarla a revisión.");
       return;
@@ -754,7 +770,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   reviewButton.addEventListener("click", async () => {
-    if (!PROGRAM_REVIEWERS.includes(role.value) || state !== "submitted") {
+    if (!hasAnyRole(PROGRAM_REVIEWERS) || state !== "submitted") {
       alert("Solo revisión o coordinación pueden tomar una versión enviada.");
       return;
     }
@@ -762,7 +778,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   returnButton.addEventListener("click", async () => {
-    if (!PROGRAM_REVIEWERS.includes(role.value)) {
+    if (!hasAnyRole(PROGRAM_REVIEWERS)) {
       alert("Solo revisión o coordinación pueden devolver el programa.");
       return;
     }
@@ -782,12 +798,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     await withLoading(() =>
       executeAction("return", "Programa devuelto al docente.", {
         observacion: observation.trim(),
+        ...reviewResponsiblePayload(),
       }),
     );
   });
 
   approveButton.addEventListener("click", async () => {
-    if (!PROGRAM_REVIEWERS.includes(role.value)) {
+    if (!hasAnyRole(PROGRAM_REVIEWERS)) {
       alert("Solo revisión o coordinación pueden aprobar el programa.");
       return;
     }
@@ -798,12 +815,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     await withLoading(() =>
-      executeAction("approve", "Programa aprobado."),
+      executeAction("approve", "Programa aprobado.", {
+        ...reviewResponsiblePayload(),
+      }),
     );
   });
 
   authorizeButton.addEventListener("click", async () => {
-    if (role.value !== "authority") {
+    if (!authenticatedRoles.has("authority")) {
       alert("Solo un usuario con el rol G1 authority puede autorizar una versión.");
       return;
     }
@@ -819,12 +838,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     await withLoading(() =>
-      executeAction("authorize", "Versión autorizada."),
+      executeAction("authorize", "Versión autorizada.", {
+        decanatura: deanName.value.trim(),
+      }),
     );
   });
 
   createVersionButton.addEventListener("click", async () => {
-    if (!PROGRAM_MANAGERS.includes(role.value)) {
+    if (!hasAnyRole(PROGRAM_MANAGERS)) {
       alert("Se requiere el permiso G1 programs.manage para crear una versión.");
       return;
     }
@@ -908,6 +929,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     programStatus.classList.add(classes[state] || "badge-draft");
     versionNumberLabel.textContent = "Versión " + currentVersionNumber;
+    versionUpdated.textContent = currentVersion?.actualizado_en
+      ? `Última actualización: ${formatApiDate(currentVersion.actualizado_en)}`
+      : "";
 
     updateInterface();
     updateResponsibleEditing();
@@ -922,22 +946,31 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     programFields.forEach((control) => {
       if (control instanceof HTMLSelectElement) {
-        control.disabled = !canEdit;
+        control.disabled = !canEdit || API_READ_ONLY_FIELDS.has(control.id);
       } else if (
         control instanceof HTMLInputElement ||
         control instanceof HTMLTextAreaElement
       ) {
-        control.readOnly = !canEdit;
+        control.disabled = false;
+        control.readOnly = !canEdit || API_READ_ONLY_FIELDS.has(control.id);
       }
     });
 
     instructor.readOnly = true;
-    instructorId.disabled = !canEdit || !PROGRAM_MANAGERS.includes(role.value);
+    instructorId.disabled = !canEdit || !hasAnyRole(PROGRAM_MANAGERS);
 
-    deanName.readOnly = !(role.value === "authority" && state === "approved");
+    deanName.readOnly = !(authenticatedRoles.has("authority") && state === "approved");
 
     coordinatorName.readOnly = !(
-      ["coordinator", "reviewer"].includes(role.value) &&
+      authenticatedRoles.has("coordinator") &&
+      (
+        state === "under_review" ||
+        state === "returned" ||
+        state === "authorized"
+      )
+    );
+    reviewerName.readOnly = !(
+      authenticatedRoles.has("reviewer") &&
       ["under_review", "authorized"].includes(state)
     );
   }
@@ -972,6 +1005,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     pdfPreviewButton.hidden = !["authorized", "superseded"].includes(state);
+    printPdfButton.hidden = !["authorized", "superseded"].includes(state);
 
     if (canEditCurrentVersion() && ["draft", "returned"].includes(state)) {
       saveButton.hidden = false;
@@ -979,18 +1013,22 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     if (
-      PROGRAM_AUTHORS.includes(role.value) &&
-      (role.value !== "teacher" || isAssignedTeacher()) &&
+      hasAnyRole(PROGRAM_AUTHORS) &&
+      (
+        !authenticatedRoles.has("teacher") ||
+        authenticatedRoles.has("coordinator") ||
+        isAssignedTeacher()
+      ) &&
       ["draft", "returned"].includes(state)
     ) {
       submitForReviewButton.hidden = false;
     }
 
-    if (role.value === "authority" && state === "approved") {
+    if (authenticatedRoles.has("authority") && state === "approved") {
       authorizeButton.hidden = false;
     }
 
-    if (PROGRAM_REVIEWERS.includes(role.value)) {
+    if (hasAnyRole(PROGRAM_REVIEWERS)) {
       if (state === "submitted") {
         reviewButton.hidden = false;
       }
@@ -1001,7 +1039,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     }
 
-    if (PROGRAM_MANAGERS.includes(role.value) && state === "authorized") {
+    if (hasAnyRole(PROGRAM_MANAGERS) && state === "authorized") {
       const latestVersion = getLatestVersion();
       const canCreateVersion =
         latestVersion?.id === currentVersion?.id &&
@@ -1099,7 +1137,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const metadata = createElement("div", "pdf-metadata");
     [
       ["Versión", String(currentVersionNumber)],
-      ["Emisión", new Date().toLocaleDateString("es-GT")],
+      ["Emisión", formatApiDate(new Date().toISOString())],
       ["Estado", programStatus.textContent.trim()],
     ].forEach(([tagName, dataItem]) => {
       const metadataItem = createElement("div", "pdf-metadata-item");
@@ -1181,7 +1219,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const date = createElement(
       "p",
       "pdf-authorization-date",
-      `Facultad de ${getValue("faculty") || "—"} · ${new Date().toLocaleDateString("es-GT")}`,
+      `Facultad de ${getValue("faculty") || "—"} · ${formatApiDate(new Date().toISOString())}`,
     );
     authorization.append(date);
 
@@ -1190,6 +1228,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       ["Elaborado por", instructor.value.trim()],
       ["Decanatura", deanName.value.trim()],
       ["Coordinación académica", coordinatorName.value.trim()],
+      ["Revisor", reviewerName.value.trim()],
     ].forEach(([roleTitle, name]) => {
       const signature = createElement("div", "pdf-signature");
       signature.append(
@@ -1241,7 +1280,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   // Abre el diálogo de impresión con el formato que aparece en la vista previa.
-  printPdfButton.addEventListener("click", () => window.print());
+  printPdfButton.addEventListener("click", () => {
+    buildPdfDocument();
+    pdfDocument.hidden = false;
+    document.body.classList.add("pdf-preview-mode");
+    updateInterface();
+    window.requestAnimationFrame(() => window.print());
+  });
 
   closePreviewButton.addEventListener("click", () => {
     document.body.classList.remove("pdf-preview-mode");

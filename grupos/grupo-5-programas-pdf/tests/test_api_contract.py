@@ -2,6 +2,7 @@ import asyncio
 import json
 import unittest
 from contextlib import nullcontext
+from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
@@ -13,6 +14,7 @@ from g5_programas.errors import ApiError, registrar_errores
 from g5_programas import repository
 from g5_programas.repository import (
     _assignment_origin_id,
+    _merge_section_content,
     _save_section,
     _validate_evaluations,
     _validate_responsible_teacher,
@@ -60,6 +62,29 @@ def _asgi_request(app, method, path, *, headers=(), body=b""):
 
 
 class ApiContractTests(unittest.TestCase):
+    def test_partial_section_updates_preserve_omitted_fields_by_order(self):
+        merged = _merge_section_content(
+            [
+                {"orden": 1, "nombre": "Parcial 1", "ponderacion": 30, "semana": 5},
+                {"orden": 2, "nombre": "Proyecto", "ponderacion": 70, "semana": 12},
+            ],
+            [{"orden": 1, "ponderacion": 35}],
+        )
+
+        self.assertEqual(
+            merged,
+            [{"orden": 1, "nombre": "Parcial 1", "ponderacion": 35, "semana": 5}],
+        )
+        self.assertEqual(_merge_section_content(merged, []), [])
+
+    def test_api_datetimes_are_serialized_as_utc_z_suffix(self):
+        value = datetime(2026, 11, 16, 15, 30, tzinfo=timezone.utc)
+
+        self.assertEqual(
+            repository.json_value(value),
+            "2026-11-16T15:30:00Z",
+        )
+
     def test_api_error_is_compatible_with_fastapi_handlers(self):
         error = ApiError(409, "CONFLICT", "No se puede continuar.", {"estado": "inválido"})
 
@@ -513,6 +538,214 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(caught.exception.status, 403)
         validate.assert_not_called()
 
+    def test_version_author_cannot_approve_own_version(self):
+        coordinator = g5_auth.Actor(
+            id=6,
+            name="Coordinación",
+            roles=frozenset({"coordinator"}),
+        )
+        session = Mock()
+        session.begin.return_value = nullcontext()
+        version = {
+            "id": 41,
+            "estado_codigo": "under_review",
+            "creado_por": coordinator.id,
+        }
+
+        with patch("g5_programas.repository.set_database_actor"), patch(
+            "g5_programas.repository._require_version",
+            return_value=version,
+        ):
+            with self.assertRaises(ApiError) as caught:
+                repository.transition(session, coordinator, 41, "approve")
+
+        self.assertEqual(caught.exception.status, 409)
+        session.execute.assert_not_called()
+
+    def test_latest_submitter_cannot_approve_version(self):
+        coordinator = g5_auth.Actor(
+            id=6,
+            name="Coordinación",
+            roles=frozenset({"coordinator"}),
+        )
+        session = Mock()
+        session.begin.return_value = nullcontext()
+        version = {
+            "id": 41,
+            "estado_codigo": "under_review",
+            "creado_por": 5,
+        }
+
+        with patch("g5_programas.repository.set_database_actor"), patch(
+            "g5_programas.repository._require_version",
+            return_value=version,
+        ), patch(
+            "g5_programas.repository._one",
+            return_value={"actor_id": coordinator.id},
+        ):
+            with self.assertRaises(ApiError) as caught:
+                repository.transition(session, coordinator, 41, "approve")
+
+        self.assertEqual(caught.exception.status, 409)
+        session.execute.assert_not_called()
+
+    def test_reviewer_other_than_creator_or_submitter_can_approve(self):
+        reviewer = g5_auth.Actor(
+            id=9,
+            name="Revisor",
+            roles=frozenset({"reviewer"}),
+        )
+        session = Mock()
+        session.begin.return_value = nullcontext()
+        version = {
+            "id": 41,
+            "estado_codigo": "under_review",
+            "creado_por": 5,
+        }
+
+        with patch("g5_programas.repository.set_database_actor"), patch(
+            "g5_programas.repository._require_version",
+            return_value=version,
+        ), patch(
+            "g5_programas.repository._one",
+            return_value={"actor_id": 6},
+        ), patch(
+            "g5_programas.repository._serialize_version",
+            return_value={"id": 41, "estado": "approved"},
+        ):
+            result = repository.transition(session, reviewer, 41, "approve")
+
+        self.assertEqual(result["estado"], "approved")
+        self.assertEqual(session.execute.call_count, 2)
+
+    def test_approval_transition_persists_coordinator_name(self):
+        reviewer = g5_auth.Actor(
+            id=9,
+            name="Revisor",
+            roles=frozenset({"reviewer"}),
+        )
+        session = Mock()
+        session.begin.return_value = nullcontext()
+        version = {
+            "id": 41,
+            "estado_codigo": "under_review",
+            "creado_por": 5,
+            "docente_responsable_id": 7,
+        }
+
+        with patch("g5_programas.repository.set_database_actor"), patch(
+            "g5_programas.repository._require_version",
+            return_value=version,
+        ), patch(
+            "g5_programas.repository._one",
+            return_value={"actor_id": 6},
+        ), patch(
+            "g5_programas.repository._save_g5_metadata",
+        ) as save_metadata, patch(
+            "g5_programas.repository._serialize_version",
+            return_value={"id": 41, "estado": "approved"},
+        ):
+            repository.transition(
+                session,
+                reviewer,
+                41,
+                "approve",
+                coordinador=" Revisor responsable ",
+            )
+
+        save_metadata.assert_called_once_with(
+            session,
+            41,
+            {"responsables": {"coordinador": "Revisor responsable"}},
+        )
+
+    def test_authorization_transition_persists_decanatura_name(self):
+        authority = g5_auth.Actor(
+            id=10,
+            name="Dirección",
+            roles=frozenset({"authority"}),
+        )
+        session = Mock()
+        session.begin.return_value = nullcontext()
+        version = {
+            "id": 41,
+            "estado_codigo": "approved",
+            "programa_curso_id": 8,
+            "periodo_id": 2,
+            "creado_por": 5,
+            "docente_responsable_id": 7,
+        }
+
+        with patch("g5_programas.repository.set_database_actor"), patch(
+            "g5_programas.repository._require_version",
+            return_value=version,
+        ), patch(
+            "g5_programas.repository._all",
+            return_value=[],
+        ), patch(
+            "g5_programas.repository._save_g5_metadata",
+        ) as save_metadata, patch(
+            "g5_programas.repository.get_version",
+            return_value={"id": 41, "estado": "authorized"},
+        ):
+            result = repository.transition(
+                session,
+                authority,
+                41,
+                "authorize",
+                decanatura=" Decanatura de Tecnología ",
+            )
+
+        self.assertEqual(result["estado"], "authorized")
+        save_metadata.assert_called_once_with(
+            session,
+            41,
+            {"responsables": {"decanatura": "Decanatura de Tecnología"}},
+        )
+
+    def test_teacher_cannot_read_another_teachers_version_by_id(self):
+        session = Mock()
+        teacher = g5_auth.Actor(
+            id=5,
+            name="Docente",
+            roles=frozenset({"teacher"}),
+        )
+        version = {"id": 41, "docente_responsable_id": 8}
+
+        with patch(
+            "g5_programas.repository._require_version",
+            return_value=version,
+        ), self.assertRaises(ApiError) as caught:
+            repository.get_version(session, 41, docente_responsable_id=teacher.id)
+
+        self.assertEqual(caught.exception.status, 404)
+
+    def test_teacher_program_detail_only_queries_their_versions(self):
+        session = Mock()
+        teacher_id = 5
+
+        with patch(
+            "g5_programas.repository._program_row",
+            return_value={"id": 8, "version_actual": 2},
+        ), patch(
+            "g5_programas.repository._all",
+            return_value=[],
+        ) as find_versions:
+            with self.assertRaises(ApiError) as caught:
+                repository.get_program(
+                    session,
+                    8,
+                    docente_responsable_id=teacher_id,
+                )
+
+        self.assertEqual(caught.exception.status, 404)
+        query, params = find_versions.call_args.args[1:]
+        self.assertIn("pv.docente_responsable_id = :docente_responsable_id", query)
+        self.assertEqual(params, {
+            "id": 8,
+            "docente_responsable_id": teacher_id,
+        })
+
     def test_coordinator_can_perform_review_transitions_over_http(self):
         app = FastAPI()
         registrar_errores(app)
@@ -541,8 +774,8 @@ class ApiContractTests(unittest.TestCase):
         ) as transition:
             for action, body in (
                 ("review", b"{}"),
-                ("return", b'{"comentario":"Corregir"}'),
-                ("approve", b"{}"),
+                ("return", '{"comentario":"Corregir","coordinador":"Revisor"}'.encode()),
+                ("approve", '{"coordinador":"Coordinación"}'.encode()),
             ):
                 status, _ = _asgi_request(
                     app,
@@ -560,6 +793,7 @@ class ApiContractTests(unittest.TestCase):
             [call.args[3] for call in transition.call_args_list],
             ["review", "return", "approve"],
         )
+        self.assertEqual(transition.call_args_list[-1].kwargs["coordinador"], "Coordinación")
 
     def test_teacher_can_only_be_assigned_to_their_own_program_version(self):
         teacher = g5_auth.Actor(
@@ -621,6 +855,14 @@ class ApiContractTests(unittest.TestCase):
         with patch("g5_programas.repository.set_database_actor"), patch(
             "g5_programas.repository._require_version",
             return_value=version_row,
+        ), patch(
+            "g5_programas.repository._load_sections",
+            return_value={
+                "descripcion": {
+                    "contenido": {"texto": "Anterior", "nota": "Conservar"},
+                },
+                "responsables": {"contenido": {}},
+            },
         ), patch("g5_programas.repository._save_section") as save_section, patch(
             "g5_programas.repository._serialize_version",
             return_value={"id": 41, "estado": "draft"},
@@ -660,6 +902,10 @@ class ApiContractTests(unittest.TestCase):
             )
             self.assertEqual(status, 200)
             save_section.assert_called_once()
+            self.assertEqual(
+                save_section.call_args.args[3],
+                {"texto": "Actualizado", "nota": "Conservar"},
+            )
 
             save_section.reset_mock()
             status, response = _asgi_request(
@@ -738,25 +984,84 @@ class ApiContractTests(unittest.TestCase):
             ]
         self.assertIn("docente_responsable_id", responsables_content["properties"])
 
-    def test_responsables_display_update_does_not_replace_assigned_teacher(self):
+    def test_responsables_display_fields_are_persisted_without_changing_teacher_id(self):
         session = Mock()
 
-        _save_section(
-            session,
-            41,
-            "responsables",
-            {"docente": "Docente asignado", "coordinador": "Coordinación"},
-            actor_id=3,
-            responsible_context={"curso_id": 1, "periodo_id": 2, "sede_id": 1},
-        )
+        with patch(
+            "g5_programas.repository._one",
+            return_value={
+                "descripcion": 'G5:{"descripcion":"Descripción","metodologia":"Método"}',
+            },
+        ):
+            _save_section(
+                session,
+                41,
+                "responsables",
+                {
+                    "docente": "Docente asignado",
+                    "decanatura": "Decanatura de Tecnología",
+                    "coordinador": "Coordinación",
+                    "revisor": "Revisor de curso",
+                },
+                actor_id=3,
+                responsible_context={"curso_id": 1, "periodo_id": 2, "sede_id": 1},
+            )
 
-        session.execute.assert_not_called()
+        updates = [
+            call for call in session.execute.call_args_list
+            if "UPDATE programa_version SET descripcion" in str(call.args[0])
+        ]
+        self.assertEqual(len(updates), 1)
+        metadata = json.loads(updates[0].args[1]["descripcion"][3:])
+        self.assertEqual(metadata["descripcion"], "Descripción")
+        self.assertEqual(metadata["metodologia"], "Método")
+        self.assertEqual(metadata["responsables"], {
+            "docente": "Docente asignado",
+            "decanatura": "Decanatura de Tecnología",
+            "coordinador": "Coordinación",
+            "revisor": "Revisor de curso",
+        })
+        self.assertFalse(any(
+            "SET docente_responsable_id" in str(call.args[0])
+            for call in session.execute.call_args_list
+        ))
+
+    def test_saving_responsables_preserves_legacy_description(self):
+        session = Mock()
+
+        with patch(
+            "g5_programas.repository._one",
+            return_value={"descripcion": "Descripción histórica"},
+        ):
+            _save_section(
+                session,
+                41,
+                "responsables",
+                {"decanatura": "Decanatura"},
+                actor_id=3,
+                responsible_context={"curso_id": 1, "periodo_id": 2, "sede_id": 1},
+            )
+
+        saved = session.execute.call_args.args[1]["descripcion"]
+        self.assertEqual(
+            json.loads(saved[3:]),
+            {
+                "descripcion": "Descripción histórica",
+                "responsables": {"decanatura": "Decanatura"},
+            },
+        )
 
     def test_responsables_assignment_requires_active_g1_course_assignment(self):
         session = Mock()
         context = {"curso_id": 1, "periodo_id": 2, "sede_id": 1}
 
-        with patch("g5_programas.repository._one", return_value={"usuario_id": 8}) as find_assignment:
+        with patch(
+            "g5_programas.repository._one",
+            side_effect=[
+                {"usuario_id": 8},
+                {"descripcion": None},
+            ],
+        ) as find_assignment:
             _save_section(
                 session,
                 41,
@@ -766,7 +1071,7 @@ class ApiContractTests(unittest.TestCase):
                 responsible_context=context,
             )
 
-        query, params = find_assignment.call_args.args[1:]
+        query, params = find_assignment.call_args_list[0].args[1:]
         self.assertIn("FROM docente_curso", query)
         self.assertIn("activo = 1", query)
         self.assertEqual(params, {
@@ -776,7 +1081,7 @@ class ApiContractTests(unittest.TestCase):
             "campus_id": 1,
         })
         self.assertEqual(
-            session.execute.call_args.args[1],
+            session.execute.call_args_list[0].args[1],
             {"responsible_id": 8, "id": 41},
         )
 
@@ -898,6 +1203,18 @@ class ApiContractTests(unittest.TestCase):
             "id": 80,
             "nombre": "Programa de curso",
             "docente_responsable_id": 1,
+            "curso_id": 1,
+            "sede_id": 1,
+        }
+        source_sections = {
+            "responsables": {
+                "contenido": {
+                    "docente_responsable_id": 1,
+                    "docente": "Docente asignado",
+                    "coordinador": "Coordinación",
+                    "decanatura": "Decanatura",
+                },
+            },
         }
 
         with patch.object(repository, "set_database_actor"), patch.object(
@@ -905,8 +1222,10 @@ class ApiContractTests(unittest.TestCase):
         ), patch.object(
             repository, "_one", return_value=source
         ), patch.object(
-            repository, "_load_sections", return_value={}
+            repository, "_load_sections", return_value=source_sections
         ), patch.object(
+            repository, "_save_section"
+        ) as save_section, patch.object(
             repository, "_require_version", return_value={"id": 92}
         ), patch.object(
             repository, "_serialize_version", return_value={"id": 92, "numero_version": 5}
@@ -923,6 +1242,15 @@ class ApiContractTests(unittest.TestCase):
         self.assertIn("docente_responsable_id", insert_sql)
         self.assertEqual(session.execute.call_args_list[1].args[1]["number"], 5)
         self.assertEqual(session.execute.call_args_list[1].args[1]["responsible_id"], 1)
+        self.assertEqual(save_section.call_args.args[2], "responsables")
+        self.assertEqual(
+            save_section.call_args.args[3],
+            {"docente": "Docente asignado", "coordinador": "Coordinación", "decanatura": "Decanatura"},
+        )
+        self.assertEqual(
+            save_section.call_args.args[5],
+            {"curso_id": 1, "periodo_id": 2, "sede_id": 1},
+        )
 
 
 if __name__ == "__main__":

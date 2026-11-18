@@ -1,6 +1,7 @@
 """Arma el PDF institucional del programa a partir de sus datos y secciones."""
 
 import json
+from html import unescape
 from io import BytesIO
 from xml.sax.saxutils import escape
 
@@ -16,6 +17,13 @@ from reportlab.platypus import (
     Table,
     TableStyle,
 )
+
+
+def _pdf_text(value) -> str:
+    if isinstance(value, (dict, list)):
+        value = json.dumps(value, ensure_ascii=False)
+    return escape(unescape(str(value if value is not None else "")))
+
 
 def flatten_data(value, prefix=""):
     """Pone los datos anidados en una lista de campos fácil de imprimir."""
@@ -75,9 +83,7 @@ def build_pdf(program, version, approval=None):
     def text(value):
         """Escapa valores de usuario antes de insertarlos en párrafos del PDF."""
         # Escapa el texto para que caracteres del usuario no se interpreten como markup.
-        if isinstance(value, (dict, list)):
-            return json.dumps(value, ensure_ascii=False)
-        return escape(str(value if value is not None else ""))
+        return _pdf_text(value)
 
     general = (
         version.get("secciones", {})

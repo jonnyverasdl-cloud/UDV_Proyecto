@@ -28,6 +28,12 @@ DbSession = Annotated[Session, Depends(get_session)]
 CurrentActor = Annotated[Actor, Depends(authenticated_actor)]
 
 
+def _teacher_scope(actor: Actor) -> int | None:
+    if "teacher" in actor.roles and not has_role(actor, "manager"):
+        return actor.id
+    return None
+
+
 # Rutas para consultar y crear programas y versiones.
 @router.get("/course-programs")
 def list_course_programs(
@@ -51,11 +57,6 @@ def list_course_programs(
 ):
     """Muestra programas paginados y permite filtrar por curso y versión."""
     require_role(actor, "reader")
-    responsible_id = (
-        actor.id
-        if "teacher" in actor.roles and not has_role(actor, "manager")
-        else None
-    )
     return repository.list_programs(
         session,
         page,
@@ -65,7 +66,7 @@ def list_course_programs(
         sede_id=sede_id,
         estado=estado,
         version=version,
-        docente_responsable_id=responsible_id,
+        docente_responsable_id=_teacher_scope(actor),
     )
 
 
@@ -80,7 +81,11 @@ def post_course_program(body: ProgramaNuevo, session: DbSession, actor: CurrentA
 def course_program(program_id: int, session: DbSession, actor: CurrentActor):
     """Muestra los datos del programa y sus versiones anteriores."""
     require_role(actor, "reader")
-    return repository.get_program(session, program_id)
+    return repository.get_program(
+        session,
+        program_id,
+        docente_responsable_id=_teacher_scope(actor),
+    )
 
 
 @router.post("/course-programs/{program_id}/versions", status_code=201)
@@ -94,7 +99,11 @@ def post_version(program_id: int, body: VersionNueva, session: DbSession, actor:
 def read_version(version_id: int, session: DbSession, actor: CurrentActor):
     """Muestra los datos de una versión y todo su contenido."""
     require_role(actor, "reader")
-    return repository.get_version(session, version_id)
+    return repository.get_version(
+        session,
+        version_id,
+        docente_responsable_id=_teacher_scope(actor),
+    )
 
 
 @router.put("/program-versions/{version_id}")
@@ -170,7 +179,16 @@ def _transition(action: str):
         require_role(actor, ACTOR_ROLES[action])
         payload = body.model_dump(exclude_unset=True) if body else {}
         comment = payload.get("comentario", payload.get("observacion"))
-        version = repository.transition(session, actor, version_id, action, comment)
+        version = repository.transition(
+            session,
+            actor,
+            version_id,
+            action,
+            comment,
+            decanatura=payload.get("decanatura"),
+            coordinador=payload.get("coordinador"),
+            revisor=payload.get("revisor"),
+        )
         return {"ok": True, "version": version}
 
     endpoint.__name__ = f"post_{action}"
@@ -189,7 +207,11 @@ router.add_api_route("/program-versions/{version_id}/authorize", _transition("au
 def version_changes(version_id: int, session: DbSession, actor: CurrentActor):
     """Muestra las diferencias con la versión anterior del mismo período."""
     require_role(actor, "reader")
-    return repository.get_changes(session, version_id)
+    return repository.get_changes(
+        session,
+        version_id,
+        docente_responsable_id=_teacher_scope(actor),
+    )
 
 
 @router.get("/program-versions/{version_id}/pdf")

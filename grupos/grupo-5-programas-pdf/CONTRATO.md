@@ -72,6 +72,10 @@ integración con el mecanismo compartido de eventos.
   también puede elaborar y enviar. Coordinación y `reviewer` pueden revisar,
   devolver y aprobar; `authority` autoriza. El backend valida estos códigos de
   rol directamente, sin depender de permisos derivados de G1.
+- Un docente solo puede consultar programas y versiones donde figura como
+  responsable. Quien creó o envió la versión no puede aprobarla.
+- Los datos del docente responsable, coordinación/revisión y Decanatura se
+  conservan con la versión para que permanezcan disponibles en el PDF.
 - Solo UNA versión autorizada y vigente por curso/sede/período.
 - Una versión autorizada es INMUTABLE: los cambios van en un borrador nuevo
   (clonación), jamás editando la vigente.
@@ -86,11 +90,19 @@ integración con el mecanismo compartido de eventos.
   El docente puede crear el primer programa y borrador, siempre asignándose
   como responsable y con una asignación activa en G1.
 - Guardar una sección no sobrescribe las demás; las filas mantienen su orden.
+- En un PUT de sección, los campos omitidos de cada objeto con el mismo orden
+  se conservan; los registros que no se envían se eliminan y una lista vacía
+  elimina todos los registros de esa sección.
+- Las fechas y horas de la API se responden en UTC con sufijo `Z`; la pantalla
+  las muestra en la zona `America/Guatemala`.
+- Las secciones que la API representa como listas se envían y reciben como
+  listas. Si falla el guardado de una sección, la pantalla informa cuál falló y
+  detiene las solicitudes siguientes.
 - La suma de ponderaciones de evaluación se valida (100%) cuando ese sea el
   esquema.
 - El PDF se genera desde los datos autorizados — nunca de un borrador —, y
   registra versión, fecha y aprobación de origen. Regenerarlo produce el
-  mismo contenido funcional.
+  mismo contenido funcional y representa correctamente caracteres como `&`.
 - Una devolución conserva sus observaciones.
 - La versión se vincula a la asignación (G3) que originó su actualización, y
   una entrega del G4 puede referenciar `program_version_id`.
@@ -116,3 +128,4 @@ integración con el mecanismo compartido de eventos.
 | 2026-09-26 | Versión inicial | — | PM |
 | 2026-09-28 | Jerarquía de fuentes; prefijo `/api/v1`; tabla de endpoints completada con las rutas del .docx; **nuevo** `POST /program-versions/{id}/review` (el estado `under_review` no tenía acción); tabla de transiciones de programa; evento requerido; reglas de versionado del .docx que faltaban; checklist con pruebas y OpenAPI | PM | PM |
 | 2026-11-13 | Docente elabora y envía; coordinación y revisor aprueban; dirección autoriza | Decisión del PM con el ingeniero | PM |
+| 2026-11-16 | Listas del formulario alineadas con la API; responsables persistidos; lectura docente limitada a sus versiones; quien crea o envía no aprueba; texto del PDF normaliza entidades HTML | Auditoría de integración | PM |

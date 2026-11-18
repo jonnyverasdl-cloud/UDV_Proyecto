@@ -88,6 +88,9 @@ class EvaluacionSeccion(G5Request):
 class TransicionVersion(G5Request):
     comentario: str | None = None
     observacion: str | None = None
+    decanatura: str | None = None
+    coordinador: str | None = None
+    revisor: str | None = None
 
 
 class SeccionActualizacion(G5Request):

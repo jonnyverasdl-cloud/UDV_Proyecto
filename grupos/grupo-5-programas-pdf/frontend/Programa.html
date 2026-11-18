@@ -27,11 +27,11 @@
         <p>Programación Web</p>
 
         <nav>
-          <a href="#">Resumen</a>
-          <a href="#">Inbox</a>
-          <a href="#">Crear tarea</a>
-          <a href="#" class="active">Programa de curso</a>
-          <a href="#">API REST</a>
+          <a href="/app/">Inicio</a>
+          <a href="/app/g4/inbox.html">Inbox</a>
+          <a href="/app/g3/">Crear tarea</a>
+          <a href="/app/g5/Programa.html" class="active" aria-current="page">Programa de curso</a>
+          <a href="/api/v1/docs">API REST</a>
         </nav>
       </aside>
 
@@ -51,14 +51,11 @@
             </div>
 
             <p id="save-status">Cargando programa...</p>
+            <p id="version-updated"></p>
           </div>
 
           <div class="header-actions">
-            <div class="role-selector">
-              <label for="role">Rol activo</label>
-              <select id="role" class="role"></select>
-            </div>
-            <a class="btn-udv btn-udv-outline" href="/app/">Volver al portal</a>
+            <a href="/app/">Volver al portal</a>
           </div>
         </header>
 
@@ -112,6 +109,16 @@
                 placeholder="Escriba el nombre del coordinador académico"
               />
             </div>
+
+            <div class="field">
+              <label for="reviewer-name"> Revisor </label>
+
+              <input
+                type="text"
+                id="reviewer-name"
+                placeholder="Escriba el nombre del revisor"
+              />
+            </div>
           </div>
         </section>
 
@@ -148,35 +155,31 @@
                 <div class="field">
                   <label for="course-code"> Código </label>
 
-                  <input type="text" id="course-code" placeholder="PW-001" />
+                  <input type="text" id="course-code" />
                 </div>
 
                 <div class="field">
                   <label for="course"> Asignatura </label>
 
-                  <input type="text" id="course" placeholder="Programación Web" />
+                  <input type="text" id="course" />
                 </div>
 
                 <div class="field">
                   <label for="program-name"> Programa </label>
 
-                  <input
-                    type="text"
-                    id="program-name"
-                    placeholder="Ingeniería en Sistemas"
-                  />
+                  <input type="text" id="program-name" />
                 </div>
 
                 <div class="field">
                   <label for="department"> Departamento </label>
 
-                  <input type="text" id="department" placeholder="Tecnología" />
+                  <input type="text" id="department" />
                 </div>
 
                 <div class="field">
                   <label for="faculty"> Facultad </label>
 
-                  <input type="text" id="faculty" placeholder="Ingeniería" />
+                  <input type="text" id="faculty" />
                 </div>
 
                 <div class="field">
@@ -194,19 +197,20 @@
                 <div class="field">
                   <label for="term"> Ciclo </label>
 
-                  <input type="text" id="term" placeholder="Segundo ciclo" />
+                  <input type="text" id="term" />
                 </div>
 
                 <div class="field">
                   <label for="year"> Año </label>
 
-                  <input type="number" id="year" placeholder="2026" />
+                  <input type="number" id="year" />
                 </div>
 
                 <div class="field">
                   <label for="level"> Nivel </label>
 
                   <select id="level">
+                    <option value="" selected disabled>Selecciona un nivel</option>
                     <option>Licenciatura</option>
 
                     <option>Técnico</option>
@@ -219,6 +223,7 @@
                   <label for="modality"> Modalidad </label>
 
                   <select id="modality">
+                    <option value="" selected disabled>Selecciona una modalidad</option>
                     <option>Presencial</option>
 
                     <option>Virtual</option>
@@ -230,19 +235,19 @@
                 <div class="field">
                   <label for="credits"> Créditos </label>
 
-                  <input type="number" id="credits" placeholder="4" />
+                  <input type="number" id="credits" />
                 </div>
 
                 <div class="field">
                   <label for="hours"> Horas </label>
 
-                  <input type="number" id="hours" placeholder="64" />
+                  <input type="number" id="hours" />
                 </div>
 
                 <div class="field">
                   <label for="campus"> Sede </label>
 
-                  <input type="text" id="campus" placeholder="Campus Central" />
+                  <input type="text" id="campus" />
                 </div>
               </div>
             </div>
@@ -251,7 +256,7 @@
             <div id="prerequisites" class="section">
               <h3>Prerrequisitos</h3>
 
-              <p>Asignaturas necesarias antes de cursar Programación Web.</p>
+              <p>Asignaturas necesarias antes de cursar esta asignatura.</p>
 
               <div class="table-container">
                 <table>
@@ -263,21 +268,7 @@
                     </tr>
                   </thead>
 
-                  <tbody>
-                    <tr>
-                      <td>
-                        <input type="text" placeholder="Programación II" />
-                      </td>
-
-                      <td>
-                        <input type="text" placeholder="PRG-002" />
-                      </td>
-
-                      <td>
-                        <input type="number" placeholder="1" />
-                      </td>
-                    </tr>
-                  </tbody>
+                  <tbody></tbody>
                 </table>
               </div>
             </div>
@@ -304,22 +295,11 @@
 
               <div class="form">
                 <div class="field full">
-                  <label for="general-competency"> Competencia general </label>
+                  <label for="competencies-data">Competencias (formato JSON)</label>
 
                   <textarea
-                    id="general-competency"
-                    placeholder="Desarrolla aplicaciones web funcionales utilizando buenas prácticas de programación."
-                  ></textarea>
-                </div>
-
-                <div class="field full">
-                  <label for="specific-competencies">
-                    Competencias específicas
-                  </label>
-
-                  <textarea
-                    id="specific-competencies"
-                    placeholder="Diseña APIs REST, utiliza bases de datos y desarrolla interfaces web."
+                    id="competencies-data"
+                    placeholder='[{"tipo":"general","descripcion":"Competencia general"},{"tipo":"especifica","descripcion":"Competencia específica"}]'
                   ></textarea>
                 </div>
               </div>
@@ -330,20 +310,13 @@
               <h3>Perfil de egreso</h3>
 
               <div class="form">
-                <div class="field">
-                  <label for="profile-code"> Código </label>
+                <div class="field full">
+                  <label for="profile-data">Perfiles de egreso (formato JSON)</label>
 
-                  <input type="text" id="profile-code" placeholder="PE-01" />
-                </div>
-
-                <div class="field">
-                  <label for="profile-contribution"> Contribución </label>
-
-                  <input
-                    type="text"
-                    id="profile-contribution"
-                    placeholder="Desarrollo de soluciones tecnológicas"
-                  />
+                  <textarea
+                    id="profile-data"
+                    placeholder='[{"perfil_egreso_id":1,"orden":1,"contribucion":"Contribución al perfil"}]'
+                  ></textarea>
                 </div>
               </div>
             </div>
@@ -370,11 +343,14 @@
 
               <div class="form">
                 <div class="field full">
-                  <label for="contents-text">
-                    Unidades y temas
+                  <label for="contents-data">
+                    Unidades y temas (formato JSON)
                   </label>
 
-                  <textarea id="contents-text"></textarea>
+                  <textarea
+                    id="contents-data"
+                    placeholder='[{"orden":1,"titulo":"Unidad 1","horas":8,"items":[{"item":"Tema 1","descripcion":"Descripción"}]}]'
+                  ></textarea>
                 </div>
               </div>
             </div>
@@ -385,11 +361,14 @@
 
               <div class="form">
                 <div class="field full">
-                  <label for="bibliography-text">
-                    Referencias bibliográficas
+                  <label for="bibliography-data">
+                    Referencias bibliográficas (formato JSON)
                   </label>
 
-                  <textarea id="bibliography-text"></textarea>
+                  <textarea
+                    id="bibliography-data"
+                    placeholder='[{"orden":1,"tipo":"basica","referencia":"Autor. Título","isbn":"","url":""}]'
+                  ></textarea>
                 </div>
               </div>
             </div>
@@ -399,22 +378,13 @@
               <h3>Evaluación</h3>
 
               <div class="form">
-                <div class="field">
-                  <label for="midterm-assessment"> Evaluación parcial </label>
+                <div class="field full">
+                  <label for="evaluation-data">Actividades de evaluación (formato JSON)</label>
 
-                  <input type="text" id="midterm-assessment" placeholder="30%" />
-                </div>
-
-                <div class="field">
-                  <label for="final-assessment"> Evaluación final </label>
-
-                  <input type="text" id="final-assessment" placeholder="40%" />
-                </div>
-
-                <div class="field">
-                  <label for="project-assessment"> Proyecto </label>
-
-                  <input type="text" id="project-assessment" placeholder="30%" />
+                  <textarea
+                    id="evaluation-data"
+                    placeholder='[{"orden":1,"nombre":"Parcial 1","descripcion":"","ponderacion":30,"semana":5}]'
+                  ></textarea>
                 </div>
               </div>
             </div>
